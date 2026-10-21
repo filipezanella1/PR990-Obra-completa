@@ -1,0 +1,14 @@
+{
+  "name": "painel-pr990",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Painel de quantidades e valores por trecho da PR-990 (PR-364 – Rebouças): consumo real dos projetos × planilha contratual",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/compare.mjs data/ref_painel.json",
+    "perf": "node tests/perf.mjs",
+    "start": "python3 -m http.server 8000",
+    "bundle": "python3 tools/bundle.py"
+  },
+  "license": "UNLICENSED"
+}

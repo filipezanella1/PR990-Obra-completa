@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel PR-990</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Quantidades e valores por trecho da PR-990 (PR-364 – Rebouças): consumo real dos projetos × planilha contratual.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
+<!--CSS--><link rel="stylesheet" href="src/style.css"><!--/CSS-->
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="shield">PR-990</span><h1>Painel de quantidades</h1><span class="sub">PR-364 → Rebouças · km 0+000 a 12+883,96</span></div>
+    <nav class="tabs" aria-label="Seções">
+      <a href="#painel" aria-current="page">Painel</a>
+      <a href="#contrato">Contrato × projeto</a>
+      <a href="#discrepancias">Discrepâncias</a>
+      <a href="#base">Base de dados</a>
+      <a href="#sobre">Sobre</a>
+    </nav>
+    <button class="theme-btn" id="theme" type="button">Tema do sistema</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="loading" id="boot">Carregando a base do contrato…</p>
+  <div id="app" hidden>
+
+  <!-- =============================== PAINEL -->
+  <section class="view" id="v-painel">
+    <div class="selector">
+      <div class="sel-inputs">
+        <div class="est-field"><span class="label">Estaca inicial</span>
+          <div class="est-input"><input id="ei" inputmode="numeric" aria-label="Estaca inicial"><span>+</span><input id="mi" class="m" inputmode="decimal" aria-label="Metros da estaca inicial"></div></div>
+        <div class="est-field"><span class="label">Estaca final</span>
+          <div class="est-input"><input id="ef" inputmode="numeric" aria-label="Estaca final"><span>+</span><input id="mf" class="m" inputmode="decimal" aria-label="Metros da estaca final"></div></div>
+        <div class="est-field"><span class="label">Atalhos</span>
+          <div class="presets"><button class="chip" data-preset="all" type="button">Trecho inteiro</button><button class="chip" data-preset="S01" type="button">S01</button><button class="chip" data-preset="S02" type="button">S02 · IN-01</button></div></div>
+        <div class="sel-status"><div class="big mono" id="sel-big"></div><div class="small" id="sel-small"></div><div class="err" id="sel-err"></div></div>
+      </div>
+      <div class="strip-wrap">
+        <div class="strip" id="strip" title="Arraste sobre a faixa para escolher o trecho"></div>
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="prem">
+        <span class="label" style="color:#aab3bb">Premissas</span>
+        <label for="p-cap">Teor de CAP executado <input id="p-cap" inputmode="decimal"> %</label>
+        <label for="p-eai">Taxa de EAI <input id="p-eai" inputmode="decimal"> kg/m²</label>
+        <label for="p-rr">Taxa de RR-1C <input id="p-rr" inputmode="decimal"> kg/m²</label>
+        <span>Contrato: CAP 5,7%</span>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="row2">
+      <div class="panel"><h2>Resumo por disciplina</h2><div class="tbl-wrap" id="summary"></div>
+        <div class="legend" style="margin-top:10px"><span><b class="real">Consumo real</b> = quantidades encontradas nos projetos × preço do contrato</span><span><b class="contr">Ajustado</b> = quantidade do contrato repartida no trecho</span></div></div>
+      <div class="panel" style="display:grid;gap:16px;align-content:start">
+        <div><h2>Dados do trecho</h2><div id="info" style="margin-top:8px"></div></div>
+        <div><h3>Indicadores geométricos (GM-1)</h3><div id="geo" style="margin-top:8px"></div></div>
+      </div>
+    </div>
+
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="det-tools">
+        <h2 style="margin-right:auto">Detalhamento por serviço</h2>
+        <input type="search" id="det-q" placeholder="Buscar serviço, código ou fonte">
+        <label><input type="checkbox" id="det-zero" checked> Ocultar linhas zeradas</label>
+        <button class="btn primary" id="det-csv" type="button">Exportar trecho (CSV)</button>
+      </div>
+      <div class="legend"><span><span class="pill p">PROJETO</span> quantidade encontrada nos projetos</span><span><span class="pill m">MEMÓRIA</span> total da memória, sem localização, repartido</span><span><span class="pill c">CONTRATO</span> sem quantidade no projeto, vale o contrato</span></div>
+      <div id="detail"></div>
+    </div>
+  </section>
+
+  <!-- =============================== CONTRATO × PROJETO -->
+  <section class="view" id="v-contrato" hidden>
+    <div><h2>Contrato × projeto</h2><p class="note">Os 269 itens da planilha contratual (medição provisória ago/2026) confrontados com as quantidades e consumos encontrados nos projetos, no trecho inteiro. Os valores acompanham as premissas do painel.</p></div>
+    <div class="kpis" id="c-kpis"></div>
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="filters">
+        <input type="search" id="c-q" placeholder="Buscar serviço, código ou observação">
+        <select id="c-grp" aria-label="Grupo"></select>
+        <select id="c-sit" aria-label="Situação"></select>
+        <select id="c-ord" aria-label="Ordem"><option value="planilha">Ordem da planilha</option><option value="dif">Maior diferença em R$</option><option value="pct">Maior diferença em %</option></select>
+        <button class="btn" id="c-csv" type="button">Exportar (CSV)</button>
+      </div>
+      <div class="note" id="c-count"></div>
+      <div class="tbl-wrap"><table class="cmp"><thead><tr><th>Linha</th><th>Código</th><th>Serviço</th><th>Un</th><th class="n">Contrato</th><th class="n">Memória</th><th class="n">Consumo real</th><th class="n">Dif. %</th><th class="n">Preço</th><th class="n">Valor contrato</th><th class="n">Valor real</th><th class="n">Real − contrato</th><th>Situação</th><th>Observação</th></tr></thead><tbody id="c-body"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- =============================== DISCREPÂNCIAS -->
+  <section class="view" id="v-discrepancias" hidden>
+    <div><h2>Discrepâncias</h2><p class="note">Divergências entre contrato, memórias e projetos, com o impacto a preço do contrato (consumo real − contrato) no trecho inteiro.</p></div>
+    <div class="panel"><h3>Contrato × projeto: principais divergências de quantidade</h3><div id="d1"></div></div>
+    <div class="panel"><h3>Serviços do projeto sem item no contrato</h3><div class="tbl-wrap" id="d2"></div></div>
+    <div class="panel"><h3>Inconsistências internas das memórias e pranchas</h3><div class="tbl-wrap" id="d3"></div></div>
+    <div class="panel"><h3>Verificações da base</h3><div class="tbl-wrap" id="checks"></div></div>
+  </section>
+
+  <!-- =============================== BASE -->
+  <section class="view" id="v-base" hidden>
+    <div><h2>Base de dados</h2><p class="note">Todas as tabelas por estaca que alimentam o painel, a planilha contratual e os quadros das memórias. As quantidades de cada trecho são calculadas a partir destas tabelas.</p></div>
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="filters">
+        <select id="b-sheet" aria-label="Tabela"></select>
+        <input type="search" id="b-q" placeholder="Filtrar linhas">
+        <button class="btn" id="b-dl" type="button">Baixar tabela (CSV)</button>
+        <button class="btn" id="b-json" type="button">Baixar base completa (JSON)</button>
+      </div>
+      <div class="pager"><button class="btn" id="b-prev" type="button">Anterior</button><span id="b-info"></span><button class="btn" id="b-next" type="button">Próxima</button></div>
+      <div class="tbl-wrap" id="b-table"></div>
+    </div>
+  </section>
+
+  <!-- =============================== SOBRE -->
+  <section class="view" id="v-sobre" hidden>
+    <div class="panel" style="display:grid;gap:10px;max-width:900px">
+      <h2>Como o painel calcula</h2>
+      <p>Cada serviço é apurado a partir das tabelas por estaca dos projetos (pavimentação, terraplenagem REV04, drenagem DR-3/4/5/9, sinalização, paisagismo, obras complementares, contenções CO-2, OAE, iluminação, interferências IT-2) e das memórias justificativas (Tomos II e III). Quantidades distribuídas entre duas estacas entram na proporção da parte do intervalo que cai no trecho; itens pontuais entram quando a estaca está no trecho (início incluído, fim excluído, exceto na estaca final da obra).</p>
+      <p><b class="real">Consumo real</b>: quantidade encontrada no projeto × preço unitário do contrato. Onde o serviço não tem quantidade no projeto, vale a quantidade do contrato, repartida pelo serviço que o comanda ou pela extensão. <b class="contr">Ajustado ao contrato</b>: quantidade da planilha contratual repartida no trecho pelo mesmo critério; no trecho inteiro soma R$ 87.300.000,00.</p>
+      <p>Regras de medição: mobilização entra quando a seleção chega à estaca final 642+15,817; melhorias ambientais (medição mensal) só com o trecho completo. O teor de CAP e as taxas de ligantes são premissas editáveis.</p>
+      <p class="note">As fórmulas são as mesmas da planilha <code>quantidades_por_estaca_PR-990.xlsx</code>, avaliadas no navegador por um motor próprio e conferidas célula a célula com o Excel/LibreOffice em vários trechos.</p>
+    </div>
+  </section>
+  </div>
+</main>
+<footer class="wrap">PR-990 · Projeto Executivo de Implantação entre a PR-364 e Rebouças · contrato R$ 87.300.000,00 (medição provisória ago/2026)</footer>
+<!--JS--><script type="module" src="src/app.js"></script><!--/JS-->
+</body>
+</html>
