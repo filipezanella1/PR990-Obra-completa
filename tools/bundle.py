@@ -8,8 +8,9 @@ eng = (root / 'src/engine.js').read_text(encoding='utf-8')
 app = (root / 'src/app.js').read_text(encoding='utf-8')
 eng = re.sub(r'^export \{[^}]*\};?\s*$', '', eng, flags=re.M).replace('export class ', 'class ')
 app = re.sub(r"^import .*?;\s*$", '', app, flags=re.M)
-data = {k: json.loads((root / f'data/{f}.json').read_text(encoding='utf-8')) for k, f in (('model', 'model'), ('base', 'base'), ('painel', 'painel'))}
+data = {k: json.loads((root / f'data/{f}.json').read_text(encoding='utf-8')) for k, f in (('model', 'model'), ('base', 'base'), ('painel', 'painel'), ('insumos', 'insumos'))}
 payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+html = re.sub(r'<!--PWA-->.*?<!--/PWA-->', '', html, flags=re.S)
 html = re.sub(r'<!--CSS-->.*?<!--/CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)
 html = re.sub(r'<!--JS-->.*?<!--/JS-->', lambda m: '<script>window.__PR990__=' + payload + ';</script>\n<script type="module">\n' + eng + '\n' + app + '\n</script>', html, flags=re.S)
 out = root / 'dist'; out.mkdir(exist_ok=True)

@@ -9,9 +9,22 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 | Aba | Conteúdo |
 |---|---|
 | **Painel** | Seleção do trecho por estaca + metros, ou arrastando na faixa de estaqueamento. Premissas editáveis (teor de CAP, taxas de EAI e RR-1C). Indicadores e resumo por disciplina. Dados do trecho e indicadores geométricos. Detalhamento de cada serviço com as quantidades do projeto (LE / LD / total), o **consumo real** e o valor **ajustado ao contrato**. Exportação do trecho em CSV. |
+| **Insumos** | Diesel, materiais, horas de equipamento e mão de obra no trecho pelas CPUs do contrato (abertas até os insumos): indicadores, principais insumos, consumo por serviço e lista de todos os insumos, com exportação em CSV. O Painel também mostra os principais insumos do trecho. |
 | **Contrato × projeto** | Os 269 itens do contrato com a quantidade contratual, o total impresso nos quadros da memória, o consumo real, a diferença em quantidade, em % e em R$, a situação de cada item e uma observação. Tem filtros, ordenação e exportação em CSV. |
 | **Discrepâncias** | As principais divergências com o impacto em R$, os serviços do projeto sem item no contrato, as inconsistências internas das memórias e pranchas e verificações automáticas da base. |
 | **Base de dados** | Todas as tabelas por estaca: terraplenagem, pavimentação, drenagem, sinalização, paisagismo, obras complementares, contenções, OAE, iluminação, interferências e geometria. Também a planilha contratual e os quadros da memória, com filtro e download em CSV ou JSON. |
+
+## No celular
+
+O app se adapta à tela do celular (abas na barra inferior, tabelas em cartões, campos e botões do tamanho do dedo) e pode ser **instalado** como aplicativo:
+
+- **Android (Chrome, Edge, Samsung Internet):** abra o endereço do GitHub Pages e toque em **Instalar app** no topo, ou no menu ⋮ → *Instalar app* / *Adicionar à tela inicial*.
+- **iPhone / iPad (Safari):** toque em **Compartilhar** → **Adicionar à Tela de Início**. O botão *Instalar app* mostra esse passo a passo.
+- **Computador (Chrome/Edge):** ícone de instalar na barra de endereço.
+
+Depois de aberto uma vez, o app e a base ficam guardados no aparelho e **funcionam sem internet** (service worker `sw.js`). A cada publicação o workflow troca a versão do cache; quando houver versão nova, o app mostra **Atualizar**.
+
+A instalação exige HTTPS, que o GitHub Pages já fornece. A versão de arquivo único (`dist/painel-pr990.html`) também é responsiva, mas não é instalável.
 
 ## Publicar no GitHub Pages
 
@@ -78,10 +91,13 @@ npm test                                                                  # conf
 
 ```
 index.html            app
+manifest.webmanifest  dados do app instalável (nome, ícones, cores)
+sw.js                 service worker: funcionamento offline e atualização
+icons/                ícones do app (192, 512, maskable, iPhone)
 src/engine.js         motor de fórmulas (navegador e Node)
 src/app.js            interface
 src/style.css         estilos
-data/                 base em JSON + planilha .xlsx de origem
+data/                 base em JSON (inclusive insumos.json, consumos das CPUs) + planilha .xlsx de origem
 dist/                 versão de arquivo único (gerada)
 tests/                conferência do motor e desempenho
 tools/                exportação da planilha e empacotamento

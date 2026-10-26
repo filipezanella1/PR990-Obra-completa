@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Painel PR-990</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<!--PWA--><link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a3036">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PR-990">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"><!--/PWA-->
 <meta name="description" content="Quantidades e valores por trecho da PR-990 (PR-364 – Rebouças): consumo real dos projetos × planilha contratual.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,16 +24,25 @@
   <div class="wrap">
     <div class="brand"><span class="shield">PR-990</span><h1>Painel de quantidades</h1><span class="sub">PR-364 → Rebouças · km 0+000 a 12+883,96</span></div>
     <nav class="tabs" aria-label="Seções">
-      <a href="#painel" aria-current="page">Painel</a>
-      <a href="#contrato">Contrato × projeto</a>
-      <a href="#discrepancias">Discrepâncias</a>
-      <a href="#base">Base de dados</a>
-      <a href="#sobre">Sobre</a>
+      <a href="#painel" aria-current="page"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4v8H3zM10 8h4v13h-4zM17 3h4v18h-4z"/></svg><span class="lg">Painel</span><span class="sm">Painel</span></a>
+      <a href="#insumos"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v4l-2 3v11H9V10L7 7zM7 7h10M12 13v4"/></svg><span class="lg">Insumos</span><span class="sm">Insumos</span></a>
+      <a href="#contrato"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/></svg><span class="lg">Contrato × projeto</span><span class="sm">Contrato</span></a>
+      <a href="#discrepancias"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span class="lg">Discrepâncias</span><span class="sm">Discrep.</span></a>
+      <a href="#base"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="lg">Base de dados</span><span class="sm">Base</span></a>
+      <a href="#sobre"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7.5v.5"/></svg><span class="lg">Sobre</span><span class="sm">Sobre</span></a>
     </nav>
-    <button class="theme-btn" id="theme" type="button">Tema do sistema</button>
+    <div class="top-actions">
+      <button class="install-btn" id="install" type="button" hidden>Instalar app</button>
+      <button class="theme-btn" id="theme" type="button">Tema do sistema</button>
+    </div>
   </div>
 </header>
 
+<div class="ios-tip" id="ios-tip" hidden role="dialog" aria-label="Instalar no iPhone">
+  <p><b>Instalar no iPhone/iPad:</b> toque em <span class="ios-share" aria-label="Compartilhar">⬆︎</span> <b>Compartilhar</b> no Safari e depois em <b>Adicionar à Tela de Início</b>.</p>
+  <button class="btn" id="ios-tip-x" type="button">Entendi</button>
+</div>
+<div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
 <main class="wrap">
   <p class="loading" id="boot">Carregando a base do contrato…</p>
   <div id="app" hidden>
@@ -66,6 +83,12 @@
       </div>
     </div>
 
+    <div class="panel">
+      <div class="ins-head"><h2>Principais insumos no trecho</h2><a href="#insumos" class="btn">Ver insumos por serviço →</a></div>
+      <div class="note">Consumo pelas CPUs do contrato, com as quantidades do projeto no trecho. Acompanha o trecho e as premissas.</div>
+      <div class="ins-grid" id="ins-main"></div>
+    </div>
+
     <div class="panel" style="display:grid;gap:12px">
       <div class="det-tools">
         <h2 style="margin-right:auto">Detalhamento por serviço</h2>
@@ -75,6 +98,27 @@
       </div>
       <div class="legend"><span><span class="pill p">PROJETO</span> quantidade encontrada nos projetos</span><span><span class="pill m">MEMÓRIA</span> total da memória, sem localização, repartido</span><span><span class="pill c">CONTRATO</span> sem quantidade no projeto, vale o contrato</span></div>
       <div id="detail"></div>
+    </div>
+  </section>
+
+  <!-- =============================== INSUMOS -->
+  <section class="view" id="v-insumos" hidden>
+    <div><h2>Insumos e diesel</h2><p class="note">Consumo de materiais, equipamentos, mão de obra e diesel dos serviços no trecho escolhido no Painel (<span id="i-trecho"></span>), pelas CPUs do contrato abertas até os insumos (inclusive CPUs auxiliares). Diesel = horas produtivas × litros/hora da memória de diesel por equipamento + diesel da usina de CBUQ.</p></div>
+    <div class="kpis" id="i-kpis"></div>
+    <div class="panel"><h3>Principais insumos</h3><div class="tbl-wrap" id="i-main"></div></div>
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="det-tools">
+        <h3 style="margin-right:auto">Diesel e insumos por serviço</h3>
+        <input type="search" id="i-q" placeholder="Buscar serviço ou código">
+        <button class="btn primary" id="i-csv" type="button">Exportar (CSV)</button>
+      </div>
+      <div id="i-serv"></div>
+    </div>
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="det-tools"><h3 style="margin-right:auto">Todos os insumos no trecho</h3>
+        <select id="i-grp" aria-label="Grupo"><option value="">Todos os grupos</option><option>Material</option><option>Diesel</option><option>Equipamento</option><option>Mão de obra</option><option>Transporte</option></select>
+        <input type="search" id="i-q2" placeholder="Filtrar insumo"></div>
+      <div class="tbl-wrap" id="i-all"></div>
     </div>
   </section>
 

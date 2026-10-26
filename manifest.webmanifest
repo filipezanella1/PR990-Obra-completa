@@ -1,0 +1,22 @@
+{
+  "name": "Painel PR-990 – quantidades e contrato",
+  "short_name": "PR-990",
+  "description": "Quantidades e valores por trecho da PR-990 (PR-364 – Rebouças): consumo real dos projetos × planilha contratual.",
+  "id": "./",
+  "start_url": "./#painel",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "background_color": "#2a3036",
+  "theme_color": "#2a3036",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Contrato × projeto", "url": "./#contrato", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Discrepâncias", "url": "./#discrepancias", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -34,8 +34,8 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel] = await Promise.all([get('model.json'), get('base.json'), get('painel.json')]);
-  return { model, base, painel };
+  const [model, base, painel, insumos] = await Promise.all([get('model.json'), get('base.json'), get('painel.json'), get('insumos.json')]);
+  return { model, base, painel, insumos };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -98,7 +98,8 @@ function recalc() {
   $('#sel-err').textContent = err ? '⚠ ' + err : '';
   $('#sel-big').textContent = `${C('G7')}  →  ${C('G8')}`;
   $('#sel-small').textContent = err ? '' : `${NF[2].format(num(C(M.meta.sel)))} m · ${NF[1].format(num(C(M.meta.frac)) * 100)}% da obra`;
-  renderKPIs(); renderSummary(); renderInfo(); renderDetail();
+  renderKPIs(); renderSummary(); renderInfo(); renderDetail(); renderInsMain();
+  if (current === 'insumos') renderIns();
   if (current === 'discrepancias') renderDisc();
   if (current === 'contrato') renderCmp();
 }
@@ -116,7 +117,7 @@ function renderSummary() {
   const max = Math.max(1, ...rows.map(r => Math.max(r.real, r.adj)));
   const totR = rows.reduce((s, r) => s + r.real, 0), totA = rows.reduce((s, r) => s + r.adj, 0);
   $('#summary').innerHTML = `<table class="sumtbl"><thead><tr><th>Disciplina</th><th class="n">Consumo real</th><th class="n">Ajustado ao contrato</th><th class="n">Real − ajustado</th><th style="width:22%">Real <span class="real">■</span> × contrato <span class="contr">|</span></th></tr></thead><tbody>` +
-    rows.map(r => `<tr><td><a href="#painel" data-goto="disc-${r.i}">${esc(r.d.curto)}</a></td><td class="n">${fR(r.real)}</td><td class="n contr">${fR(r.adj)}</td><td class="n ${r.real - r.adj < -0.005 ? 'neg' : ''}">${fRs(r.real - r.adj)}</td>
+    rows.map(r => `<tr><td><a href="#painel" data-goto="disc-${r.i}">${esc(r.d.curto)}</a></td><td class="n" data-l="Real">${fR(r.real)}</td><td class="n contr" data-l="Ajustado">${fR(r.adj)}</td><td class="n ${r.real - r.adj < -0.005 ? 'neg' : ''}" data-l="Real − ajustado">${fRs(r.real - r.adj)}</td>
       <td><div class="bar"><i class="r" style="width:${r.real / max * 100}%"></i><i class="c" style="width:${r.adj / max * 100}%"></i></div></td></tr>`).join('') +
     `<tr class="tot"><td>Total do trecho</td><td class="n real">${fR(totR)}</td><td class="n contr">${fR(totA)}</td><td class="n ${totR - totA < 0 ? 'neg' : ''}">${fRs(totR - totA)}</td><td class="n">${totA ? fP(totR / totA - 1) : ''}</td></tr></tbody></table>`;
   $('#summary').querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); const el = document.getElementById(a.dataset.goto); el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
@@ -147,9 +148,9 @@ function renderDetail() {
       const base = l.ct ? (l.memq ? '<span class="pill m">MEMÓRIA</span>' : l.base === 'PROJETO' ? '<span class="pill p">PROJETO</span>' : '<span class="pill c">CONTRATO</span>') : '';
       const fonte = (l.fonte || '').replace(/^(Projeto \(memória, total\)|Projeto|Contrato) · /, '');
       const cls = ['it', l.ct ? 'ct' : '', l.rateio ? 'rateio' : '', zero ? 'zero' : ''].join(' ');
-      rows += `<tr class="${cls}" id="row-${r}"><td class="code">${esc(l.c)}</td><td class="svc">${esc(l.n)}</td><td>${esc(l.u)}</td>` +
-        (l.proj ? `<td class="n">${l.le ? fQ(C('E' + r)) : ''}</td><td class="n">${l.ld ? fQ(C('F' + r)) : ''}</td><td class="n"><b>${fQ(G)}</b></td>` : '<td></td><td></td><td></td>') +
-        (l.ct ? `<td class="n ${l.base === 'PROJETO' ? 'real' : 'contr'}"><b>${fQ(H)}</b></td><td class="n">${NF[2].format(num(C('I' + r)))}</td><td class="n">${fR(C('J' + r))}</td><td class="n contr">${fQ(C('K' + r))}</td><td class="n contr">${fR(C('P' + r))}</td><td class="n ${num(C('Q' + r)) < -0.005 ? 'neg' : ''}">${fRs(C('Q' + r))}</td>` : '<td></td><td></td><td></td><td></td><td></td><td></td>') +
+      rows += `<tr class="${cls}" id="row-${r}"><td class="code">${esc(l.c)}</td><td class="svc">${esc(l.n)}</td><td class="un" data-l="Un">${esc(l.u)}</td>` +
+        (l.proj ? `<td class="n" data-l="LE">${l.le ? fQ(C('E' + r)) : ''}</td><td class="n" data-l="LD">${l.ld ? fQ(C('F' + r)) : ''}</td><td class="n" data-l="Projeto"><b>${fQ(G)}</b></td>` : '<td></td><td></td><td></td>') +
+        (l.ct ? `<td class="n ${l.base === 'PROJETO' ? 'real' : 'contr'}" data-l="Qtd. real"><b>${fQ(H)}</b></td><td class="n" data-l="Preço">${NF[2].format(num(C('I' + r)))}</td><td class="n" data-l="Valor real">${fR(C('J' + r))}</td><td class="n contr" data-l="Qtd. ajustada">${fQ(C('K' + r))}</td><td class="n contr" data-l="Valor ajustado">${fR(C('P' + r))}</td><td class="n ${num(C('Q' + r)) < -0.005 ? 'neg' : ''}" data-l="Real − ajustado">${fRs(C('Q' + r))}</td>` : '<td></td><td></td><td></td><td></td><td></td><td></td>') +
         `<td class="src">${base} ${esc(fonte)}</td></tr>`;
     }
     if (q && !shown) return;
@@ -208,11 +209,11 @@ function renderCmp() {
   for (const r of list) {
     if (ord === 'planilha' && r.grupo !== lastG) { h += `<tr class="grp"><td colspan="14">${esc(r.grupo)}</td></tr>`; lastG = r.grupo; }
     const memDiff = r.memoria !== null && Math.abs(r.memoria - r.qtd) > 0.005 * Math.max(1, Math.abs(r.qtd));
-    h += `<tr><td class="code">${r.linha}</td><td class="code">${esc(r.codigo)}</td><td>${esc(r.servico)}</td><td>${esc(r.un)}</td>
-      <td class="n contr">${fQ(r.qtd)}</td><td class="n" ${r.memoria_ref ? `title="${esc(r.memoria_ref)}"` : ''}>${r.memoria === null ? '' : (memDiff ? '<b>' + fQ(r.memoria) + '</b>' : fQ(r.memoria))}</td>
-      <td class="n real"><b>${r.real === null ? '' : fQ(r.real)}</b></td><td class="n">${fP(r.pct)}</td><td class="n">${NF[2].format(r.preco)}</td>
-      <td class="n">${fR(r.valor)}</td><td class="n">${fR(r.vreal)}</td><td class="n ${r.dif < -0.005 ? 'neg' : ''}">${fRs(r.dif)}</td>
-      <td><span class="pill ${r.cls}">${esc(r.sit)}</span></td><td class="obs">${esc(r.obs || r.apurado)} <a href="#painel" data-row="${r.painel}" title="Abrir a linha no painel">→ painel</a></td></tr>`;
+    h += `<tr class="it"><td class="code lin">${r.linha}</td><td class="code">${esc(r.codigo)}</td><td class="svc">${esc(r.servico)}</td><td class="un" data-l="Un">${esc(r.un)}</td>
+      <td class="n contr" data-l="Contrato">${fQ(r.qtd)}</td><td class="n" data-l="Memória" ${r.memoria_ref ? `title="${esc(r.memoria_ref)}"` : ''}>${r.memoria === null ? '' : (memDiff ? '<b>' + fQ(r.memoria) + '</b>' : fQ(r.memoria))}</td>
+      <td class="n real" data-l="Consumo real"><b>${r.real === null ? '' : fQ(r.real)}</b></td><td class="n" data-l="Dif. %">${fP(r.pct)}</td><td class="n" data-l="Preço">${NF[2].format(r.preco)}</td>
+      <td class="n" data-l="Valor contrato">${fR(r.valor)}</td><td class="n" data-l="Valor real">${fR(r.vreal)}</td><td class="n ${r.dif < -0.005 ? 'neg' : ''}" data-l="Real − contrato">${fRs(r.dif)}</td>
+      <td class="sit"><span class="pill ${r.cls}">${esc(r.sit)}</span></td><td class="obs">${esc(r.obs || r.apurado)} <a href="#painel" data-row="${r.painel}" title="Abrir a linha no painel">→ painel</a></td></tr>`;
   }
   $('#c-body').innerHTML = h || '<tr><td colspan="14" class="note">Nenhum item para os filtros escolhidos.</td></tr>';
   $('#c-count').textContent = `${list.length} de ${rows.length} itens · consumo real dos itens listados ${fR(list.reduce((s, r) => s + r.vreal, 0))}`;
@@ -277,13 +278,76 @@ function renderBase() {
 }
 
 // ---------------------------------------------------------------- navegação
-const VIEWS = ['painel', 'contrato', 'discrepancias', 'base', 'sobre'];
+
+// ---------------------------------------------------------------- insumos (CPUs)
+let INS;
+const splitLab = lb => { const m = /^(.*) \((.*)\)$/.exec(lb); return m ? [m[1], m[2]] : [lb, '']; };
+const fU = (v, un, d = 0) => { v = num(v); return Math.abs(v) < 5e-7 ? '–' : NF[d].format(v) + ' ' + un; };
+function insCalc() {
+  const lines = M.disciplinas.flatMap(d => d.linhas.filter(l => l.t === 'it' && l.ct).map(l => ({ ...l, disc: d.curto, num: d.num, titulo: d.titulo })));
+  const lab = {}, all = {}, serv = [];
+  for (const l of lines) {
+    const q = num(C('H' + l.r)); const cons = INS.consumos[l.c] || [];
+    const row = { l, q, dl: 0, by: {} };
+    for (const [g, k, n, u, v, lb] of cons) {
+      const t = v * q;
+      if (lb) { lab[lb] = (lab[lb] || 0) + t; row.by[lb] = (row.by[lb] || 0) + t; }
+      if (g === 'Diesel') row.dl += v;
+      const key = g + '|' + k; if (!all[key]) all[key] = { g, k, n, u, t: 0 }; all[key].t += t;
+    }
+    serv.push(row);
+  }
+  const dss = num(C('G' + INS.dss04.row)); lab[INS.dss04.label] = (lab[INS.dss04.label] || 0) + dss;
+  return { lab, all, serv, dss };
+}
+function renderInsMain() {
+  if (!INS) return;
+  const R = insCalc();
+  $('#ins-main').innerHTML = INS.labels.map(lb => { const [n, u] = splitLab(lb); const t = R.lab[lb] || 0, o = INS.obra[lb] || 0;
+    return `<div class="ins-it"><span class="n">${esc(n)}</span><span class="v num">${fU(t, u)}</span><span class="o num">obra ${fU(o, u)}</span><i style="width:${o ? Math.min(100, t / o * 100).toFixed(1) : 0}%"></i></div>`; }).join('');
+}
+function renderIns() {
+  if (!INS) return;
+  const R = insCalc();
+  $('#i-trecho').textContent = `${C('G7')} → ${C('G8')}`;
+  $('#i-kpis').innerHTML = INS.kpis.map(lb => { const [n, u] = splitLab(lb); return `<div class="kpi"><span class="label">${esc(n)}</span><span class="v num">${fU(R.lab[lb], u)}</span><span class="c">obra: ${fU(INS.obra[lb], u)}</span></div>`; }).join('');
+  $('#i-main').innerHTML = '<table class="itbl"><thead><tr><th>Insumo</th><th class="n">No trecho</th><th class="n">Obra inteira</th><th class="n">%</th></tr></thead><tbody>' +
+    INS.labels.map(lb => { const [n, u] = splitLab(lb); const t = R.lab[lb] || 0, o = INS.obra[lb] || 0;
+      return `<tr><td>${esc(n)}</td><td class="n" data-l="No trecho"><b>${fU(t, u)}</b></td><td class="n" data-l="Obra">${fU(o, u)}</td><td class="n" data-l="%">${o ? NF[1].format(t / o * 100) + '%' : ''}</td></tr>`; }).join('') + '</tbody></table>';
+  const q = ($('#i-q').value || '').toLowerCase().trim(); const cols = INS.servicoCols;
+  let h = '', last = null, shown = 0;
+  for (const s of R.serv) {
+    if (Math.abs(s.q) < 1e-9 && !q) continue;
+    if (q && !(s.l.n.toLowerCase().includes(q) || s.l.c.toLowerCase().includes(q))) continue;
+    if (s.l.disc !== last) { h += `<tr class="grp"><td colspan="${5 + cols.length}">${esc(s.l.num + ' · ' + s.l.titulo)}</td></tr>`; last = s.l.disc; }
+    shown++;
+    h += `<tr class="it"><td class="code">${esc(s.l.c)}</td><td class="svc">${esc(s.l.n)}</td><td class="n" data-l="Qtd. no trecho">${fQ(s.q)} ${esc(s.l.u)}</td><td class="n" data-l="Diesel por un.">${s.dl ? NF[3].format(s.dl) + ' L' : '–'}</td>` +
+      cols.map(lb => { const [n, u] = splitLab(lb); const z = Math.abs(num(s.by[lb])) < 5e-7; return `<td class="n${z ? ' z' : ''}" data-l="${esc(n)}">${fU(s.by[lb], u, 1)}</td>`; }).join('') + '</tr>';
+  }
+  if (Math.abs(R.dss) > 1e-9) h += `<tr class="it"><td class="code">DSS 04</td><td class="svc">Dreno sub-superficial DSS 04 (sem item no contrato) – tubo PEAD Ø 100</td><td class="n" data-l="Qtd. no trecho">${fQ(R.dss)} m</td><td></td>${cols.map(() => '<td></td>').join('')}</tr>`;
+  $('#i-serv').innerHTML = `<div class="tbl-wrap"><table class="cmp itbl2"><thead><tr><th>Código</th><th>Serviço</th><th class="n">Qtd. no trecho</th><th class="n">Diesel / un.</th>${cols.map(lb => `<th class="n">${esc(lb)}</th>`).join('')}</tr></thead><tbody>${h || `<tr><td colspan="${4 + cols.length}" class="note">Nenhum serviço no trecho.</td></tr>`}</tbody></table></div>`;
+  const g = $('#i-grp').value, q2 = ($('#i-q2').value || '').toLowerCase().trim();
+  const ord = { Material: 0, Diesel: 1, Equipamento: 2, 'Mão de obra': 3, Transporte: 4 };
+  const all = Object.values(R.all).filter(x => (!g || x.g === g) && (!q2 || (x.n + ' ' + x.k).toLowerCase().includes(q2)) && (x.t > 1e-9 || INS.obraInsumo[x.g + '|' + x.k] > 1e-9))
+    .sort((a, b) => ord[a.g] - ord[b.g] || (INS.obraInsumo[b.g + '|' + b.k] || 0) - (INS.obraInsumo[a.g + '|' + a.k] || 0));
+  $('#i-all').innerHTML = '<table class="itbl"><thead><tr><th>Grupo</th><th>Código</th><th>Insumo</th><th class="n">No trecho</th><th class="n">Obra inteira</th></tr></thead><tbody>' +
+    all.map(x => `<tr><td>${esc(x.g)}</td><td class="code">${esc(x.k)}</td><td>${esc(x.n)}</td><td class="n" data-l="No trecho"><b>${fU(x.t, x.u, 2)}</b></td><td class="n" data-l="Obra">${fU(INS.obraInsumo[x.g + '|' + x.k], x.u, 2)}</td></tr>`).join('') + '</tbody></table>';
+}
+function exportIns() {
+  const R = insCalc(); const L = [['Disciplina', 'Código', 'Serviço', 'Un', 'Qtd. no trecho', 'Grupo', 'Código insumo', 'Insumo', 'Un insumo', 'Consumo por un.', 'Consumo no trecho']];
+  for (const s of R.serv) { if (Math.abs(s.q) < 1e-9) continue; for (const [g, k, n, u, v] of INS.consumos[s.l.c] || []) L.push([s.l.titulo, s.l.c, s.l.n, s.l.u, s.q, g, k, n, u, v, v * s.q]); }
+  if (R.dss) L.push(['DRENAGEM', 'DSS 04', 'Dreno sub-superficial DSS 04 (sem item no contrato)', 'm', R.dss, 'Material', 'PEAD100', 'Tubo PEAD Ø 100 mm', 'm', 1, R.dss]);
+  download(`insumos_PR-990_${C('G7')}_a_${C('G8')}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
+}
+
+const VIEWS = ['painel', 'insumos', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 function show(v) {
   if (!VIEWS.includes(v)) v = 'painel'; current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; const a = $(`nav.tabs a[href="#${x}"]`); if (a) a.setAttribute('aria-current', x === v ? 'page' : 'false'); });
-  if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
+  if (v === 'insumos') renderIns(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
+  if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
 }
 function theme() {
   const order = ['', 'light', 'dark']; let t = store.get('theme', '');
@@ -291,12 +355,38 @@ function theme() {
   apply(); $('#theme').addEventListener('click', () => { t = order[(order.indexOf(t) + 1) % 3]; store.set('theme', t); apply(); });
 }
 
+
+// ---------------------------------------------------------------- app instalável (PWA)
+function pwa() {
+  if (window.__PR990__) return;          // versão de arquivo único: sem instalação
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  document.documentElement.classList.toggle('standalone', standalone);
+  const btn = $('#install'); let deferred = null;
+  window.addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); deferred = ev; btn.hidden = false; });
+  window.addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios && !standalone) btn.hidden = false;
+  btn.addEventListener('click', async () => {
+    if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => null); deferred = null; btn.hidden = true; return; }
+    $('#ios-tip').hidden = false;
+  });
+  $('#ios-tip-x').addEventListener('click', () => { $('#ios-tip').hidden = true; });
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const ask = w => { if (!w || !navigator.serviceWorker.controller) return; $('#update-bar').hidden = false; $('#update-go').onclick = () => w.postMessage('skipWaiting'); };
+    if (reg.waiting) ask(reg.waiting);
+    reg.addEventListener('updatefound', () => { const w = reg.installing; w && w.addEventListener('statechange', () => { if (w.state === 'installed') ask(w); }); });
+  }).catch(() => { });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading && !$('#update-bar').hidden) { reloading = true; location.reload(); } });
+}
+
 // ---------------------------------------------------------------- início
 (async function main() {
-  theme();
+  theme(); pwa();
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
-  M = data.model; BASE = data.base; wb = new Workbook(BASE, data.painel.cells);
+  M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
   $('#boot').hidden = true; $('#app').hidden = false;
@@ -307,6 +397,7 @@ function theme() {
   ['#b-sheet', '#b-q'].forEach(s => $(s).addEventListener('input', () => { bpage = 0; renderBase(); }));
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
+  ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
   show(location.hash.slice(1) || store.get('tab', 'painel'));
