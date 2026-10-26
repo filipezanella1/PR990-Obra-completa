@@ -10,7 +10,7 @@ const SHELL = [
 const FONTS = 'pr990-fonts';
 
 self.addEventListener('install', ev => {
-  ev.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)));
+  ev.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', ev => {
@@ -33,17 +33,20 @@ self.addEventListener('fetch', ev => {
     return;
   }
   if (url.origin !== location.origin) return;
-  // páginas: rede primeiro (pega a versão nova), cache se estiver sem internet
+  // página: sai do cache desta versão (HTML, estilos e scripts sempre da mesma publicação);
+  // a versão nova é baixada pelo service worker novo e entra quando o usuário toca em "Atualizar"
   if (req.mode === 'navigate') {
-    ev.respondWith(fetch(req).then(res => { const cp = res.clone(); caches.open(VERSION).then(c => c.put('./index.html', cp)); return res; })
+    ev.respondWith(caches.open(VERSION).then(async c => (await c.match('./index.html', { ignoreSearch: true })) || fetch(req))
       .catch(() => caches.match('./index.html', { ignoreSearch: true })));
     return;
   }
   // arquivos do app e base: cache primeiro, atualiza em segundo plano
   ev.respondWith(caches.open(VERSION).then(async c => {
     const hit = await c.match(req, { ignoreSearch: true });
-    const net = fetch(req).then(res => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => null);
-    return hit || (await net) || new Response('Sem conexão', { status: 503 });
+    if (hit) return hit;
+    const res = await fetch(req).catch(() => null);
+    if (res && res.ok) c.put(req, res.clone());
+    return res || new Response('Sem conexão', { status: 503 });
   }));
 });
 
