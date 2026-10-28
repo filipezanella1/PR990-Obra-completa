@@ -39,7 +39,8 @@ export async function memoria(X, tab) {
     if (cod === null || cod === '' || tot === null) continue;
     const e = col.est; const [ei, mi, ef, mf] = [0, 1, 2, 3].map(k => ws.get(r, e + k));
     const est = (x, y) => { x = fl(x); y = fl(y) || 0; return x === null ? null : x + y / 20; };
-    out.push({ cod: String(cod).trim(), lado: col.lado ? String(ws.get(r, col.lado) ?? '').trim() : '', ei: est(ei, mi), ef: est(ef, mf), tot });
+    const obs = col.obs ? String(ws.get(r, col.obs) ?? '') : ''; const mn = /(\d{1,3})\s*[ªaº°]\s*medi/i.exec(obs) || /(\d{1,3})\s*[ªº°]/.exec(obs);
+    out.push({ cod: String(cod).trim(), lado: col.lado ? String(ws.get(r, col.lado) ?? '').trim() : '', ei: est(ei, mi), ef: est(ef, mf), tot, n: mn ? +mn[1] : null });
   }
   return out;
 }
@@ -74,14 +75,17 @@ export async function parseMedicao(buf, fileName = '') {
   const memo = new Map();
   for (const it of itens) {
     let recs = [];
-    for (const t of it.tabs) { if (!memo.has(t)) memo.set(t, await memoria(X, t)); recs = recs.concat(memo.get(t)); }
+    it.tabs.forEach((t, ti) => { if (!memo.has(t)) memo.set(t, null); });
+    for (const [ti, t] of it.tabs.entries()) { if (memo.get(t) === null) memo.set(t, await memoria(X, t)); recs = recs.concat(memo.get(t).map(x => ({ ...x, ti }))); }
     const own = recs.filter(x => x.cod === it.c || x.cod.replace(/\D/g, '') === it.c.replace(/\D/g, ''));
     if (own.length) recs = own;
-    it.r = recs.filter(x => x.ei !== null).map(x => [r4(x.ei), x.ef === null ? null : r4(x.ef), x.lado, Math.round(x.tot * 1e4) / 1e4]);
+    it.r = recs.filter(x => x.ei !== null).map(x => [r4(x.ei), x.ef === null ? null : r4(x.ef), x.lado, Math.round(x.tot * 1e4) / 1e4, x.n, x.ti]);
+    if (it.tabs.length > 1) it.tb = it.tabs;
     it.rsem = Math.round(recs.filter(x => x.ei === null).reduce((s, x) => s + x.tot, 0) * 1e4) / 1e4;
     delete it.tabs;
   }
   const mm = /(\d{1,3})\s*[ªaº°]?\s*[_\s-]*medi/i.exec(fileName.replace(/_/g, ' '));
   const nome = mm ? `${mm[1]}ª medição` : (fileName.replace(/\.xlsx$/i, '') || 'medição');
-  return { nome, arquivo: fileName, lida: new Date().toISOString().slice(0, 10), itens };
+  const num_ = mm ? +mm[1] : Math.max(0, ...itens.flatMap(i => i.r.map(r => r[4] || 0)));
+  return { nome: mm ? nome : (num_ ? `${num_}ª medição` : nome), n: num_, arquivo: fileName, lida: new Date().toISOString().slice(0, 10), itens };
 }

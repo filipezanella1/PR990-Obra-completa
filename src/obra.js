@@ -46,6 +46,7 @@ export function initObra(X) {
       const proj = rf.proj ?? null;
       const recSum = it.r.reduce((s, r) => s + r[3], 0);
       let medT = full ? it.acum : it.r.reduce((s, r) => s + recIn(r, a, b), 0);
+      const liqT = full ? it.liq : it.r.reduce((s, r) => s + (r[4] === MED.n ? recIn(r, a, b) : 0), 0);
       const semEst = !full && it.acum > 1e-9 && it.r.length === 0;
       const prev = proj === null ? it.q : Math.max(proj, it.acum);
       let sit, cls;
@@ -56,7 +57,7 @@ export function initObra(X) {
       else if (it.acum <= 1e-9) { sit = 'Sem medição'; cls = 'na'; }
       else { sit = 'Com saldo'; cls = 'dn'; }
       const exc = Math.max(0, prev - it.q);
-      return { ...it, rf, lines, proj, prev, prevT, medT, semEst, recSum, saldo: it.q - it.acum, aExecT: prevT === null ? null : Math.max(0, prevT - medT), exc, sit, cls, pctMed: it.q ? it.acum / it.q : null };
+      return { ...it, rf, lines, proj, prev, prevT, medT, liqT, nesta: it.liq > 1e-9, semEst, recSum, saldo: it.q - it.acum, aExecT: prevT === null ? null : Math.max(0, prevT - medT), exc, sit, cls, pctMed: it.q ? it.acum / it.q : null };
     });
   }
   let medFilt = store.get('medFilt', ''), medOpen = null;
@@ -67,46 +68,52 @@ export function initObra(X) {
     const sel = $('#m-sel'); const all = medAll();
     sel.innerHTML = all.map(m => `<option ${m.nome === MED.nome ? 'selected' : ''}>${esc(m.nome)}</option>`).join('');
     $('#m-del').hidden = MED === D.medicao;
-    $('#m-info').textContent = `${MED.arquivo || MED.nome} · lida em ${MED.lida.split('-').reverse().join('/')} · ${MED.itens.length} itens · ${MED.itens.reduce((s, i) => s + i.r.length, 0)} lançamentos com estaca nas memórias`;
+    const O = MED.oficial;
+    $('#m-info').innerHTML = `${esc(MED.arquivo || MED.nome)} · ${MED.itens.length} itens · ${MED.itens.reduce((s, i) => s + i.r.length, 0)} lançamentos com estaca nas memórias` +
+      (O ? `<br><b>Quantidades oficiais:</b> ${esc(O.fonte)} · período ${esc(O.periodo)}${O.difs.length ? ` · ${O.difs.length} itens em que a planilha difere do relatório (marcados “≠ relatório”)` : ''}` : '');
     const vC = rows.reduce((s, r) => s + r.q * r.p, 0), vM = rows.reduce((s, r) => s + r.acum * r.p, 0);
     const est = rows.filter(r => r.sit === 'Estourado'), vai = rows.filter(r => r.sit === 'Vai estourar');
+    const nes = rows.filter(r => r.nesta), vL = nes.reduce((s, r) => s + r.liq * r.p, 0);
     const vT = rows.reduce((s, r) => s + r.medT * r.p, 0), vPT = rows.reduce((s, r) => s + (r.prevT ?? 0) * r.p, 0);
     $('#m-kpis').innerHTML = [
       ['VALOR CONTRATADO', fR(vC), `${rows.length} itens`, 'contr'],
-      ['MEDIDO ACUMULADO', fR(vM), fPc(pct(vM, vC)) + ' do contrato', 'real'],
-      ['SALDO CONTRATUAL', fR(vC - vM), 'contrato − medido', ''],
+      [`NESTA MEDIÇÃO (${MED.n || ''}ª)`, fR(O ? O.presente : vL), `${nes.length} serviços medidos${O ? ` · + reajuste ${fR(O.reajuste)} = ${fR(O.liquido)}` : ''}`, 'now'],
+      ['MEDIDO ACUMULADO', fR(O ? O.acumulado : vM), fPc(pct(O ? O.acumulado : vM, vC)) + ' do contrato' + (O ? ` · c/ reajustes ${fR(O.acumulado + O.reajAcum)}` : ''), 'real'],
+      ['SALDO CONTRATUAL', fR(O ? O.saldo : vC - vM), 'contrato − medido', ''],
       ['ITENS ESTOURADOS', String(est.length), `excesso ${fR(est.reduce((s, r) => s + (r.acum - r.q) * r.p, 0))}`, 'bad'],
       ['VÃO ESTOURAR', String(vai.length), `projeto acima do contrato: ${fR(vai.reduce((s, r) => s + r.exc * r.p, 0))}`, 'warn'],
       ['MEDIDO NO TRECHO', fR(vT), `previsto no trecho ${fR(vPT)} · ${fPc(pct(vT, vPT))}`, ''],
     ].map(([l, v, c, k]) => `<div class="kpi ${k}"><span class="label">${l}</span><span class="v num">${esc(v)}</span><span class="c">${esc(c)}</span></div>`).join('');
     const grp = $('#m-grp'); if (!grp.options.length || grp.dataset.med !== MED.nome) { const g = grp.value; grp.innerHTML = '<option value="">Todos os grupos</option>' + [...new Set(rows.map(r => r.g))].map(x => `<option ${x === g ? 'selected' : ''}>${esc(x)}</option>`).join(''); grp.dataset.med = MED.nome; }
-    const SIT = ['', 'Estourado', 'Vai estourar', 'Com saldo', 'Concluído', 'Sem medição'];
-    $('#m-sit').innerHTML = SIT.map(s => `<button type="button" class="chip${s === medFilt ? ' on' : ''}" data-s="${s}">${s || 'Todos'} <b>${s ? rows.filter(r => r.sit === s).length : rows.length}</b></button>`).join('');
+    const SIT = ['', 'Medidos nesta medição', 'Estourado', 'Vai estourar', 'Com saldo', 'Concluído', 'Sem medição'];
+    const cnt = s => !s ? rows.length : s === SIT[1] ? nes.length : rows.filter(r => r.sit === s).length;
+    $('#m-sit').innerHTML = SIT.map(s => `<button type="button" class="chip${s === medFilt ? ' on' : ''}${s === SIT[1] ? ' now' : ''}" data-s="${s}">${s === SIT[1] ? `Medidos na ${MED.n || ''}ª` : s || 'Todos'} <b>${cnt(s)}</b></button>`).join('');
     $$('#m-sit .chip').forEach(bt => bt.onclick = () => { medFilt = bt.dataset.s; store.set('medFilt', medFilt); renderMed(); });
     const q = ($('#m-q').value || '').toLowerCase().trim(), g = grp.value, onlyT = $('#m-tr').checked;
-    const list = rows.filter(r => (!medFilt || r.sit === medFilt) && (!g || r.g === g) && (!q || (r.c + ' ' + r.s).toLowerCase().includes(q)) && (!onlyT || (r.prevT ?? 0) > 1e-9 || r.medT > 1e-9));
+    const list = rows.filter(r => (!medFilt || (medFilt === SIT[1] ? r.nesta : r.sit === medFilt)) && (!g || r.g === g) && (!q || (r.c + ' ' + r.s).toLowerCase().includes(q)) && (!onlyT || (r.prevT ?? 0) > 1e-9 || r.medT > 1e-9));
     let h = '', lg = null;
     for (const r of list) {
-      if (r.g !== lg) { h += `<tr class="grp"><td colspan="11">${esc(r.g)}</td></tr>`; lg = r.g; }
+      if (r.g !== lg) { h += `<tr class="grp"><td colspan="12">${esc(r.g)}</td></tr>`; lg = r.g; }
       const w = Math.min(100, (r.pctMed ?? 0) * 100), wp = r.q ? Math.min(100, r.prev / r.q * 100) : 0;
       h += `<tr class="it${medOpen === r.l ? ' open' : ''}" data-l="${r.l}"><td class="code">${esc(r.c)}</td><td class="svc"><button type="button" class="lnk" data-open="${r.l}">${esc(r.s)}</button></td><td class="un" data-l="Un">${esc(r.u)}</td>
         <td class="n contr" data-l="Contrato">${fQ(r.q)}</td><td class="n real" data-l="Medido acum."><b>${fQ(r.acum)}</b><div class="mbar" title="medido ${fPc(r.pctMed)} · previsto ${fPc(wp / 100)}"><i style="width:${w}%"></i><u style="left:${Math.min(100, wp)}%"></u></div></td>
+        <td class="n${r.nesta ? ' nowv' : ''}" data-l="Nesta medição">${r.nesta ? `<b>${fQ(r.liq)}</b><br><span class="note">${fR(r.liq * r.p)}</span>` : '–'}</td>
         <td class="n ${r.saldo < -1e-6 ? 'neg' : ''}" data-l="Saldo contrato">${fQ(r.saldo)}</td><td class="n" data-l="Previsto (projeto)">${r.proj === null ? '<span class="note">–</span>' : fQ(r.proj)}</td>
-        <td class="sit"><span class="pill ${r.cls}">${esc(r.sit)}</span>${r.exc > 1e-6 && r.sit !== 'Concluído' ? `<span class="note"> +${fQ(r.exc)} ${esc(r.u)} · ${fR(r.exc * r.p)}</span>` : ''}</td>
+        <td class="sit"><span class="pill ${r.cls}">${esc(r.sit)}</span>${r.pl ? ` <span class="pill na" title="Planilha da medição: acumulado ${fQ(r.pl.acum)} · nesta ${fQ(r.pl.liq)}. Vale o relatório do SMO.">≠ relatório</span>` : ''}${r.exc > 1e-6 && r.sit !== 'Concluído' ? `<span class="note"> +${fQ(r.exc)} ${esc(r.u)} · ${fR(r.exc * r.p)}</span>` : ''}</td>
         <td class="n" data-l="Previsto no trecho">${r.prevT === null ? '–' : fQ(r.prevT)}</td><td class="n" data-l="Medido no trecho">${r.semEst ? '<span class="note" title="Memória sem estacas">s/ estaca</span>' : fQ(r.medT)}</td><td class="n" data-l="A executar no trecho"><b>${r.aExecT === null ? '–' : fQ(r.aExecT)}</b></td></tr>`;
-      if (medOpen === r.l) h += `<tr class="mdet"><td colspan="11">${medDetail(r)}</td></tr>`;
+      if (medOpen === r.l) h += `<tr class="mdet"><td colspan="12">${medDetail(r)}</td></tr>`;
     }
-    $('#m-body').innerHTML = h || '<tr><td colspan="11" class="note">Nenhum item para os filtros escolhidos.</td></tr>';
-    $('#m-count').textContent = `${list.length} de ${rows.length} itens · medido nos itens listados ${fR(list.reduce((s, r) => s + r.acum * r.p, 0))}`;
+    $('#m-body').innerHTML = h || '<tr><td colspan="12" class="note">Nenhum item para os filtros escolhidos.</td></tr>';
+    $('#m-count').textContent = `${list.length} de ${rows.length} itens · medido nos itens listados ${fR(list.reduce((s, r) => s + r.acum * r.p, 0))} · nesta medição ${fR(list.reduce((s, r) => s + r.liq * r.p, 0))}`;
     $$('#m-body [data-open]').forEach(bt => bt.onclick = () => { const l = +bt.dataset.open; medOpen = medOpen === l ? null : l; renderMed(); });
     $$('#m-body [data-row]').forEach(bt => bt.onclick = () => X.gotoRow(+bt.dataset.row));
   }
   function medDetail(r) {
     const [a, b] = trecho();
-    const recs = r.r.map(x => ({ x, q: recIn(x, a, b) })).filter(o => o.q !== 0).sort((p, q) => p.x[0] - q.x[0]);
+    const recs = r.r.map(x => ({ x, q: recIn(x, a, b) })).filter(o => o.q !== 0).sort((p, q) => (q.x[4] === MED.n) - (p.x[4] === MED.n) || p.x[0] - q.x[0]);
     const lin = r.lines.map(l => `<a href="#painel" data-row="${l.r}">${esc(l.c)} – ${esc(l.n)}</a>`).join(' · ');
-    return `<div class="mdet-in"><p class="note">${r.rf.ap ? 'Previsto pelo projeto: ' + esc(r.rf.ap) + '. ' : ''}${lin ? 'No painel: ' + lin + '.' : ''} Soma dos lançamentos com estaca: ${fQ(r.recSum)} ${esc(r.u)}${r.rsem ? ` · sem estaca: ${fQ(r.rsem)}` : ''}.</p>
-      ${recs.length ? `<div class="tbl-wrap loc"><table class="itbl"><thead><tr><th>Estaca inicial</th><th>Estaca final</th><th>Lado</th><th class="n">Lançado</th><th class="n">No trecho</th></tr></thead><tbody>${recs.slice(0, 400).map(({ x, q }) => `<tr><td data-l="Inicial">${estStr(x[0])}</td><td data-l="Final">${x[1] === null || x[1] <= x[0] ? '–' : estStr(x[1])}</td><td data-l="Lado">${esc(x[2])}</td><td class="n" data-l="Lançado">${fQ(x[3])}</td><td class="n" data-l="No trecho"><b>${fQ(q)}</b></td></tr>`).join('')}</tbody></table></div>${recs.length > 400 ? `<p class="note">+ ${recs.length - 400} lançamentos</p>` : ''}` : '<p class="note">Nenhum lançamento com estaca no trecho.</p>'}</div>`;
+    return `<div class="mdet-in"><p class="note">${r.rf.ap ? 'Previsto pelo projeto: ' + esc(r.rf.ap) + '. ' : ''}${lin ? 'No painel: ' + lin + '.' : ''} Soma dos lançamentos com estaca: ${fQ(r.recSum)} ${esc(r.u)}${r.rsem ? ` · sem estaca: ${fQ(r.rsem)}` : ''}.${r.nesta ? ` <b>Nesta medição: ${fQ(r.liq)} ${esc(r.u)}</b> (lançamentos da ${MED.n}ª em destaque, primeiro).` : ''}</p>
+      ${recs.length ? `<div class="tbl-wrap loc"><table class="itbl"><thead><tr><th>Estaca inicial</th><th>Estaca final</th><th>Lado</th><th>Medição</th><th class="n">Lançado</th><th class="n">No trecho</th></tr></thead><tbody>${recs.slice(0, 400).map(({ x, q }) => `<tr class="${x[4] === MED.n ? 'intr' : ''}"><td data-l="Inicial">${estStr(x[0])}</td><td data-l="Final">${x[1] === null || x[1] <= x[0] ? '–' : estStr(x[1])}</td><td data-l="Lado">${esc(x[2])}</td><td data-l="Medição">${x[4] ? x[4] + 'ª' + (x[4] === MED.n ? ' (atual)' : '') : '–'}${r.tb && r.tb[x[5]] ? ' · ' + esc(r.tb[x[5]].replace(/^\d+\s*-\s*/, '')) : ''}</td><td class="n" data-l="Lançado">${fQ(x[3])}</td><td class="n" data-l="No trecho"><b>${fQ(q)}</b></td></tr>`).join('')}</tbody></table></div>${recs.length > 400 ? `<p class="note">+ ${recs.length - 400} lançamentos</p>` : ''}` : '<p class="note">Nenhum lançamento com estaca no trecho.</p>'}</div>`;
   }
   async function medUpload(file) {
     const st = $('#m-status'); st.textContent = 'Lendo ' + file.name + '…';
@@ -121,8 +128,8 @@ export function initObra(X) {
   }
   function exportMed() {
     const rows = medRows(); const [a, b] = trecho();
-    const L = [['Linha', 'Código', 'Serviço', 'Un', 'Grupo', 'Contrato', 'Medido acumulado', 'Saldo contratual', 'Previsto pelo projeto (obra)', 'Situação', 'Excesso previsto', 'Preço (R$)', 'Previsto no trecho', 'Medido no trecho', 'A executar no trecho']];
-    for (const r of rows) L.push([r.l, r.c, r.s, r.u, r.g, r.q, r.acum, r.saldo, r.proj ?? '', r.sit, r.exc, r.p, r.prevT ?? '', r.medT, r.aExecT ?? '']);
+    const L = [['Linha', 'Código', 'Serviço', 'Un', 'Grupo', 'Contrato', 'Medido acumulado', 'Saldo contratual', 'Previsto pelo projeto (obra)', 'Situação', 'Excesso previsto', 'Preço (R$)', 'Previsto no trecho', 'Medido no trecho', 'A executar no trecho', 'Nesta medição', 'Nesta medição (R$)', 'Medido acumulado (R$)']];
+    for (const r of rows) L.push([r.l, r.c, r.s, r.u, r.g, r.q, r.acum, r.saldo, r.proj ?? '', r.sit, r.exc, r.p, r.prevT ?? '', r.medT, r.aExecT ?? '', r.liq, r.liq * r.p, r.acum * r.p]);
     download(`medicao_${MED.nome.replace(/\W+/g, '_')}_${estStr(a)}_a_${estStr(b)}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
   }
 
@@ -134,6 +141,29 @@ export function initObra(X) {
     { id: 'dpro', n: 'Drenagem profunda', re: /^(DPS|DPR|DSS)/, ct: ['641800', '643100', '644200'] },
     { id: 'oac', n: 'Bueiros e galerias', re: /^(BSTC|BDTC|BTTC|BSCC|BTCC)/, ct: ['610500', '610700', '610900', '611100', '611300', '611500', '612000', '798072', '798082', '798091'] },
   ];
+  // serviços da medição que alimentam cada frente do retigráfico (para destacar o medido na medição atual)
+  const FRM = {
+    p0: it => it.g === 'TERRAPLENAGEM', p1: it => it.c === '511200',
+    p2: (it, tb) => it.c === '530200' && !/sub/i.test(tb || ''), p3: (it, tb) => it.c === '530200' && !/sub/i.test(tb || ''),
+    p4: (it, tb) => it.c === '530200' && /sub/i.test(tb || ''), p5: it => it.c === '531100',
+    p6: it => ['560100', '589190'].includes(it.c), p7: it => ['570400', '589000'].includes(it.c),
+    dsup: it => DRL[0].ct.includes(it.c), dpro: it => DRL[1].ct.includes(it.c), oac: it => DRL[2].ct.includes(it.c) || /^6(00300|01200|02000|03000|05300)$/.test(it.c),
+  };
+  let MCELL = null, MCELLn = null;
+  function medCells() {   // frente → Map(célula → [serviços medidos na medição atual])
+    if (MCELL && MCELLn === MED) return MCELL; MCELL = {}; MCELLn = MED;
+    for (const [id, f] of Object.entries(FRM)) {
+      const m = new Map();
+      for (const it of MED.itens) for (const r of it.r) {
+        if (r[4] !== MED.n || !f(it, it.tb && it.tb[r[5]])) continue;
+        const k0 = Math.max(0, Math.floor(r[0])), k1 = r[1] !== null && r[1] > r[0] ? Math.min(NC - 1, Math.ceil(r[1]) - 1) : k0;
+        for (let k = k0; k <= Math.max(k0, k1); k++) { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(it.c); }
+      }
+      MCELL[id] = m;
+    }
+    return MCELL;
+  }
+  let avHl = store.get('avHl', true);
   let AV = null, brush = store.get('avBrush', '1'), paintOn = false;
   function avDefault() {
     const base = D.avanco;
@@ -167,15 +197,15 @@ export function initObra(X) {
   function renderAv() {
     if (!AV) avLoad();
     $('#a-fonte').textContent = `${AV.fonte} · alterado em ${AV.atualizado.split('-').reverse().join('/')}`;
-    $('#a-m1').value = AV.meses[0]; $('#a-m2').value = AV.meses[1];
+    $('#a-m1').value = AV.meses[0]; $('#a-m2').value = AV.meses[1]; $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o que foi medido na ${MED.n || ''}ª medição`;
     $('#a-brush').innerHTML = ['1', '2', '3', '4', '0', '9'].map(k => `<button type="button" class="brush${k === brush ? ' on' : ''}" data-k="${k}"><i class="sw s${k}"></i>${esc(stName(k))}</button>`).join('');
     $$('#a-brush .brush').forEach(bt => bt.onclick = () => { brush = bt.dataset.k; store.set('avBrush', brush); renderAv(); });
     $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Pintando – toque para parar' : 'Pintar no retigráfico';
     $('#v-avanco').classList.toggle('painting', paintOn);
     // resumo por camada
-    $('#a-sum').innerHTML = `<table class="itbl avsum"><thead><tr><th>Frente</th><th class="n">Executado</th><th class="n">Em execução</th><th class="n">Planejado</th><th class="n">A executar</th><th style="width:34%">Avanço</th></tr></thead><tbody>` +
-      AV.camadas.map(l => { const { s, tot } = avStats(l.c); const p = k => tot ? s[k] / tot : 0;
-        return `<tr><td><b>${esc(l.n)}</b></td><td class="n" data-l="Executado">${fPc(p('1'))}</td><td class="n" data-l="Em execução">${fPc(p('2'))}</td><td class="n" data-l="Planejado">${fPc(p('3') + p('4'))}</td><td class="n" data-l="A executar">${fPc(p('0'))}</td>
+    $('#a-sum').innerHTML = `<table class="itbl avsum"><thead><tr><th>Frente</th><th class="n">Executado</th><th class="n">Em execução</th><th class="n">Planejado</th><th class="n">A executar</th><th class="n">Medido na ${MED.n || ''}ª</th><th style="width:30%">Avanço</th></tr></thead><tbody>` +
+      AV.camadas.map(l => { const { s, tot } = avStats(l.c); const p = k => tot ? s[k] / tot : 0; const mc = medCells()[l.id];
+        return `<tr><td><b>${esc(l.n)}</b></td><td class="n" data-l="Executado">${fPc(p('1'))}</td><td class="n" data-l="Em execução">${fPc(p('2'))}</td><td class="n" data-l="Planejado">${fPc(p('3') + p('4'))}</td><td class="n" data-l="A executar">${fPc(p('0'))}</td><td class="n" data-l="Medido na ${MED.n || ''}ª">${mc && mc.size ? mc.size + ' est.' : '–'}</td>
           <td><div class="stk">${['1', '2', '3', '4'].map(k => `<i class="s${k}" style="width:${(p(k) * 100).toFixed(2)}%"></i>`).join('')}</div></td></tr>`; }).join('') + '</tbody></table>';
     const sel = $('#a-lay'); const prev = [...sel.selectedOptions].map(o => o.value);
     sel.innerHTML = AV.camadas.map(l => `<option value="${l.id}" ${prev.includes(l.id) ? 'selected' : ''}>${esc(l.n)}</option>`).join('');
@@ -199,7 +229,8 @@ export function initObra(X) {
       h += `<div class="blk" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow">${mm.map(m => `<span class="mk" style="left:calc(var(--lw) + ${(m.e - s0) * cw}px)" title="${esc(m.t)}">${esc(m.t.split(' · ')[0])}</span>`).join('')}</div>`;
       for (const l of AV.camadas) {
         h += `<div class="lrow" data-id="${l.id}"><span class="ln" title="${esc(l.n)}">${esc(l.n)}</span><div class="cells">`;
-        for (let k = s0; k < s1; k++) h += `<i class="c s${l.c[k]}" data-k="${k}"></i>`;
+        const mc = avHl ? medCells()[l.id] : null;
+        for (let k = s0; k < s1; k++) h += `<i class="c s${l.c[k]}${mc && mc.has(k) ? ' m' : ''}" data-k="${k}"></i>`;
         h += '</div></div>';
       }
       h += `<div class="erow"><span class="ln">Estaca</span><div class="cells">${Array.from({ length: s1 - s0 }, (_, i) => `<b>${s0 + i}</b>`).join('')}</div></div></div>`;
@@ -220,7 +251,9 @@ export function initObra(X) {
     const up = () => { if (!avDown) return; avDown = false; if (avDirty) { avDirty = false; avSave(); renderAv(); } };
     g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
     g.addEventListener('click', ev => { if (paintOn) return; const c = ev.target.closest('i.c'); if (!c) return; const row = c.closest('.lrow'); const L = AV.camadas.find(x => x.id === row.dataset.id);
-      $('#a-tip').textContent = `${L.n} · estaca ${c.dataset.k} a ${+c.dataset.k + 1}: ${stName(L.c[+c.dataset.k])}. Ligue “Pintar” para alterar.`; });
+      const mc = medCells()[L.id]?.get(+c.dataset.k);
+      $('#a-tip').textContent = `${L.n} · estaca ${c.dataset.k} a ${+c.dataset.k + 1}: ${stName(L.c[+c.dataset.k])}.${mc ? ` Medido na ${MED.n}ª medição: ${[...mc].join(', ')}.` : ''} Ligue “Pintar” para alterar.`; });
+    $('#a-hl').onchange = () => { avHl = $('#a-hl').checked; store.set('avHl', avHl); drawGrid(); };
     $('#a-paint').onclick = () => { paintOn = !paintOn; renderAv(); };
     $('#a-m1').onchange = () => { AV.meses[0] = $('#a-m1').value.trim() || 'Mês 1'; avSave(); renderAv(); };
     $('#a-m2').onchange = () => { AV.meses[1] = $('#a-m2').value.trim() || 'Mês 2'; avSave(); renderAv(); };
@@ -307,6 +340,8 @@ export function initObra(X) {
       <dt>Cota terreno → projeto</dt><dd>${geo['Cota do terreno (m)'] ? fQ(geo['Cota do terreno (m)']) + ' → ' + fQ(geo['Cota de projeto (m)']) + ' m' : '–'}</dd><dt>Situação</dt><dd>${esc(geo['Situação'] || '–')} ${geo['Altura (projeto − terreno) (m)'] !== undefined ? '(' + fQ(geo['Altura (projeto − terreno) (m)']) + ' m)' : ''}</dd>
       <dt>Greide · curva</dt><dd>${geo['Rampa do greide (%)'] !== undefined ? fQ(geo['Rampa do greide (%)'], 3) + '%' : '–'}${geo['Curva horizontal'] ? ' · ' + esc(geo['Curva horizontal']) + ' R=' + fQ(geo['Raio (m)'], 0) : ''}</dd></dl>
       <div class="avst"><span class="label">Avanço nesta estaca</span>${av.map(a => `<span class="avchip"><i class="sw s${a.k}"></i>${esc(a.n)}:&nbsp;<b>${esc(stName(a.k))}</b></span>`).join('')}</div>
+      ${(() => { const L = MED.itens.map(it => { const q = it.r.filter(r => r[4] === MED.n && (r[1] !== null && r[1] > r[0] ? est >= r[0] - 1e-9 && est <= r[1] + 1e-9 : Math.abs(r[0] - est) <= 0.5)).reduce((s, r) => s + r[3], 0); return { it, q }; }).filter(o => Math.abs(o.q) > 1e-9);
+        return L.length ? `<div class="avst"><span class="label">Medido aqui na ${MED.n}ª medição</span>${L.map(o => `<span class="avchip"><b>${esc(o.it.c)}</b>&nbsp;${esc(o.it.s.slice(0, 48))} · ${fQ(o.q)} ${esc(o.it.u)}</span>`).join('')}</div>` : ''; })()}
       <div class="here-act"><button class="btn" type="button" id="g-tr">Usar como trecho no painel (± 1 estaca)</button><button class="btn" type="button" id="g-av">Ver no retigráfico</button></div></div>`;
     $('#g-tr').onclick = () => { X.setSel(Math.max(0, est - 1), Math.min(END(), est + 1), true); X.show('painel'); location.hash = '#painel'; };
     $('#g-av').onclick = () => { location.hash = '#avanco'; setTimeout(() => { const c = document.querySelector(`#a-grid i.c[data-k="${k}"]`); if (c) { c.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2500); } }, 120); };

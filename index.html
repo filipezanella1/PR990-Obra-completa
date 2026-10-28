@@ -183,7 +183,7 @@
       </div>
       <div class="legend"><span><span class="pill bad">Estourado</span> medido acima do contrato</span><span><span class="pill up">Vai estourar</span> o projeto prevê mais que o contrato</span><span><span class="mbar demo"><i style="width:60%"></i><u style="left:85%"></u></span> medido × previsto (traço) sobre o contrato</span></div>
       <div class="note" id="m-count"></div>
-      <div class="tbl-wrap"><table class="cmp medt"><thead><tr><th>Código</th><th>Serviço</th><th>Un</th><th class="n">Contrato</th><th class="n">Medido acum.</th><th class="n">Saldo contrato</th><th class="n">Previsto projeto</th><th>Situação</th><th class="n">Previsto no trecho</th><th class="n">Medido no trecho</th><th class="n">A executar no trecho</th></tr></thead><tbody id="m-body"></tbody></table></div>
+      <div class="tbl-wrap"><table class="cmp medt"><thead><tr><th>Código</th><th>Serviço</th><th>Un</th><th class="n">Contrato</th><th class="n">Medido acum.</th><th class="n">Nesta medição</th><th class="n">Saldo contrato</th><th class="n">Previsto projeto</th><th>Situação</th><th class="n">Previsto no trecho</th><th class="n">Medido no trecho</th><th class="n">A executar no trecho</th></tr></thead><tbody id="m-body"></tbody></table></div>
     </div>
   </section>
 
@@ -200,6 +200,7 @@
         <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
         <button class="btn" type="button" id="a-csv">CSV</button>
       </div>
+      <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o que foi medido na medição</span></label>
       <details class="av-more"><summary>Pintar por intervalo de estacas, frentes e ajustes</summary>
         <div class="av-range">
           <label class="lbl">Frentes <select id="a-lay" multiple size="5" aria-label="Frentes"></select></label>
