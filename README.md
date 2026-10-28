@@ -24,7 +24,7 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 ## Área restrita
 
-**Medição**, **Contrato × projeto**, **Discrepâncias**, **Base de dados** e a **edição do Retigráfico** pedem senha (botão *Entrar* no topo). Os dados dessas abas (medição, memórias por estaca, planilha contratual com quantidades e valores, discrepâncias) não ficam no site em texto: vão cifrados em `data/protegido.json` (AES-256-GCM, chave derivada da senha por PBKDF2-SHA256 com 310.000 iterações) e só são abertos no navegador com a senha. “Manter liberado neste aparelho” guarda a chave no próprio aparelho; *Sair* apaga.
+**Medição**, **Contrato × projeto**, **Discrepâncias**, **Base de dados** e a **edição do Retigráfico** pedem senha (botão *Entrar* no topo). Os dados dessas abas (medição, memórias por estaca, planilha contratual com quantidades e valores, discrepâncias) não ficam no site em texto: vão cifrados em `data/protegido.json` (AES-256-GCM, chave derivada da senha por PBKDF2-SHA256 com 1.000.000 de iterações) e só são abertos no navegador com a senha. “Manter liberado neste aparelho” guarda a chave no próprio aparelho; *Sair* apaga.
 
 Os originais ficam em `privado/` (fora do Git). Para trocar a senha ou atualizar esses dados, rode `tools/proteger.mjs` com a nova senha e publique. As tabelas por estaca (`data/base.json`) continuam abertas porque o Painel, a Drenagem, as Pranchas, o Campo e a Simulação calculam a partir delas; o bloqueio da aba Base de dados esconde a tela de consulta e o download completo.
 
