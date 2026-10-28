@@ -1,4 +1,5 @@
 import { Workbook, isErr } from './engine.js';
+import { initObra } from './obra.js?v=__BUILD__';
 
 // ---------------------------------------------------------------- utilidades
 const $ = (s, el = document) => el.querySelector(s);
@@ -34,8 +35,8 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel, insumos] = await Promise.all([get('model.json'), get('base.json'), get('painel.json'), get('insumos.json')]);
-  return { model, base, painel, insumos };
+  const [model, base, painel, insumos, medicao, medref, avanco, eixo, pranchas] = await Promise.all(['model', 'base', 'painel', 'insumos', 'medicao', 'medref', 'avanco', 'eixo', 'pranchas'].map(f => get(f + '.json')));
+  return { model, base, painel, insumos, medicao, medref, avanco, eixo, pranchas };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -103,6 +104,10 @@ function recalc() {
   if (current === 'drenagem') renderDrenagem();
   if (current === 'discrepancias') renderDisc();
   if (current === 'contrato') renderCmp();
+  if (current === 'medicao') OB.renderMed();
+  if (current === 'planejamento') OB.renderPlan();
+  if (current === 'pranchas') OB.renderPr();
+  OB.renderCmpT();
 }
 function renderKPIs() {
   const unit = { m: ' m', t: ' t', m3: ' m³' };
@@ -450,9 +455,10 @@ function renderDrDet() {
   $('#dr-close').onclick = () => { drOpen = null; store.set('drOpen', null); renderDrenagem(); };
 }
 let lbZ = 1;
-function lbOpen(s) {
-  const src = `drenagem/DR-4-${s}.webp`; $('#lb-img').src = src; $('#lb-o').href = src;
-  $('#lb-t').textContent = `DR-4-${s} · ${SHEETS[s] || ''}`; lbZ = 1; $('#lb-img').style.width = '100%'; $('#lb').hidden = false; document.body.style.overflow = 'hidden';
+function lbOpen(s) { lbShow(`drenagem/DR-4-${s}.webp`, `DR-4-${s} · ${SHEETS[s] || ''}`); }
+function lbShow(src, title) {
+  $('#lb-img').src = src; $('#lb-o').href = src;
+  $('#lb-t').textContent = title; lbZ = 1; $('#lb-img').style.width = '100%'; $('#lb').hidden = false; document.body.style.overflow = 'hidden';
 }
 function lbInit() {
   const z = d => { lbZ = Math.min(6, Math.max(1, lbZ * d)); $('#lb-img').style.width = (lbZ * 100) + '%'; };
@@ -463,14 +469,21 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'insumos', 'drenagem', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'planejamento', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 function show(v) {
   if (!VIEWS.includes(v)) v = 'painel'; current = v;
-  VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; const a = $(`nav.tabs a[href="#${x}"]`); if (a) a.setAttribute('aria-current', x === v ? 'page' : 'false'); });
+  VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
+  const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'campo') OB.renderCampo(); if (v === 'planejamento') OB.renderPlan(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
+}
+function navInit() {
+  const more = $('#nav-more'), sh = $('#more-sheet');
+  more.addEventListener('click', ev => { ev.preventDefault(); sh.hidden = !sh.hidden; });
+  sh.addEventListener('click', ev => { if (ev.target === sh || ev.target.closest('a')) sh.hidden = true; });
 }
 function theme() {
   const order = ['', 'light', 'dark']; let t = store.get('theme', '');
@@ -504,12 +517,19 @@ function pwa() {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading && !$('#update-bar').hidden) { reloading = true; location.reload(); } });
 }
 
+// ---------------------------------------------------------------- módulos de obra
+const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
+  END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
+
 // ---------------------------------------------------------------- início
 (async function main() {
   theme(); pwa();
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
+  Object.assign(OB.data, { medicao: data.medicao, medref: data.medref, avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas });
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
   $('#boot').hidden = true; $('#app').hidden = false;
@@ -521,7 +541,7 @@ function pwa() {
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
-  lbInit();
+  lbInit(); OB.init(); navInit();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
   show(location.hash.slice(1) || store.get('tab', 'painel'));

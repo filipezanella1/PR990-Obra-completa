@@ -8,12 +8,19 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 | Aba | Conteúdo |
 |---|---|
-| **Painel** | Seleção do trecho por estaca + metros, ou arrastando na faixa de estaqueamento. Premissas editáveis (teor de CAP, taxas de EAI e RR-1C). Indicadores e resumo por disciplina. Dados do trecho e indicadores geométricos. Detalhamento de cada serviço com as quantidades do projeto (LE / LD / total), o **consumo real** e o valor **ajustado ao contrato**. Exportação do trecho em CSV. |
+| **Painel** | Seleção do trecho por estaca + metros, ou arrastando na faixa de estaqueamento. Premissas editáveis (teor de CAP, taxas de EAI e RR-1C). Indicadores e resumo por disciplina. Dados do trecho e indicadores geométricos. Detalhamento de cada serviço com as quantidades do projeto (LE / LD / total), o **consumo real** e o valor **ajustado ao contrato**. Exportação do trecho em CSV ou PDF. **Comparar dois trechos** lado a lado (indicadores, disciplinas e serviços com maior diferença, também por km). |
+| **Medição** | Lê a planilha de medição do contrato (aba *Medição Resumo* e as memórias por estaca). Vem com a 25ª medição; **Carregar nova medição (.xlsx)** lê outra no próprio aparelho, sem servidor. Por serviço: contrato, medido acumulado, saldo, previsão pelo projeto e situação (*Estourado*, *Vai estourar*, *Com saldo*, *Concluído*, *Sem medição*). No trecho do Painel: previsto, medido (pelos lançamentos com estaca) e a executar. Toque no serviço para ver os lançamentos. CSV e PDF. |
+| **Avanço** | Retigráfico no modelo do “Avanço físico planejado” da obra: uma linha por frente e uma célula por estaca. Vem preenchido com a atualização de out/2026 e com a drenagem calculada pela medição. Pinte com o dedo ou o mouse (executado, em execução, planejado mês 1 / mês 2, a executar em branco, sem serviço), ou por intervalo de estacas. Frentes podem ser criadas e renomeadas. Fica salvo no aparelho; Exportar/Importar leva para outro. CSV e PDF. |
+| **Campo** | GPS do celular → estaca mais próxima no eixo de projeto (SIRGAS 2000 / UTM 22S), afastamento e lado; ou digite a estaca. Mostra geometria, seção tipo, avanço na estaca e tudo o que existe no raio escolhido (drenagem com o detalhe tipo, sinalização, interferências, obras complementares, contenções, iluminação, OAE). |
+| **Planejamento** | Pelas CPUs: produção diária por serviço (padrão = produção da equipe da CPU × horas/dia, editável), número de equipes, início e execução em paralelo ou em sequência por frente. Resulta no prazo por frente, diesel, materiais e equipamentos por mês, sobre o saldo a executar do trecho (projeto − medido) ou sobre o projeto. CSV e PDF. |
+| **Pranchas** | Pavimentação (PV), sinalização (SI), OAE (ES-2), obras complementares (OC), contenções (CO-2) e iluminação (IL) no mesmo formato da aba Drenagem: desenhos, quantidades do projeto e do trecho. |
 | **Insumos** | Diesel, materiais, horas de equipamento e mão de obra no trecho pelas CPUs do contrato (abertas até os insumos): indicadores, principais insumos, consumo por serviço e lista de todos os insumos, com exportação em CSV. O Painel também mostra os principais insumos do trecho. |
 | **Drenagem** | Catálogo de todos os dispositivos de drenagem do projeto (valetas, sarjetas, meios-fios, descidas, dissipadores, caixas, drenos, bueiros, galerias): detalhe tipo das pranchas DR-4 com visualizador de zoom, quantidades por tipo na obra e no trecho, itens do contrato e localização por estaca (notas de serviço DR-9). |
 | **Contrato × projeto** | Os 269 itens do contrato com a quantidade contratual, o total impresso nos quadros da memória, o consumo real, a diferença em quantidade, em % e em R$, a situação de cada item e uma observação. Tem filtros, ordenação e exportação em CSV. |
 | **Discrepâncias** | As principais divergências com o impacto em R$, os serviços do projeto sem item no contrato, as inconsistências internas das memórias e pranchas e verificações automáticas da base. |
 | **Base de dados** | Todas as tabelas por estaca: terraplenagem, pavimentação, drenagem, sinalização, paisagismo, obras complementares, contenções, OAE, iluminação, interferências e geometria. Também a planilha contratual e os quadros da memória, com filtro e download em CSV ou JSON. |
+
+**Busca global** (botão Buscar ou tecla `/`): código, serviço, insumo, prancha ou estaca, em todas as abas.
 
 ## No celular
 
@@ -84,6 +91,7 @@ A base sai da planilha `data/quantidades_por_estaca_PR-990.xlsx`. Depois de rege
 python3 tools/app_export.py data/quantidades_por_estaca_PR-990.xlsx data   # base.json, painel.json, ref_painel.json
 python3 tools/bundle.py                                                   # dist/painel-pr990.html
 npm test                                                                  # confere o motor com a planilha
+node tools/medicao.mjs <medição.xlsx> data/medicao.json                   # troca a medição que vem no app
 ```
 
 `tools/app_model.py` gera o `model.json` (estrutura do painel e base do contrato). Ele roda dentro do gerador da planilha, no fim do processo, porque usa a estrutura dos itens montada ali.
@@ -96,10 +104,14 @@ manifest.webmanifest  dados do app instalável (nome, ícones, cores)
 sw.js                 service worker: funcionamento offline e atualização
 icons/                ícones do app (192, 512, maskable, iPhone)
 drenagem/             pranchas DR-4 em WebP (inteiras e miniaturas) usadas na aba Drenagem
+pranchas/             pranchas PV, SI, ES-2, OC, CO-2 e IL em WebP (aba Pranchas)
 src/engine.js         motor de fórmulas (navegador e Node)
 src/app.js            interface
+src/obra.js           medição, avanço, campo (GPS), planejamento, pranchas, busca e comparação
+src/medparse.js       leitura da planilha de medição; src/xlsx.js: leitor de .xlsx sem dependências
 src/style.css         estilos
-data/                 base em JSON (inclusive insumos.json, consumos das CPUs) + planilha .xlsx de origem
+data/                 base em JSON (insumos.json: CPUs; medicao.json: 25ª medição; avanco.json: retigráfico out/26;
+                      eixo.json: eixo de projeto a cada 5 m; pranchas.json; medref.json) + planilha .xlsx de origem
 dist/                 versão de arquivo único (gerada)
 tests/                conferência do motor e desempenho
 tools/                exportação da planilha e empacotamento
