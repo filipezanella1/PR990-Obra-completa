@@ -13,7 +13,6 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 | **Retigráfico** | No modelo do retigráfico da obra (RETIGRÁFICO OBRA 515, atualização de 28/10/2026): cartões de avanço por frente e, para cada frente (corte–aterro, regularização, 1ª e 2ª camadas de reforço, sub-base, base BGS, imprimação, CBUQ), a linha *atacado* (cor clara) e *concluído* (cor forte), uma célula por estaca; acima de cada faixa os 32 bueiros e galerias (OAC) com situação, tipo e comprimento, sem sobreposição. Edição por toque/arraste ou por intervalo, destaque do medido na medição atual, CSV, PDF, exportar/importar. |
 | **Simulação** | Puxa o executado do retigráfico (verde; atacado em verde listrado) e deixa marcar célula a célula, em amarelo, o que se quer executar de reforço (2 camadas), sub-base, base, imprimação e CBUQ. Resultado: material pétreo em t (bica corrida e BGS), t de CBUQ, CAP, RR-1C, EAI e xisto (8 L/t), com premissas editáveis, CSV e PDF. |
 | **Campo** | GPS do celular → estaca mais próxima no eixo de projeto (SIRGAS 2000 / UTM 22S), afastamento e lado; ou digite a estaca. Mostra geometria, seção tipo, avanço na estaca e tudo o que existe no raio escolhido (drenagem com o detalhe tipo, sinalização, interferências, obras complementares, contenções, iluminação, OAE). |
-| **Planejamento** | Pelas CPUs: produção diária por serviço (padrão = produção da equipe da CPU × horas/dia, editável), número de equipes, início e execução em paralelo ou em sequência por frente. Resulta no prazo por frente, diesel, materiais e equipamentos por mês, sobre o saldo a executar do trecho (projeto − medido) ou sobre o projeto. CSV e PDF. |
 | **Pranchas** | Pavimentação (PV), sinalização (SI), OAE (ES-2), obras complementares (OC), contenções (CO-2) e iluminação (IL) no mesmo formato da aba Drenagem: desenhos, quantidades do projeto e do trecho. |
 | **Insumos** | Diesel, materiais, horas de equipamento e mão de obra no trecho pelas CPUs do contrato (abertas até os insumos): indicadores, principais insumos, consumo por serviço e lista de todos os insumos, com exportação em CSV. O Painel também mostra os principais insumos do trecho. |
 | **Drenagem** | Catálogo de todos os dispositivos de drenagem do projeto (valetas, sarjetas, meios-fios, descidas, dissipadores, caixas, drenos, bueiros, galerias): detalhe tipo das pranchas DR-4 com visualizador de zoom, quantidades por tipo na obra e no trecho, itens do contrato e localização por estaca (notas de serviço DR-9). |
@@ -22,6 +21,12 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 | **Base de dados** | Todas as tabelas por estaca: terraplenagem, pavimentação, drenagem, sinalização, paisagismo, obras complementares, contenções, OAE, iluminação, interferências e geometria. Também a planilha contratual e os quadros da memória, com filtro e download em CSV ou JSON. |
 
 **Busca global** (botão Buscar ou tecla `/`): código, serviço, insumo, prancha ou estaca, em todas as abas.
+
+## Área restrita
+
+**Medição**, **Contrato × projeto**, **Discrepâncias**, **Base de dados** e a **edição do Retigráfico** pedem senha (botão *Entrar* no topo). Os dados dessas abas (medição, memórias por estaca, planilha contratual com quantidades e valores, discrepâncias) não ficam no site em texto: vão cifrados em `data/protegido.json` (AES-256-GCM, chave derivada da senha por PBKDF2-SHA256 com 310.000 iterações) e só são abertos no navegador com a senha. “Manter liberado neste aparelho” guarda a chave no próprio aparelho; *Sair* apaga.
+
+Os originais ficam em `privado/` (fora do Git). Para trocar a senha ou atualizar esses dados, rode `tools/proteger.mjs` com a nova senha e publique. As tabelas por estaca (`data/base.json`) continuam abertas porque o Painel, a Drenagem, as Pranchas, o Campo e a Simulação calculam a partir delas; o bloqueio da aba Base de dados esconde a tela de consulta e o download completo.
 
 ## No celular
 
@@ -86,14 +91,15 @@ O `index.html` precisa ser servido por HTTP porque carrega os JSON com `fetch`. 
 
 ## Atualizar a base
 
-A base sai da planilha `data/quantidades_por_estaca_PR-990.xlsx`. Depois de regenerar e recalcular a planilha:
+A base sai da planilha `privado/quantidades_por_estaca_PR-990.xlsx`. Depois de regenerar e recalcular a planilha:
 
 ```bash
-python3 tools/app_export.py data/quantidades_por_estaca_PR-990.xlsx data   # base.json, painel.json, ref_painel.json
+python3 tools/app_export.py privado/quantidades_por_estaca_PR-990.xlsx data   # base.json, painel.json, ref_painel.json
 python3 tools/bundle.py                                                   # dist/painel-pr990.html
 npm test                                                                  # confere o motor com a planilha
-node tools/medicao.mjs <medição.xlsx> data/medicao.json                   # troca a medição que vem no app
-python3 tools/relatorio.py <Relatório SMO.pdf> data/medicao.json          # aplica as quantidades oficiais do relatório
+node tools/medicao.mjs <medição.xlsx> privado/medicao.json                # troca a medição que vem no app
+python3 tools/relatorio.py <Relatório SMO.pdf> privado/medicao.json       # aplica as quantidades oficiais do relatório
+PR990_SENHA='…' node tools/proteger.mjs                                   # cifra os dados restritos em data/protegido.json
 python3 tools/retigrafico.py <RETIGRAFICO OBRA 515 ....xlsx> data/avanco.json  # atualiza o retigráfico
 ```
 

@@ -35,8 +35,8 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel, insumos, medicao, medref, avanco, eixo, pranchas] = await Promise.all(['model', 'base', 'painel', 'insumos', 'medicao', 'medref', 'avanco', 'eixo', 'pranchas'].map(f => get(f + '.json')));
-  return { model, base, painel, insumos, medicao, medref, avanco, eixo, pranchas };
+  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas'].map(f => get(f + '.json')));
+  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -102,10 +102,9 @@ function recalc() {
   renderKPIs(); renderSummary(); renderInfo(); renderDetail(); renderInsMain();
   if (current === 'insumos') renderIns();
   if (current === 'drenagem') renderDrenagem();
-  if (current === 'discrepancias') renderDisc();
-  if (current === 'contrato') renderCmp();
-  if (current === 'medicao') OB.renderMed();
-  if (current === 'planejamento') OB.renderPlan();
+  if (UNL && current === 'discrepancias') renderDisc();
+  if (UNL && current === 'contrato') renderCmp();
+  if (UNL && current === 'medicao') OB.renderMed();
   if (current === 'pranchas') OB.renderPr();
   OB.renderCmpT();
 }
@@ -441,7 +440,7 @@ function renderDrDet() {
   if (!f) { host.hidden = true; return; }
   host.hidden = false; const [a, b] = drTrecho(); const ty = drTypes(f, a, b);
   const sheets = f.sh.map(s => `<button type="button" class="sh" data-sh="${s}"><img loading="lazy" src="drenagem/thumb/DR-4-${s}.webp" alt=""><span><b>DR-4-${s}</b> ${esc(SHEETS[s] || '')}</span></button>`).join('');
-  const ct = f.ct.map(c => M.contrato.filter(x => x.codigo === c)).flat();
+  const ct = UNL ? f.ct.map(c => M.contrato.filter(x => x.codigo === c)).flat() : [];
   const onlyT = $('#dr-tr').checked;
   const locs = f.items.map(x => ({ x, fr: drIn(x, a, b) })).filter(o => !onlyT || o.fr > 0).sort((p, q) => p.x.ei - q.x.ei);
   host.innerHTML = `<div class="ins-head"><h2>${esc(f.n)}</h2><button type="button" class="btn" id="dr-close">Fechar</button></div>
@@ -469,13 +468,64 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'planejamento', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
+// ---------------------------------------------------------------- abas protegidas por senha (dados cifrados em data/protegido.json)
+const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base'];
+let UNL = false, PROT = null, lockTarget = null;
+const b64u = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pass) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u(PROT.salt), iterations: PROT.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+}
+async function openWith(key) {
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(PROT.iv) }, key, b64u(PROT.ct));
+  const d = JSON.parse(new TextDecoder().decode(plain));
+  M.contrato = d.contrato; M.discrepancias = d.discrepancias;
+  UNL = true; OB.unlock(d.medicao, d.medref); lockUI();
+}
+async function unlock(pass, remember) {
+  if (!window.crypto || !crypto.subtle) throw new Error('este navegador não permite abrir os dados protegidos aqui (abra pelo endereço https do app)');
+  const key = await deriveKey(pass);
+  try { await openWith(key); } catch { throw new Error('senha incorreta'); }
+  try { if (remember) { const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key)); localStorage.setItem('pr990:chave', btoa(String.fromCharCode(...raw)) + '|' + PROT.salt); } } catch { }
+}
+async function autoUnlock() {
+  try { const v = localStorage.getItem('pr990:chave'); if (!v) return; const [k, salt] = v.split('|'); if (salt !== PROT.salt) { localStorage.removeItem('pr990:chave'); return; }
+    const key = await crypto.subtle.importKey('raw', b64u(k), 'AES-GCM', false, ['decrypt']); await openWith(key); } catch { }
+}
+function lockOut() {
+  try { localStorage.removeItem('pr990:chave'); } catch { }
+  location.hash = '#painel'; location.reload();
+}
+function lockUI() {
+  document.documentElement.classList.toggle('unl', UNL);
+  $('#lock-btn').textContent = UNL ? 'Sair' : 'Entrar';
+  $('#lock-btn').title = UNL ? 'Bloquear de novo as abas protegidas' : 'Entrar com a senha para ver as abas protegidas';
+}
+function lockInit() {
+  lockUI();
+  $('#lock-btn').onclick = () => { if (UNL) { if (confirm('Bloquear de novo as abas protegidas e esquecer a senha neste aparelho?')) lockOut(); } else askPass(current); };
+  $('#lk-form').onsubmit = async ev => {
+    ev.preventDefault(); const msg = $('#lk-msg'); msg.textContent = 'Verificando…'; $('#lk-go').disabled = true;
+    try { await unlock($('#lk-pass').value, $('#lk-rem').checked); msg.textContent = ''; $('#lk-pass').value = ''; $('#lock').hidden = true; document.body.style.overflow = '';
+      const t = lockTarget || current; lockTarget = null; history.replaceState(null, '', '#' + t); show(t); }
+    catch (e) { msg.textContent = e.message; } finally { $('#lk-go').disabled = false; }
+  };
+  $('#lk-x').onclick = () => { $('#lock').hidden = true; document.body.style.overflow = ''; if (LOCKED.includes(current) && !UNL) location.hash = '#painel'; };
+}
+function askPass(target, why) {
+  lockTarget = target; $('#lk-why').textContent = why || 'Esta área é restrita. Digite a senha para continuar.';
+  $('#lock').hidden = false; document.body.style.overflow = 'hidden'; setTimeout(() => $('#lk-pass').focus(), 30);
+}
+window.__pr990ask = askPass;
 function show(v) {
-  if (!VIEWS.includes(v)) v = 'painel'; current = v;
+  if (!VIEWS.includes(v)) v = 'painel';
+  if (LOCKED.includes(v) && !UNL) { askPass(v, 'A aba ' + ({ medicao: 'Medição', contrato: 'Contrato × projeto', discrepancias: 'Discrepâncias', base: 'Base de dados' })[v] + ' é restrita. Digite a senha para abrir.'); if (current === v || LOCKED.includes(current)) v = 'painel'; else { history.replaceState(null, '', '#' + current); return; } history.replaceState(null, '', '#' + v); }
+  current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'campo') OB.renderCampo(); if (v === 'planejamento') OB.renderPlan(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -520,7 +570,7 @@ function pwa() {
 // ---------------------------------------------------------------- módulos de obra
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
-  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
 
 // ---------------------------------------------------------------- início
@@ -529,7 +579,8 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
-  Object.assign(OB.data, { medicao: data.medicao, medref: data.medref, avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas });
+  Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas });
+  PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
   $('#boot').hidden = true; $('#app').hidden = false;
@@ -541,7 +592,8 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
-  lbInit(); OB.init(); navInit();
+  lbInit(); OB.init(); navInit(); lockInit();
+  await autoUnlock();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
   show(location.hash.slice(1) || store.get('tab', 'painel'));

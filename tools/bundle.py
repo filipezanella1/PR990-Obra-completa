@@ -9,7 +9,7 @@ mods = [(root / f'src/{f}.js').read_text(encoding='utf-8') for f in ('xlsx', 'me
 eng = re.sub(r'^export \{[^}]*\};?\s*$', '', eng, flags=re.M).replace('export class ', 'class ')
 strip = lambda t: re.sub(r'^export (async function|function|class|const|let) ', r'\1 ', re.sub(r"^import .*?;\s*$", '', t, flags=re.M), flags=re.M)
 app = '\n'.join(strip(t) for t in mods)
-data = {k: json.loads((root / f'data/{f}.json').read_text(encoding='utf-8')) for k, f in [(x, x) for x in ('model', 'base', 'painel', 'insumos', 'medicao', 'medref', 'avanco', 'eixo', 'pranchas')]}
+data = {k: json.loads((root / f'data/{f}.json').read_text(encoding='utf-8')) for k, f in [(x, x) for x in ('model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas')]}
 payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
 html = re.sub(r'<!--PWA-->.*?<!--/PWA-->', '', html, flags=re.S)
 html = re.sub(r'<!--CSS-->.*?<!--/CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)

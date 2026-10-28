@@ -669,3 +669,20 @@ b.grn { color: #4d8a2a; } b.ylw { color: #b38f00; }
 #v-simulacao .cells i.c { cursor: crosshair; }
 .av-head .btn { text-decoration: none; color: inherit; }
 @media (min-width: 761px) { nav.tabs a { font-size: .84rem; padding: 4px 7px; letter-spacing: .02em; } }
+
+/* área restrita */
+.lock-btn { background: transparent; border: 1px solid #4a535b; color: #dbe1e6; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: .85rem; }
+.lock-btn:hover { border-color: var(--accent); }
+.unl .lock-btn { color: var(--accent); border-color: var(--accent); }
+nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " 🔒"; font-size: .7em; filter: grayscale(1) brightness(1.6); }
+.unl nav.tabs a.lk .lg::after, .unl nav.tabs a.lk > span:last-child::after, nav.tabs a.lk .sm::after { content: none; }
+.ms-in a.lk span::after { content: " 🔒"; font-size: .75em; }
+.unl .ms-in a.lk span::after { content: none; }
+.lock { position: fixed; inset: 0; z-index: 70; background: rgba(15,18,20,.6); display: grid; place-items: center; padding: 16px; }
+.lock-in { width: min(400px, 100%); background: var(--surface); border-radius: 12px; padding: 22px; display: grid; gap: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.lk-ic svg { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linecap: round; }
+.lock-in input[type=password] { font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.lk-act { display: flex; gap: 8px; justify-content: flex-end; }
+.lock-in .err:empty { display: none; }
+.lock-in .err { color: var(--neg); margin: 0; }
+@media (max-width: 760px) { .lock-btn { min-height: 38px; } }

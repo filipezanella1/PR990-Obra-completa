@@ -1,7 +1,7 @@
 // uso: node tools/medicao.mjs <medição.xlsx> [saida.json]
 import { readFileSync, writeFileSync } from 'fs';
 import { parseMedicao } from '../src/medparse.js';
-const f = process.argv[2]; const out = process.argv[3] || 'data/medicao.json';
+const f = process.argv[2]; const out = process.argv[3] || 'privado/medicao.json';
 const t0 = Date.now();
 const m = await parseMedicao(readFileSync(f), f.split('/').pop());
 writeFileSync(out, JSON.stringify(m));

@@ -147,6 +147,7 @@ export function initObra(X) {
   const OACC = /^(6(05|06|07|08|10|11|12|20|21)\d{3}|79(80|81|82|83|84|85)\d{2}|600300|601200|602000|603000|605300)$/;
   let MCELL = null, MCELLn = null;
   function medCells() {   // frente → Map(célula → serviços medidos na medição atual)
+    if (!MED) return {};
     if (MCELL && MCELLn === MED) return MCELL; MCELL = {}; MCELLn = MED;
     const all = { ...FRM, oac: it => OACC.test(it.c) };
     for (const [id, f] of Object.entries(all)) {
@@ -243,7 +244,7 @@ export function initObra(X) {
   function renderAv() {
     if (!AV) avLoad();
     $('#a-fonte').textContent = `${AV.fonte} · alterado no app em ${AV.atualizado.split('-').reverse().join('/')}`;
-    $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o medido na ${MED.n || ''}ª medição`;
+    $('#a-hl').checked = avHl; $('#a-hl').closest('label').hidden = !MED; if (MED) $('#a-hln').textContent = `Destacar o medido na ${MED.n || ''}ª medição`;
     $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Concluir edição' : 'Editar';
     $('#v-avanco').classList.toggle('painting', paintOn);
     // cartões de avanço
@@ -347,25 +348,27 @@ export function initObra(X) {
   function avInitEvents() {
     bindGrid($('#a-grid'), false); bindGrid($('#s-grid'), true);
     $('#a-hl').onchange = () => { avHl = $('#a-hl').checked; store.set('avHl', avHl); renderAv(); };
-    $('#a-paint').onclick = () => { paintOn = !paintOn; renderAv(); };
+    const need = (fn) => (...a) => { if (!X.unlocked()) { X.ask(X.current(), 'Editar o retigráfico é restrito. Digite a senha para liberar a edição.'); return; } return fn(...a); };
+    $('#a-paint').onclick = need(() => { paintOn = !paintOn; renderAv(); });
     for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) $('#' + id).onchange = ev => { const v = parseFloat(ev.target.value.replace(/\./g, '').replace(',', '.')); if (Number.isFinite(v) && v >= 0) SP[k] = k === 'cap' ? v / 100 : v; else SP[k] = null; store.set('simPar', SP); renderSim(); };
     $('#s-clear').onclick = () => { if (!confirm('Limpar todas as células simuladas?')) return; SIM = {}; simSave(); renderSim(); };
     $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Serviço', 'Estacas selecionadas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
       for (const r of R) for (const [k, v] of Object.entries(r.m)) L.push([r.n, r.cnt ? (() => { const a = []; const sl = simSel(r.id); for (let i = 0; i < NC; i++) if (sl[i] === '1') a.push(i); return a.join(' '); })() : '', r.ext, r.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']);
       L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);
       download(`simulacao_materiais_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
-    $('#a-apply').onclick = () => {
+    $('#a-apply').onclick = need(() => {
       const a = parseEstIn($('#a-ei').value), b = parseEstIn($('#a-ef').value), k = $('#a-st').value; const ids = [...$('#a-lay').selectedOptions].map(o => o.value);
       if (a === null || b === null || !ids.length) { $('#a-tip').textContent = 'Informe estaca inicial, final e ao menos uma frente.'; return; }
       const i0 = Math.max(0, Math.floor(Math.min(a, b))), i1 = Math.min(NC - 1, Math.ceil(Math.max(a, b)) - 1);
       for (const f of AV.frentes) if (ids.includes(f.id)) { const kk = k === '1' && !f.a ? '2' : k; const c = f.c.split(''); for (let i = i0; i <= Math.max(i0, i1); i++) c[i] = kk; f.c = c.join(''); }
       avSave(); renderAv(); $('#a-tip').textContent = `Aplicado: ${stName(k)} da estaca ${i0} a ${Math.max(i0, i1) + 1} em ${ids.length} frente(s).`;
-    };
-    $('#a-add').onclick = () => { const n = prompt('Nome da nova frente (ex.: Sarjetas, Drenos, Sinalização horizontal):'); if (!n) return; const pc = PAL[AV.frentes.length % PAL.length]; AV.frentes.push({ id: 'u' + Date.now(), n: n.trim(), a: true, ca: pc[0], cc: pc[1], c: '0'.repeat(NC) }); avSave(); renderAv(); };
-    $('#a-ren').onclick = () => { const ids = [...$('#a-lay').selectedOptions].map(o => o.value); if (ids.length !== 1) { $('#a-tip').textContent = 'Selecione uma frente na lista para renomear ou remover.'; return; } const f = AV.frentes.find(x => x.id === ids[0]); const n = prompt('Novo nome (deixe vazio para remover a frente):', f.n); if (n === null) return; if (!n.trim()) { if (confirm('Remover a frente “' + f.n + '”?')) AV.frentes = AV.frentes.filter(x => x !== f); } else f.n = n.trim(); avSave(); renderAv(); };
-    $('#a-reset').onclick = () => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As alterações feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); avSave(); renderAv(); };
+    });
+    $('#a-add').onclick = need(() => { const n = prompt('Nome da nova frente (ex.: Sarjetas, Drenos, Sinalização horizontal):'); if (!n) return; const pc = PAL[AV.frentes.length % PAL.length]; AV.frentes.push({ id: 'u' + Date.now(), n: n.trim(), a: true, ca: pc[0], cc: pc[1], c: '0'.repeat(NC) }); avSave(); renderAv(); });
+    $('#a-ren').onclick = need(() => { const ids = [...$('#a-lay').selectedOptions].map(o => o.value); if (ids.length !== 1) { $('#a-tip').textContent = 'Selecione uma frente na lista para renomear ou remover.'; return; } const f = AV.frentes.find(x => x.id === ids[0]); const n = prompt('Novo nome (deixe vazio para remover a frente):', f.n); if (n === null) return; if (!n.trim()) { if (confirm('Remover a frente “' + f.n + '”?')) AV.frentes = AV.frentes.filter(x => x !== f); } else f.n = n.trim(); avSave(); renderAv(); });
+    $('#a-reset').onclick = need(() => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As alterações feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); avSave(); renderAv(); });
     $('#a-exp').onclick = () => download(`retigrafico_PR-990_${today()}.json`, JSON.stringify(AV), 'application/json');
     $('#a-csv').onclick = () => { const L = [['Estaca inicial', 'Estaca final', ...AV.frentes.map(f => f.n)]]; for (let k = 0; k < NC; k++) L.push([k, Math.min(k + 1, 642.79085), ...AV.frentes.map(f => stName(f.c[k]))]); L.push([], ['OAC', 'Estaca', 'Comprimento (m)', 'Situação']); for (const o of AV.oac) L.push([o.t, estStr(o.e), o.L || '', oacName(o.st)]); download(`retigrafico_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
+    $('#a-imp').onclick = ev => { if (!X.unlocked()) { ev.preventDefault(); X.ask(X.current(), 'Importar um retigráfico é restrito. Digite a senha.'); } };
     $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.frentes) throw new Error('arquivo de outro modelo de retigráfico'); AV = { ...avDefault(), ...j, v: 2 }; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
     let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (X.current() === 'avanco') drawGrid(false); if (X.current() === 'simulacao') drawGrid(true); }, 200); });
   }
@@ -437,7 +440,7 @@ export function initObra(X) {
       <dt>Cota terreno → projeto</dt><dd>${geo['Cota do terreno (m)'] ? fQ(geo['Cota do terreno (m)']) + ' → ' + fQ(geo['Cota de projeto (m)']) + ' m' : '–'}</dd><dt>Situação</dt><dd>${esc(geo['Situação'] || '–')} ${geo['Altura (projeto − terreno) (m)'] !== undefined ? '(' + fQ(geo['Altura (projeto − terreno) (m)']) + ' m)' : ''}</dd>
       <dt>Greide · curva</dt><dd>${geo['Rampa do greide (%)'] !== undefined ? fQ(geo['Rampa do greide (%)'], 3) + '%' : '–'}${geo['Curva horizontal'] ? ' · ' + esc(geo['Curva horizontal']) + ' R=' + fQ(geo['Raio (m)'], 0) : ''}</dd></dl>
       <div class="avst"><span class="label">Avanço nesta estaca</span>${av.map(a => `<span class="avchip"><i class="sw" style="background:${a.col}"></i>${esc(a.n)}:&nbsp;<b>${esc(stName(a.k))}</b></span>`).join('')}${oacNear(est, raio).map(o => `<span class="avchip">${oacIcon(o.st)}&nbsp;${esc(o.t)} (est. ${estStr(o.e)}):&nbsp;<b>OAC ${oacName(o.st)}</b></span>`).join('')}</div>
-      ${(() => { const L = MED.itens.map(it => { const q = it.r.filter(r => r[4] === MED.n && (r[1] !== null && r[1] > r[0] ? est >= r[0] - 1e-9 && est <= r[1] + 1e-9 : Math.abs(r[0] - est) <= 0.5)).reduce((s, r) => s + r[3], 0); return { it, q }; }).filter(o => Math.abs(o.q) > 1e-9);
+      ${!MED ? '' : (() => { const L = MED.itens.map(it => { const q = it.r.filter(r => r[4] === MED.n && (r[1] !== null && r[1] > r[0] ? est >= r[0] - 1e-9 && est <= r[1] + 1e-9 : Math.abs(r[0] - est) <= 0.5)).reduce((s, r) => s + r[3], 0); return { it, q }; }).filter(o => Math.abs(o.q) > 1e-9);
         return L.length ? `<div class="avst"><span class="label">Medido aqui na ${MED.n}ª medição</span>${L.map(o => `<span class="avchip"><b>${esc(o.it.c)}</b>&nbsp;${esc(o.it.s.slice(0, 48))} · ${fQ(o.q)} ${esc(o.it.u)}</span>`).join('')}</div>` : ''; })()}
       <div class="here-act"><button class="btn" type="button" id="g-tr">Usar como trecho no painel (± 1 estaca)</button><button class="btn" type="button" id="g-av">Ver no retigráfico</button></div></div>`;
     $('#g-tr').onclick = () => { X.setSel(Math.max(0, est - 1), Math.min(END(), est + 1), true); X.show('painel'); location.hash = '#painel'; };
@@ -472,116 +475,6 @@ export function initObra(X) {
     $('#g-see').onclick = go; $('#g-est').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     $('#g-prev').onclick = () => { if (here === null) return; here = Math.max(0, Math.floor(here - 1e-9) - (Number.isInteger(here) ? 1 : 0)); hereFix = null; renderCampo(); };
     $('#g-next').onclick = () => { if (here === null) return; here = Math.min(END(), Math.floor(here) + 1); hereFix = null; renderCampo(); };
-  }
-
-  // ===================================================================== PLANEJAMENTO
-  const PL = Object.assign({ base: 'saldo', ini: nextMonday(), h: 9, dsem: 5, frentes: {}, serv: {} }, store.get('plan', {}));
-  function nextMonday() { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return d.toISOString().slice(0, 10); }
-  const plSave = () => store.set('plan', PL);
-  function workDays(start, n, dsem) {   // índice de dia útil → data (seg–sex, ou seg–sáb)
-    const out = []; const d = new Date(start + 'T12:00:00'); let c = 0;
-    while (out.length < n && c < 5000) { const wd = d.getDay(); if (wd !== 0 && (dsem === 6 || wd !== 6)) out.push(new Date(d)); d.setDate(d.getDate() + 1); c++; }
-    return out;
-  }
-  function plServ() {
-    const rows = medRows(); const byL = new Map(rows.map(r => [r.l, r]));
-    const out = [];
-    for (const d of M().disciplinas) {
-      for (const l of d.linhas) {
-        if (l.t !== 'it' || !l.ct) continue;
-        const projT = num(C('H' + l.r)); const mr = byL.get(l.ct);
-        let q = projT;
-        if (PL.base === 'saldo' && mr) { const share = mr.prevT ? projT / mr.prevT : 0; q = Math.max(0, projT - mr.medT * share); }
-        if (q <= 1e-6) continue;
-        const cons = INS().consumos[l.c] || []; const prodH = INS().prod?.[l.c] || null;
-        const cfg = PL.serv[l.c] || {}; const pd = cfg.pd ?? (prodH ? prodH * PL.h : null);
-        out.push({ d, l, q, cons, prodH, pd, eq: cons.filter(x => x[0] === 'Equipamento'), dl: cons.filter(x => x[0] === 'Diesel').reduce((s, x) => s + x[4], 0) });
-      }
-    }
-    return out;
-  }
-  function plCalc() {
-    const sv = plServ(); const fr = new Map();
-    for (const s of sv) { const k = s.d.num; if (!fr.has(k)) fr.set(k, { d: s.d, sv: [] }); fr.get(k).sv.push(s); }
-    const meses = new Map(); let fim = 0;
-    for (const f of fr.values()) {
-      const cfg = PL.frentes[f.d.num] || {}; f.modo = cfg.modo || 'paralelo'; f.off = cfg.off || 0; f.eqp = cfg.eqp || 1;
-      let t = f.off; f.dias = 0; f.crit = null;
-      for (const s of f.sv) {
-        s.pdE = s.pd ? s.pd * f.eqp : 0;
-        s.dias = s.pdE > 0 ? Math.ceil(s.q / s.pdE) : 0; if (!f.crit || s.dias > f.crit.dias) f.crit = s; s.ini = f.modo === 'sequencial' ? t : f.off; s.fim = s.ini + s.dias;
-        if (f.modo === 'sequencial') t = s.fim; f.dias = Math.max(f.dias, s.fim - f.off);
-      }
-      fim = Math.max(fim, f.off + f.dias);
-    }
-    const cal = workDays(PL.ini, Math.max(1, fim) + 1, PL.dsem);
-    const mk = d => d.toISOString().slice(0, 7);
-    for (const f of fr.values()) for (const s of f.sv) {
-      if (!s.dias) continue;
-      for (let i = s.ini; i < s.fim; i++) {
-        const m = mk(cal[i]); if (!meses.has(m)) meses.set(m, { m, q: {}, dl: 0, eq: {}, lab: {}, serv: new Set() });
-        const o = meses.get(m); const qd = Math.min(s.pdE, s.q - (i - s.ini) * s.pdE);
-        o.dl += qd * s.dl; o.serv.add(s.l.c);
-        for (const c of s.cons) if (c[5]) o.lab[c[5]] = (o.lab[c[5]] || 0) + qd * c[4];
-        for (const e of s.eq) o.eq[e[2] + '§' + s.l.c] = Math.ceil(s.pdE * e[4] / PL.h - 1e-9);
-      }
-    }
-    // equipamentos por mês = soma, entre os serviços ativos no mês, das unidades necessárias de cada equipamento
-    for (const o of meses.values()) { const eq = {}; for (const [k, v] of Object.entries(o.eq)) { if (!k.includes('§')) continue; const n = k.split('§')[0]; eq[n] = (eq[n] || 0) + v; } o.eqT = eq; }
-    return { fr: [...fr.values()], meses: [...meses.values()].sort((a, b) => a.m.localeCompare(b.m)), fim, cal };
-  }
-  const mesNome = m => { const [y, mm] = m.split('-'); return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+mm - 1] + '/' + y.slice(2); };
-  const fDate = d => d ? d.toLocaleDateString('pt-BR') : '–';
-  function renderPlan() {
-    const [a, b] = trecho(); $('#p-trecho').textContent = `${estStr(a)} → ${estStr(b)}`;
-    $('#p-base').value = PL.base; $('#p-ini').value = PL.ini; $('#p-h').value = PL.h; $('#p-dsem').value = String(PL.dsem);
-    const R = plCalc(); const cal = R.cal;
-    const tot = R.meses.reduce((o, m) => { o.dl += m.dl; return o; }, { dl: 0 });
-    $('#p-kpis').innerHTML = [['PRAZO TOTAL', `${R.fim} dias úteis`, `${fDate(cal[0])} → ${fDate(cal[Math.max(0, R.fim - 1)])}`], ['FRENTES', String(R.fr.length), `${R.fr.reduce((s, f) => s + f.sv.length, 0)} serviços com quantidade`], ['DIESEL', NF[0].format(tot.dl) + ' L', 'no período'], ['MESES', String(R.meses.length), R.meses.length ? mesNome(R.meses[0].m) + ' a ' + mesNome(R.meses[R.meses.length - 1].m) : '']]
-      .map(([l, v, c]) => `<div class="kpi"><span class="label">${l}</span><span class="v num">${esc(v)}</span><span class="c">${esc(c)}</span></div>`).join('');
-    // gantt por frente
-    const W = Math.max(1, R.fim);
-    $('#p-gantt').innerHTML = `<div class="gantt">${R.fr.map(f => `<div class="gr"><span class="gl">${esc(f.d.curto)}</span><div class="gt"><i style="left:${f.off / W * 100}%;width:${Math.max(0.5, f.dias / W * 100)}%" title="${f.dias} dias úteis"></i></div><span class="gd">${f.dias} d · até ${fDate(cal[Math.max(0, f.off + f.dias - 1)])}${f.crit && f.crit.dias ? `<br>crítico: ${esc(f.crit.l.n.slice(0, 38))}` : ''}</span></div>`).join('')}</div>
-      <div class="gax">${R.meses.filter((m, i, a) => i % Math.max(1, Math.ceil(a.length / 10)) === 0).map(m => `<span>${mesNome(m.m)}</span>`).join('')}</div>`;
-    // frentes e serviços
-    $('#p-fr').innerHTML = R.fr.map(f => `<details class="disc" ${PL.frentes[f.d.num]?.open ? 'open' : ''} data-f="${f.d.num}"><summary><span class="no">${esc(f.d.num)}</span><span class="t">${esc(f.d.titulo)}</span><span class="v">${f.dias} dias úteis</span><span class="v">equipes <input class="pin" type="number" min="1" max="50" value="${f.eqp}" data-eqp="${f.d.num}" aria-label="Número de equipes da frente"> · início no dia <input class="pin" type="number" min="0" value="${f.off}" data-off="${f.d.num}" aria-label="Início da frente (dia útil)"> · <select data-modo="${f.d.num}" aria-label="Execução dos serviços"><option value="paralelo" ${f.modo === 'paralelo' ? 'selected' : ''}>serviços em paralelo</option><option value="sequencial" ${f.modo === 'sequencial' ? 'selected' : ''}>em sequência</option></select></span></summary>
-      <div class="tbl-wrap"><table class="itbl plan"><thead><tr><th>Código</th><th>Serviço</th><th class="n">Quantidade</th><th class="n">Equipe CPU (un/h)</th><th class="n">Produção diária (1 equipe)</th><th class="n">Dias úteis</th><th>Equipamentos (un)</th></tr></thead><tbody>
-      ${f.sv.map(s => `<tr><td class="code">${esc(s.l.c)}</td><td>${esc(s.l.n)}</td><td class="n" data-l="Quantidade">${fQ(s.q)} ${esc(s.l.u)}</td><td class="n" data-l="Equipe CPU">${s.prodH ? NF[2].format(s.prodH) : '–'}</td>
-        <td class="n" data-l="Produção / dia (${esc(s.l.u)})"><input class="pin" inputmode="decimal" data-pd="${esc(s.l.c)}" value="${s.pd ? NF[2].format(s.pd).replace(/\./g, '') : ''}" placeholder="informe"></td><td class="n" data-l="Dias"><b>${s.dias || '–'}</b></td>
-        <td class="src">${s.eq.length && s.pdE ? s.eq.map(e => `${Math.ceil(s.pdE * e[4] / PL.h - 1e-9)}× ${esc(e[2])}`).join(' · ') : ''}</td></tr>`).join('')}</tbody></table></div></details>`).join('') || '<p class="note">Nenhum serviço com quantidade a executar no trecho.</p>';
-    $$('#p-fr details').forEach(el => el.addEventListener('toggle', () => { const k = el.dataset.f; PL.frentes[k] = { ...(PL.frentes[k] || {}), open: el.open }; plSave(); }));
-    $$('#p-fr [data-off]').forEach(i => { i.onclick = e => e.stopPropagation(); i.onchange = () => { const k = i.dataset.off; PL.frentes[k] = { ...(PL.frentes[k] || {}), off: Math.max(0, parseInt(i.value) || 0) }; plSave(); renderPlan(); }; });
-    $$('#p-fr [data-eqp]').forEach(i => { i.onclick = e => e.stopPropagation(); i.onchange = () => { const k = i.dataset.eqp; PL.frentes[k] = { ...(PL.frentes[k] || {}), eqp: Math.max(1, parseInt(i.value) || 1) }; plSave(); renderPlan(); }; });
-    $$('#p-fr [data-modo]').forEach(i => { i.onclick = e => e.stopPropagation(); i.onchange = () => { const k = i.dataset.modo; PL.frentes[k] = { ...(PL.frentes[k] || {}), modo: i.value }; plSave(); renderPlan(); }; });
-    $$('#p-fr [data-pd]').forEach(i => i.onchange = () => { const v = parseFloat(i.value.replace(/\./g, '').replace(',', '.')); const c = i.dataset.pd; PL.serv[c] = { ...(PL.serv[c] || {}) }; if (Number.isFinite(v) && v > 0) PL.serv[c].pd = v; else delete PL.serv[c].pd; plSave(); renderPlan(); });
-    // tabela mensal
-    const labs = INS().labels.filter(lb => R.meses.some(m => (m.lab[lb] || 0) > 1e-6));
-    const eqs = [...new Set(R.meses.flatMap(m => Object.keys(m.eqT)))].sort((x, y) => Math.max(...R.meses.map(m => m.eqT[y] || 0)) - Math.max(...R.meses.map(m => m.eqT[x] || 0)));
-    $('#p-mes').innerHTML = R.meses.length ? `<table class="plm"><thead><tr><th></th>${R.meses.map(m => `<th class="n">${mesNome(m.m)}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>
-      <tr class="grp"><td colspan="${R.meses.length + 2}">Diesel e materiais</td></tr>
-      <tr><td>Diesel (L)</td>${R.meses.map(m => `<td class="n">${NF[0].format(m.dl)}</td>`).join('')}<td class="n"><b>${NF[0].format(tot.dl)}</b></td></tr>
-      ${labs.filter(lb => !/^Diesel/.test(lb)).map(lb => `<tr><td>${esc(lb)}</td>${R.meses.map(m => `<td class="n">${fQ(m.lab[lb] || 0, 0)}</td>`).join('')}<td class="n"><b>${fQ(R.meses.reduce((s, m) => s + (m.lab[lb] || 0), 0), 0)}</b></td></tr>`).join('')}
-      <tr class="grp"><td colspan="${R.meses.length + 2}">Equipamentos necessários (unidades no mês)</td></tr>
-      ${eqs.map(e => `<tr><td>${esc(e)}</td>${R.meses.map(m => `<td class="n">${m.eqT[e] || '–'}</td>`).join('')}<td class="n"><b>${Math.max(...R.meses.map(m => m.eqT[e] || 0))}</b> pico</td></tr>`).join('')}
-      </tbody></table>` : '<p class="note">Informe a produção diária dos serviços para montar o cronograma.</p>';
-    PL._last = R;
-  }
-  function exportPlan() {
-    const R = PL._last || plCalc(); const L = [['Frente', 'Código', 'Serviço', 'Un', 'Quantidade', 'Produção diária', 'Início (dia útil)', 'Dias úteis', 'Início', 'Término']];
-    for (const f of R.fr) for (const s of f.sv) L.push([f.d.titulo, s.l.c, s.l.n, s.l.u, s.q, s.pd || '', s.ini, s.dias, s.dias ? fDate(R.cal[s.ini]) : '', s.dias ? fDate(R.cal[s.fim - 1]) : '']);
-    L.push([]); L.push(['Mês', 'Diesel (L)', ...INS().labels]);
-    for (const m of R.meses) L.push([mesNome(m.m), m.dl, ...INS().labels.map(lb => m.lab[lb] || 0)]);
-    L.push([]); const eqs = [...new Set(R.meses.flatMap(m => Object.keys(m.eqT)))]; L.push(['Equipamento', ...R.meses.map(m => mesNome(m.m))]);
-    for (const e of eqs) L.push([e, ...R.meses.map(m => m.eqT[e] || 0)]);
-    download(`planejamento_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
-  }
-  function planInit() {
-    $('#p-base').onchange = () => { PL.base = $('#p-base').value; plSave(); renderPlan(); };
-    $('#p-ini').onchange = () => { PL.ini = $('#p-ini').value || nextMonday(); plSave(); renderPlan(); };
-    $('#p-h').onchange = () => { PL.h = Math.max(1, Math.min(24, parseFloat($('#p-h').value) || 9)); plSave(); renderPlan(); };
-    $('#p-dsem').onchange = () => { PL.dsem = +$('#p-dsem').value; plSave(); renderPlan(); };
-    $('#p-csv').onclick = exportPlan;
-    $('#p-reset').onclick = () => { if (!confirm('Voltar todas as produções diárias às das equipes das CPUs?')) return; PL.serv = {}; plSave(); renderPlan(); };
   }
 
   // ===================================================================== PRANCHAS (outras disciplinas)
@@ -701,7 +594,7 @@ export function initObra(X) {
     if (e && +e[1] <= 642) { const v = +e[1] + (e[2] ? parseFloat(e[2].replace(',', '.')) / 20 : 0); add('Estaca', `Estaca ${estStr(v)}`, 'O que existe no local (Campo)', () => { here = v; hereFix = null; store.set('campoEst', v); location.hash = '#campo'; }); }
     for (const d of M().disciplinas) for (const l of d.linhas) if (l.t === 'it' && norm(l.c + ' ' + l.n).includes(n)) add('Painel', `${l.c} · ${l.n}`, d.titulo, () => X.gotoRow(l.r));
     if (MED) for (const it of MED.itens) if (norm(it.c + ' ' + it.s).includes(n)) add('Medição', `${it.c} · ${it.s}`, `${MED.nome} · medido ${fQ(it.acum)} de ${fQ(it.q)} ${it.u}`, () => { location.hash = '#medicao'; $('#m-q').value = it.c; medFilt = ''; medOpen = it.l; renderMed(); });
-    for (const c of M().contrato) if (norm(c.codigo + ' ' + c.servico).includes(n)) add('Contrato × projeto', `${c.codigo} · ${c.servico}`, c.grupo, () => { location.hash = '#contrato'; $('#c-q').value = c.codigo; X.renderCmp(); });
+    for (const c of M().contrato || []) if (norm(c.codigo + ' ' + c.servico).includes(n)) add('Contrato × projeto', `${c.codigo} · ${c.servico}`, c.grupo, () => { location.hash = '#contrato'; $('#c-q').value = c.codigo; X.renderCmp(); });
     for (const f of X.DRF) { const ty = new Set(); for (const r of [...tab('Drenagem linear'), ...tab('Drenagem pontual')]) { const d = String(r['Dispositivo'] || '').trim(); if (f.re.test(d) && norm(d + ' ' + f.n).includes(n)) ty.add(d); } if (ty.size || norm(f.n).includes(n)) add('Drenagem', f.n, [...ty].slice(0, 6).join(', '), () => { location.hash = '#drenagem'; $('#dr-q').value = q; X.renderDrenagem(); }); }
     for (const [s, t] of Object.entries(X.SHEETS)) if (norm('DR-4-' + s + ' ' + t).includes(n)) add('Pranchas', `DR-4-${s} · ${t}`, 'Drenagem – detalhe tipo', () => X.lbOpen(s));
     for (const p of D.pranchas || []) if (norm(p.id + ' ' + p.t + ' ' + DISC.find(d => d.id === p.d).n).includes(n)) add('Pranchas', `${p.id} · ${p.t}`, DISC.find(d => d.id === p.d).n, () => prOpenSheet(p.id));
@@ -727,8 +620,7 @@ export function initObra(X) {
   function printView(v) {
     const opened = [];
     if (v === 'painel') $$('#detail details.disc').forEach(d => { if (!d.open) { d.open = true; opened.push(d); } });
-    if (v === 'planejamento') $$('#p-fr details').forEach(d => { if (!d.open) { d.open = true; opened.push(d); } });
-    document.body.dataset.print = v;
+        document.body.dataset.print = v;
     const [a, b] = trecho(); const old = document.title; document.title = `PR-990 – ${({ painel: 'Painel', insumos: 'Insumos', medicao: 'Medição', avanco: 'Retigráfico', simulacao: 'Simulação de materiais', planejamento: 'Planejamento' })[v] || v} – ${estStr(a)} a ${estStr(b)}`;
     $('#print-head').textContent = `${document.title} · emitido em ${new Date().toLocaleDateString('pt-BR')}`;
     const done = () => { opened.forEach(d => d.open = false); delete document.body.dataset.print; document.title = old; window.removeEventListener('afterprint', done); };
@@ -740,14 +632,17 @@ export function initObra(X) {
     const [medicao, medref, avanco, eixo, pranchas] = await Promise.all(['medicao.json', 'medref.json', 'avanco.json', 'eixo.json', 'pranchas.json'].map(f => get(f)));
     Object.assign(D, { medicao, medref, avanco, eixo, pranchas });
   }
+  function unlock(medicao, medref) {
+    Object.assign(D, { medicao, medref }); medInit(); MCELL = null;
+    if (X.current() === 'avanco') renderAv(); if (X.current() === 'campo') renderCampo();
+  }
   function init() {
-    medInit();
     $('#m-sel').onchange = () => { const m = medAll().find(x => x.nome === $('#m-sel').value); if (m) { medSetActive(m); medOpen = null; renderMed(); } };
     $('#m-file').onchange = e => { const f = e.target.files[0]; if (f) medUpload(f); e.target.value = ''; };
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
-    avInitEvents(); campoInit(); planInit(); cmpInit(); searchInit();
+    avInitEvents(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => printView(b.dataset.print));
   }
-  return { load, init, renderMed, renderAv, renderSim, renderCampo, renderPlan, renderPr, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, renderMed, renderAv, renderSim, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }
