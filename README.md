@@ -10,6 +10,7 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 |---|---|
 | **Painel** | Seleção do trecho por estaca + metros, ou arrastando na faixa de estaqueamento. Premissas editáveis (teor de CAP, taxas de EAI e RR-1C). Indicadores e resumo por disciplina. Dados do trecho e indicadores geométricos. Detalhamento de cada serviço com as quantidades do projeto (LE / LD / total), o **consumo real** e o valor **ajustado ao contrato**. Exportação do trecho em CSV. |
 | **Insumos** | Diesel, materiais, horas de equipamento e mão de obra no trecho pelas CPUs do contrato (abertas até os insumos): indicadores, principais insumos, consumo por serviço e lista de todos os insumos, com exportação em CSV. O Painel também mostra os principais insumos do trecho. |
+| **Drenagem** | Catálogo de todos os dispositivos de drenagem do projeto (valetas, sarjetas, meios-fios, descidas, dissipadores, caixas, drenos, bueiros, galerias): detalhe tipo das pranchas DR-4 com visualizador de zoom, quantidades por tipo na obra e no trecho, itens do contrato e localização por estaca (notas de serviço DR-9). |
 | **Contrato × projeto** | Os 269 itens do contrato com a quantidade contratual, o total impresso nos quadros da memória, o consumo real, a diferença em quantidade, em % e em R$, a situação de cada item e uma observação. Tem filtros, ordenação e exportação em CSV. |
 | **Discrepâncias** | As principais divergências com o impacto em R$, os serviços do projeto sem item no contrato, as inconsistências internas das memórias e pranchas e verificações automáticas da base. |
 | **Base de dados** | Todas as tabelas por estaca: terraplenagem, pavimentação, drenagem, sinalização, paisagismo, obras complementares, contenções, OAE, iluminação, interferências e geometria. Também a planilha contratual e os quadros da memória, com filtro e download em CSV ou JSON. |
@@ -94,6 +95,7 @@ index.html            app
 manifest.webmanifest  dados do app instalável (nome, ícones, cores)
 sw.js                 service worker: funcionamento offline e atualização
 icons/                ícones do app (192, 512, maskable, iPhone)
+drenagem/             pranchas DR-4 em WebP (inteiras e miniaturas) usadas na aba Drenagem
 src/engine.js         motor de fórmulas (navegador e Node)
 src/app.js            interface
 src/style.css         estilos

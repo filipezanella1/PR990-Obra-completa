@@ -14,7 +14,7 @@ html = re.sub(r'<!--PWA-->.*?<!--/PWA-->', '', html, flags=re.S)
 html = re.sub(r'<!--CSS-->.*?<!--/CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)
 html = re.sub(r'<!--JS-->.*?<!--/JS-->', lambda m: '<script>window.__PR990__=' + payload + ';</script>\n<script type="module">\n' + eng + '\n' + app + '\n</script>', html, flags=re.S)
 out = root / 'dist'; out.mkdir(exist_ok=True)
-(out / 'painel-pr990.html').write_text(html, encoding='utf-8')
+(out / 'painel-pr990.html').write_text(html.replace('`drenagem/', '`../drenagem/').replace('"drenagem/', '"../drenagem/'), encoding='utf-8')
 print('dist/painel-pr990.html', round(len(html.encode()) / 1e6, 2), 'MB')
 
 # variante para publicação como página única (sem doctype/head/body próprios)

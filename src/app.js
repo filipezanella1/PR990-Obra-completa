@@ -100,6 +100,7 @@ function recalc() {
   $('#sel-small').textContent = err ? '' : `${NF[2].format(num(C(M.meta.sel)))} m · ${NF[1].format(num(C(M.meta.frac)) * 100)}% da obra`;
   renderKPIs(); renderSummary(); renderInfo(); renderDetail(); renderInsMain();
   if (current === 'insumos') renderIns();
+  if (current === 'drenagem') renderDrenagem();
   if (current === 'discrepancias') renderDisc();
   if (current === 'contrato') renderCmp();
 }
@@ -340,12 +341,134 @@ function exportIns() {
   download(`insumos_PR-990_${C('G7')}_a_${C('G8')}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
 }
 
-const VIEWS = ['painel', 'insumos', 'contrato', 'discrepancias', 'base', 'sobre'];
+// ---------------------------------------------------------------- drenagem: catálogo dos dispositivos
+const SHEETS = {
+  '0001': 'Valetas de proteção de aterro', '0002': 'Valetas de proteção de corte', '0003': 'Sarjetas triangulares', '0004': 'Sarjetas trapezoidais',
+  '0005': 'Entradas d\'água – tipo 1 (greide contínuo)', '0006': 'Entradas d\'água – tipo 2 (ponto baixo)', '0007': 'Descidas d\'água de aterro – rápida',
+  '0008': 'Descidas d\'água de aterro em degraus (DAD)', '0009': 'Descidas d\'água de corte em degraus', '0010': 'Dissipadores de energia – bueiros e descidas',
+  '0011': 'Dissipadores de energia – sarjetas e valetas', '0012': 'Caixa coletora com grelha', '0013': 'Drenos profundos em solo', '0014': 'Drenos profundos em rocha',
+  '0015': 'Bocas de saída de drenos profundos', '0016': 'Drenos sub-superficiais (DSS) e BSD 03', '0017': 'Caixa de ligação', '0018': 'Poço de queda – formas',
+  '0019': 'Poço de queda – armaduras', '0020': 'Poço de queda – tabelas', '0021': 'Boca de lobo simples', '0022': 'Boca de lobo dupla',
+  '0023': 'Berços e dentes de bueiros', '0024': 'Bueiros tubulares – bocas normais e esconsas', '0025': 'Bueiros tubulares – dimensões e consumos (1)',
+  '0026': 'Bueiros tubulares – dimensões e consumos (2)', '0027': 'Bueiros duplos tubulares', '0028': 'Bueiros triplos tubulares', '0029': 'Valeta em degraus revestida',
+  '0030': 'Bacia de captação de bueiros', '0031': 'STB – sarjeta de borda de aterro e dreno de talvegue', '0032': 'Meios-fios e envelopamento',
+  '0033': 'Transposição de segmentos de sarjeta', '0034': 'Valas de captação e descarga', '0035': 'Muro de testa e assentamento de bueiros celulares',
+  '0036': 'Assentamento dos coletores tubulares', '0037': 'Assentamento dos bueiros tubulares', '0038': 'Descida e caixa coletora (banqueta)',
+  '0039': 'Galerias 1,5×1,5 e 2,0×2,0 – dimensões e materiais', '0040': 'Galerias 2,5×2,5 e 3,0×3,0 – dimensões e materiais', '0041': 'Armaduras BSCC 2,0×2,0',
+  '0042': 'Armaduras BSCC 2,5×2,5', '0043': 'Armaduras BSCC 3,0×3,0', '0044': 'Armaduras BTCC 3,0×3,0', '0045': 'Bueiros celulares – notas e detalhes',
+  '0046': 'Bocas de bueiros simples celulares', '0047': 'Bocas de bueiros triplos celulares', '0048': 'Vigas de topo – bueiros simples',
+  '0049': 'Vigas de topo (2)', '0050': 'Vigas de topo (3)', '0051': 'Armaduras das cabeceiras (1)', '0052': 'Armaduras das cabeceiras (2)',
+  '0053': 'Armaduras das cabeceiras (3)', '0054': 'Resumo das cabeceiras', '0055': 'Galeria – detalhe complementar', '0056': 'Armaduras por metro de galeria',
+  '0057': 'Galeria – seção transversal', '0058': 'Galeria – tabela de armadura', '0059': 'Bueiro 1 – lastro sob a calçada', '0060': 'Bueiro – armaduras',
+  '0061': 'Bueiro – resumo de armaduras', '0062': 'Bueiro – detalhe complementar'
+};
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i).padStart(4, '0'));
+const DRF = [
+  { id: 'vpa', g: 'Superficial', n: 'Valetas de proteção de aterro (VPA)', re: /^VPA/, sh: ['0001'], ct: ['660100', '660300', '660500'] },
+  { id: 'vpc', g: 'Superficial', n: 'Valetas de proteção de corte (VPC)', re: /^VPC/, sh: ['0002'], ct: ['661100', '661300', '661500'] },
+  { id: 'stc', g: 'Superficial', n: 'Sarjetas triangulares de concreto (STC)', re: /^STC/, sh: ['0003'], ct: ['650000'] },
+  { id: 'szc', g: 'Superficial', n: 'Sarjetas trapezoidais de concreto (SZC)', re: /^SZC/, sh: ['0004'], ct: ['653400', '653600'] },
+  { id: 'stb', g: 'Superficial', n: 'Sarjeta de borda de aterro (STB)', re: /^STB/, sh: ['0031'], ct: [] },
+  { id: 'mfc', g: 'Superficial', n: 'Meios-fios de concreto (MFC)', re: /^MFC/, sh: ['0032'], ct: ['810200', '810700'] },
+  { id: 'tss', g: 'Superficial', n: 'Transposição de segmento de sarjeta (TSS)', re: /^TSS/, sh: ['0033'], ct: ['655500'] },
+  { id: 'eda', g: 'Dispositivos', n: 'Entradas d\'água (EDA)', re: /^EDA/, sh: ['0005', '0006'], ct: [] },
+  { id: 'desc', g: 'Dispositivos', n: 'Descidas d\'água (DAR, DAD, DCD)', re: /^(DAR|DAD|DCD)/, sh: ['0007', '0008', '0009', '0038'], ct: [] },
+  { id: 'diss', g: 'Dispositivos', n: 'Dissipadores de energia (DES, DEB)', re: /^(DES|DEB)/, sh: ['0010', '0011'], ct: [] },
+  { id: 'caixas', g: 'Dispositivos', n: 'Caixas, poços e bocas de lobo (CCS, CLP, PV, BLS, BLD)', re: /^(CCS|CLP|PV|BLS|BLD)\b/, sh: ['0012', '0017', '0018', '0019', '0020', '0021', '0022'], ct: ['691104'] },
+  { id: 'bacias', g: 'Dispositivos', n: 'Bacias e valas de captação e descarga', re: /^(Bacia|Vala)/, sh: ['0030', '0034', '0029'], ct: [] },
+  { id: 'dps', g: 'Profunda', n: 'Drenos profundos em solo (DPS)', re: /^DPS/, sh: ['0013'], ct: ['641800'] },
+  { id: 'dpr', g: 'Profunda', n: 'Drenos profundos em rocha (DPR)', re: /^DPR/, sh: ['0014'], ct: ['643100'] },
+  { id: 'bsd', g: 'Profunda', n: 'Bocas de saída de drenos (BSD)', re: /^BSD/, sh: ['0015'], ct: ['622100'] },
+  { id: 'dss', g: 'Profunda', n: 'Drenos sub-superficiais (DSS)', re: /^DSS/, sh: ['0016'], ct: ['644200', '622200'] },
+  { id: 'bueiros', g: 'Bueiros e galerias', n: 'Bueiros tubulares de concreto (BSTC, BDTC, BTTC)', re: /^(BSTC|BDTC|BTTC) Ø [\d,]+$/, sh: ['0024', '0023', '0025', '0026', '0027', '0028', '0037', '0035'], ct: ['610500', '610700', '610900', '611100', '611300', '611500', '612000', '620100', '620200', '620300', '620400', '620500', '620900', '621300'] },
+  { id: 'rede', g: 'Bueiros e galerias', n: 'Rede pluvial – coletores tubulares', re: /^Rede pluvial/, sh: ['0036', '0032'], ct: [] },
+  { id: 'galerias', g: 'Bueiros e galerias', n: 'Galerias celulares de concreto (BSCC, BTCC)', re: /^(BSCC|BTCC)/, sh: range(39, 62), ct: ['798072', '798082', '798091'] },
+  { id: 'remov', g: 'Remoções', n: 'Bueiros e pontilhão existentes a remover', re: /REMOVER/, sh: [], ct: ['630400', '630600'] },
+  { id: 'outros', g: 'Dispositivos', n: 'Outros dispositivos', re: /^DR 13/, sh: [], ct: [] },
+];
+let DRD = null, drOpen = store.get('drOpen', null), drG = '';
+function drData() {
+  if (DRD) return DRD;
+  const tab = name => { const t = BASE.sheets[name]; const h = t[0]; return t.slice(1).filter(r => r && r.some(x => x !== null && x !== '')).map(r => Object.fromEntries(h.map((k, i) => [k, r[i]]))); };
+  const items = [];
+  for (const r of tab('Drenagem linear')) if (r['Dispositivo']) items.push({ d: r['Dispositivo'], desc: r['Descrição'], lado: r['Lado'], ei: num(r['Est. inicial (dec.)']), ef: num(r['Est. final (dec.)']), L: num(r['L (m)']), q: num(r['L (m)']), un: 'm', lin: true, fonte: r['Fonte (nota de serviço)'] });
+  for (const r of tab('Drenagem pontual')) if (r['Dispositivo']) items.push({ d: r['Dispositivo'], desc: r['Descrição'], lado: r['Lado'], ei: num(r['Estaca (dec.)']), ef: num(r['Estaca (dec.)']), L: num(r['L (m)']), q: num(r['Quantidade (un)']) || 1, un: 'un', lin: false, fonte: r['Fonte'] });
+  DRD = DRF.map(f => ({ ...f, items: items.filter(x => f.re.test(String(x.d).trim())) }));
+  return DRD;
+}
+function drTrecho() { const a = S.ei + S.mi / 20, b = S.ef + S.mf / 20; return [a, b]; }
+function drIn(x, a, b) {   // fração do item dentro do trecho
+  if (x.lin && x.ef > x.ei) return Math.max(0, Math.min(b, x.ef) - Math.max(a, x.ei)) / (x.ef - x.ei);
+  return (x.ei >= a - 1e-9 && (x.ei < b - 1e-9 || b >= END - 1e-6)) ? 1 : 0;
+}
+function drTypes(f, a, b) {
+  const m = new Map();
+  for (const x of f.items) {
+    const k = String(x.d).trim(); if (!m.has(k)) m.set(k, { d: k, desc: x.desc, un: x.un, n: 0, q: 0, qt: 0, L: 0, Lt: 0 });
+    const t = m.get(k), fr = drIn(x, a, b); t.n++; t.q += x.q; t.qt += x.q * fr; t.L += x.L || 0; t.Lt += (x.L || 0) * fr;
+  }
+  return [...m.values()].sort((p, q) => p.d.localeCompare(q.d, 'pt', { numeric: true }));
+}
+const fmtTot = (t, inT) => t.un === 'm' ? fQ(inT ? t.qt : t.q) + ' m' : NF[0].format(inT ? t.qt : t.q) + ' un' + ((inT ? t.Lt : t.L) ? ' · ' + fQ(inT ? t.Lt : t.L) + ' m' : '');
+function renderDrenagem() {
+  const D = drData(); const [a, b] = drTrecho();
+  $('#d-trecho').textContent = `${estStr(a)} → ${estStr(b)}`;
+  const groups = ['', ...new Set(DRF.map(f => f.g))];
+  $('#dr-grp').innerHTML = groups.map(g => `<button type="button" class="chip${g === drG ? ' on' : ''}" data-g="${esc(g)}">${g || 'Todos'}</button>`).join('');
+  $('#dr-grp').querySelectorAll('[data-g]').forEach(bt => bt.onclick = () => { drG = bt.dataset.g; renderDrenagem(); });
+  const q = ($('#dr-q').value || '').toLowerCase().trim(), onlyT = $('#dr-tr').checked;
+  const cards = D.filter(f => f.items.length || f.sh.length).filter(f => !drG || f.g === drG)
+    .map(f => ({ f, ty: drTypes(f, a, b) }))
+    .filter(({ f, ty }) => (!q || (f.n + ' ' + ty.map(t => t.d).join(' ')).toLowerCase().includes(q)) && (!onlyT || ty.some(t => t.qt > 1e-9)));
+  $('#dr-grid').innerHTML = cards.map(({ f, ty }) => {
+    const img = f.sh[0] ? `<img loading="lazy" src="drenagem/thumb/DR-4-${f.sh[0]}.webp" alt="Detalhe tipo – ${esc(f.n)}">` : '<div class="noimg">sem prancha de detalhe (remoção – pranchas DR-3)</div>';
+    const chips = ty.slice(0, 8).map(t => `<span class="tchip"><b>${esc(t.d)}</b> ${fmtTot(t, false)}${Math.abs(t.qt - t.q) > 1e-6 ? ` <i>· trecho ${fmtTot(t, true)}</i>` : ''}</span>`).join('') + (ty.length > 8 ? `<span class="tchip">+${ty.length - 8} tipos</span>` : '');
+    return `<article class="dr-card${drOpen === f.id ? ' sel' : ''}" data-id="${f.id}"><button type="button" class="dr-img" data-sh="${f.sh[0] || ''}" data-t="${esc(f.n)}">${img}</button>
+      <div class="dr-body"><span class="label">${esc(f.g)}</span><h3>${esc(f.n)}</h3><div class="tchips">${chips || '<span class="note">não aparece nas notas de serviço do projeto</span>'}</div>
+      <button type="button" class="btn dr-more" data-id="${f.id}">Detalhes, pranchas e localização</button></div></article>`;
+  }).join('') || '<p class="note">Nenhum dispositivo para o filtro.</p>';
+  $('#dr-grid').querySelectorAll('.dr-img').forEach(bt => bt.onclick = () => bt.dataset.sh && lbOpen(bt.dataset.sh));
+  $('#dr-grid').querySelectorAll('.dr-more').forEach(bt => bt.onclick = () => { drOpen = drOpen === bt.dataset.id ? null : bt.dataset.id; store.set('drOpen', drOpen); renderDrenagem(); if (drOpen) $('#dr-det').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  renderDrDet();
+}
+function renderDrDet() {
+  const host = $('#dr-det'); const f = drOpen && drData().find(x => x.id === drOpen);
+  if (!f) { host.hidden = true; return; }
+  host.hidden = false; const [a, b] = drTrecho(); const ty = drTypes(f, a, b);
+  const sheets = f.sh.map(s => `<button type="button" class="sh" data-sh="${s}"><img loading="lazy" src="drenagem/thumb/DR-4-${s}.webp" alt=""><span><b>DR-4-${s}</b> ${esc(SHEETS[s] || '')}</span></button>`).join('');
+  const ct = f.ct.map(c => M.contrato.filter(x => x.codigo === c)).flat();
+  const onlyT = $('#dr-tr').checked;
+  const locs = f.items.map(x => ({ x, fr: drIn(x, a, b) })).filter(o => !onlyT || o.fr > 0).sort((p, q) => p.x.ei - q.x.ei);
+  host.innerHTML = `<div class="ins-head"><h2>${esc(f.n)}</h2><button type="button" class="btn" id="dr-close">Fechar</button></div>
+    ${sheets ? `<h3>Pranchas de detalhe (toque para abrir)</h3><div class="sheets">${sheets}</div>` : '<p class="note">Sem prancha de detalhe tipo: os bueiros a remover estão nas pranchas DR-3.</p>'}
+    <h3>Tipos no projeto</h3><div class="tbl-wrap"><table class="itbl"><thead><tr><th>Tipo</th><th>Descrição</th><th class="n">Registros</th><th class="n">Obra inteira</th><th class="n">No trecho</th></tr></thead><tbody>
+    ${ty.map(t => `<tr><td><b>${esc(t.d)}</b></td><td>${esc(t.desc || '')}</td><td class="n" data-l="Registros">${t.n}</td><td class="n" data-l="Obra">${fmtTot(t, false)}</td><td class="n" data-l="No trecho"><b>${fmtTot(t, true)}</b></td></tr>`).join('') || '<tr><td colspan="5" class="note">Sem registros nas notas de serviço.</td></tr>'}</tbody></table></div>
+    ${ct.length ? `<h3>Itens do contrato</h3><div class="tbl-wrap"><table class="itbl"><thead><tr><th>Código</th><th>Serviço</th><th class="n">Qtd. contrato</th><th class="n">Preço</th></tr></thead><tbody>${ct.map(c => `<tr><td class="code">${esc(c.codigo)}</td><td>${esc(c.servico)}</td><td class="n" data-l="Contrato">${fQ(c.qtd)} ${esc(c.un)}</td><td class="n" data-l="Preço">R$ ${NF[2].format(c.preco)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    <h3>Localização (${locs.length} registros${onlyT ? ' no trecho' : ''})</h3><div class="tbl-wrap loc"><table class="itbl"><thead><tr><th>Tipo</th><th>Estaca inicial</th><th>Estaca final</th><th>Lado</th><th class="n">Quantidade</th><th>Fonte</th></tr></thead><tbody>
+    ${locs.map(({ x, fr }) => `<tr class="${fr > 0 ? 'intr' : ''}"><td><b>${esc(x.d)}</b></td><td data-l="Inicial">${estStr(x.ei)}</td><td data-l="Final">${x.lin ? estStr(x.ef) : '–'}</td><td data-l="Lado">${esc(x.lado || '')}</td><td class="n" data-l="Qtd.">${x.lin ? fQ(x.q) + ' m' : NF[0].format(x.q) + ' un' + (x.L ? ' · ' + fQ(x.L) + ' m' : '')}</td><td class="src">${esc(x.fonte || '')}</td></tr>`).join('')}</tbody></table></div>`;
+  host.querySelectorAll('.sh').forEach(bt => bt.onclick = () => lbOpen(bt.dataset.sh));
+  $('#dr-close').onclick = () => { drOpen = null; store.set('drOpen', null); renderDrenagem(); };
+}
+let lbZ = 1;
+function lbOpen(s) {
+  const src = `drenagem/DR-4-${s}.webp`; $('#lb-img').src = src; $('#lb-o').href = src;
+  $('#lb-t').textContent = `DR-4-${s} · ${SHEETS[s] || ''}`; lbZ = 1; $('#lb-img').style.width = '100%'; $('#lb').hidden = false; document.body.style.overflow = 'hidden';
+}
+function lbInit() {
+  const z = d => { lbZ = Math.min(6, Math.max(1, lbZ * d)); $('#lb-img').style.width = (lbZ * 100) + '%'; };
+  $('#lb-p').onclick = () => z(1.5); $('#lb-m').onclick = () => z(1 / 1.5);
+  $('#lb-img').ondblclick = () => z(lbZ > 1 ? 1 / lbZ : 2.5);
+  const close = () => { $('#lb').hidden = true; document.body.style.overflow = ''; };
+  $('#lb-x').onclick = close; document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#lb').hidden) close(); });
+  $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
+}
+
+const VIEWS = ['painel', 'insumos', 'drenagem', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 function show(v) {
   if (!VIEWS.includes(v)) v = 'painel'; current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; const a = $(`nav.tabs a[href="#${x}"]`); if (a) a.setAttribute('aria-current', x === v ? 'page' : 'false'); });
-  if (v === 'insumos') renderIns(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
+  if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
 }
@@ -398,6 +521,7 @@ function pwa() {
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
+  lbInit();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
   show(location.hash.slice(1) || store.get('tab', 'painel'));

@@ -26,6 +26,7 @@
     <nav class="tabs" aria-label="Seções">
       <a href="#painel" aria-current="page"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4v8H3zM10 8h4v13h-4zM17 3h4v18h-4z"/></svg><span class="lg">Painel</span><span class="sm">Painel</span></a>
       <a href="#insumos"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v4l-2 3v11H9V10L7 7zM7 7h10M12 13v4"/></svg><span class="lg">Insumos</span><span class="sm">Insumos</span></a>
+      <a href="#drenagem"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7c3 0 3 2 6 2s3-2 6-2 3 2 6 2M3 13c3 0 3 2 6 2s3-2 6-2 3 2 6 2M3 19h18"/></svg><span class="lg">Drenagem</span><span class="sm">Drenag.</span></a>
       <a href="#contrato"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/></svg><span class="lg">Contrato × projeto</span><span class="sm">Contrato</span></a>
       <a href="#discrepancias"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span class="lg">Discrepâncias</span><span class="sm">Discrep.</span></a>
       <a href="#base"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="lg">Base de dados</span><span class="sm">Base</span></a>
@@ -121,6 +122,24 @@
       <div class="tbl-wrap" id="i-all"></div>
     </div>
   </section>
+
+  <!-- =============================== DRENAGEM -->
+  <section class="view" id="v-drenagem" hidden>
+    <div><h2>Elementos de drenagem do projeto</h2><p class="note">Todos os dispositivos de drenagem do projeto, com o detalhe tipo das pranchas DR-4 (DE-E-PR-990-000-012-2-DR-4), as quantidades por tipo no projeto e no trecho escolhido no Painel (<span id="d-trecho"></span>) e a localização de cada um pelas notas de serviço DR-9. Toque no desenho para abrir a prancha inteira.</p></div>
+    <div class="filters">
+      <div class="presets" id="dr-grp"></div>
+      <input type="search" id="dr-q" placeholder="Buscar dispositivo (ex.: VPC, STC, BSCC)">
+      <label class="chk"><input type="checkbox" id="dr-tr"> Só o que está no trecho</label>
+    </div>
+    <div class="dr-grid" id="dr-grid"></div>
+    <div class="panel" id="dr-det" hidden></div>
+  </section>
+  <div class="lightbox" id="lb" hidden role="dialog" aria-label="Prancha">
+    <div class="lb-bar"><b id="lb-t"></b><span class="lb-sp"></span>
+      <button class="btn" id="lb-m" type="button" aria-label="Diminuir">−</button><button class="btn" id="lb-p" type="button" aria-label="Aumentar">+</button>
+      <a class="btn" id="lb-o" target="_blank" rel="noopener">Abrir imagem</a><button class="btn primary" id="lb-x" type="button">Fechar</button></div>
+    <div class="lb-sc" id="lb-sc"><img id="lb-img" alt=""></div>
+  </div>
 
   <!-- =============================== CONTRATO × PROJETO -->
   <section class="view" id="v-contrato" hidden>

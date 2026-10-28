@@ -225,7 +225,7 @@ nav.tabs .sm { display: none; }
   .install-btn { white-space: nowrap; min-height: 38px; }
   .shield { font-size: .95rem; }
   /* abas viram barra inferior, como num app */
-  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; width: auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; width: auto; display: grid; grid-template-columns: repeat(7, 1fr); gap: 0;
     background: var(--asphalt); border-top: 1px solid #3d464e; padding: 4px max(4px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px)); overflow: visible; }
   nav.tabs a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 4px; font-size: .72rem; letter-spacing: .02em; border-radius: 8px; min-height: 52px; justify-content: center; }
   nav.tabs a[aria-current="page"] { background: transparent; color: var(--accent); }
@@ -338,3 +338,45 @@ nav.tabs .sm { display: none; }
 .panel > *, section.view > * { min-width: 0; }
 .itbl2 th.n { white-space: normal; min-width: 80px; }
 @media (max-width: 760px) { table.itbl2 td.z { display: none; } }
+
+/* drenagem */
+.chip.on { background: var(--accent); color: #1d2226; border-color: var(--accent); }
+#v-drenagem .chip { background: var(--surface); color: var(--fg); border-color: var(--line); }
+#v-drenagem .chip.on { background: var(--accent); color: #1d2226; }
+.chk { display: flex; gap: 6px; align-items: center; font-size: .9rem; }
+.dr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.dr-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.dr-card.sel { outline: 2px solid var(--accent); }
+.dr-img { border: 0; padding: 0; background: #fff; cursor: zoom-in; display: block; width: 100%; aspect-ratio: 3 / 2; border-bottom: 1px solid var(--line); }
+.dr-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.noimg { display: grid; place-items: center; height: 100%; color: #5f6870; font-size: .85rem; padding: 12px; text-align: center; }
+.dr-body { padding: 12px 14px 14px; display: grid; gap: 8px; align-content: start; }
+.dr-body h3 { font-size: 1.15rem; }
+.tchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tchip { font-size: .8rem; background: var(--surface-2); border-radius: 4px; padding: 2px 7px; }
+.tchip i { color: var(--real); font-style: normal; }
+.dr-more { justify-self: start; }
+#dr-det { display: grid; gap: 12px; }
+.sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.sh { border: 1px solid var(--line); border-radius: 4px; background: var(--surface); padding: 0; cursor: zoom-in; text-align: left; overflow: hidden; }
+.sh img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: #fff; display: block; border-bottom: 1px solid var(--line); }
+.sh span { display: block; padding: 6px 8px; font-size: .8rem; }
+.loc { max-height: 520px; overflow: auto; }
+tr.intr td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(15, 18, 20, .96); display: grid; grid-template-rows: auto 1fr; padding-top: env(safe-area-inset-top, 0px); }
+.lb-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; color: #fff; }
+.lb-bar b { font-family: var(--f-display); font-size: 1.05rem; }
+.lb-sp { flex: 1; }
+.lb-bar .btn { background: #2a3036; color: #fff; border-color: #4a535b; text-decoration: none; }
+.lb-bar .btn.primary { background: var(--accent); color: #1d2226; }
+.lb-sc { overflow: auto; touch-action: pan-x pan-y pinch-zoom; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px)); }
+.lb-sc img { display: block; max-width: none; background: #fff; margin: 0 auto; }
+@media (max-width: 760px) {
+  nav.tabs a { font-size: .6rem; padding: 6px 0 4px; }
+  nav.tabs .ni { width: 20px; height: 20px; }
+  .dr-grid { grid-template-columns: minmax(0, 1fr); }
+  .sheets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loc { max-height: none; }
+  #v-drenagem .presets { flex-wrap: nowrap; overflow-x: auto; }
+  .lb-bar b { width: 100%; font-size: .95rem; }
+}
