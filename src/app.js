@@ -469,13 +469,13 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'planejamento', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'planejamento', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 function show(v) {
   if (!VIEWS.includes(v)) v = 'painel'; current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'campo') OB.renderCampo(); if (v === 'planejamento') OB.renderPlan(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'campo') OB.renderCampo(); if (v === 'planejamento') OB.renderPlan(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });

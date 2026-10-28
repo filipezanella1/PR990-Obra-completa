@@ -656,3 +656,16 @@ td.nowv b { color: var(--accent-ink); }
 .oac { z-index: 2; }
 .oacl { z-index: 3; background: var(--surface); }
 .ldr { z-index: 1; }
+
+/* legenda enxuta e aba Simulação */
+.sw2 { display: inline-flex; margin-right: 6px; } .sw2 i { width: 12px; height: 14px; border: 1px solid #7f8a93; } .sw2 i + i { border-left: 0; }
+.av-legend { gap: 6px 18px; }
+.blk.sim .cells i.c.done { background: #70ad47; }
+.blk.sim .cells i.c.atk { background: repeating-linear-gradient(135deg, #e2efda 0 3px, #a9d08e 3px 5px); }
+.blk.sim .cells i.c.sel { background: #ffd200; box-shadow: inset 0 0 0 1px #b38f00; }
+.sw.grn { background: #70ad47; } .sw.sel { background: #ffd200; } .sw.atk { background: repeating-linear-gradient(135deg, #e2efda 0 2px, #a9d08e 2px 4px); }
+b.grn { color: #4d8a2a; } b.ylw { color: #b38f00; }
+#v-simulacao .retig { touch-action: pan-y; }
+#v-simulacao .cells i.c { cursor: crosshair; }
+.av-head .btn { text-decoration: none; color: inherit; }
+@media (min-width: 761px) { nav.tabs a { font-size: .84rem; padding: 4px 7px; letter-spacing: .02em; } }
