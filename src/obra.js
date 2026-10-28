@@ -218,27 +218,47 @@ export function initObra(X) {
     }
     return out;
   }
+  let BR = new Set(store.get('simBrush', ['p7'])), SMODE = 'add', SKIP = store.get('simSkip', true);
+  const SCOL = { p2: '#604a7b', p3: '#77933c', p4: '#953735', p5: '#4a452a', p6: '#808080', p7: '#0d0d0d' };
   function renderSim() {
     if (!AV) avLoad();
-    $('#s-fonte').textContent = `Executado (verde) conforme o ${AV.fonte.replace(/^Retigráfico/, 'retigráfico')}${AV.atualizado !== AV.data ? ', com as alterações feitas no app' : ''}.`;
+    $('#s-fonte').textContent = `Executado conforme o ${AV.fonte.replace(/^Retigráfico/, 'retigráfico')}${AV.atualizado !== AV.data ? ' (com alterações feitas no app)' : ''} · simulação de ${new Date().toLocaleDateString('pt-BR')}`;
+    $('#s-brush').innerHTML = SIMR.map(r => `<button type="button" class="bchip${BR.has(r.id) ? ' on' : ''}" data-b="${r.id}" aria-pressed="${BR.has(r.id)}"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</button>`).join('') +
+      `<button type="button" class="lnk" data-b="all">todos</button><button type="button" class="lnk" data-b="none">nenhum</button>`;
+    $$('#s-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === SMODE)); $('#s-skip').checked = SKIP;
     drawGrid(true);
     const R = simCalc();
     const pet = R.filter(r => r.mat === 'bica' || r.mat === 'bgs').reduce((s, r) => s + Object.values(r.m)[0], 0);
     const g = (id) => R.find(r => r.id === id);
     const c = g('p7'), im = g('p6');
-    const T = (v, d = 1) => Math.abs(v) < 5e-7 ? '–' : NF[d].format(v);
+    const T = (v, d = 1) => Math.abs(v) < 5e-7 ? '0' : NF[d].format(v);
+    const extMax = Math.max(...R.map(r => r.ext));
+    $('#s-hero').innerHTML = `<div><span>Extensão simulada</span><b>${NF[2].format(extMax / 1000)} km</b></div><div><span>Material pétreo</span><b>${NF[0].format(pet)} t</b></div><div><span>CBUQ</span><b>${NF[0].format(c.m['CBUQ'])} t</b></div>`;
+    const card = (ic, l, v, u, sub) => `<div class="skpi"><div class="sk-h">${ic}<span>${l}</span></div><div class="sk-v"><b>${v}</b><i>${u}</i></div><div class="sk-s">${sub}</div></div>`;
+    const ico = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="${d}"/></svg>`;
     $('#s-kpis').innerHTML = [
-      ['MATERIAL PÉTREO', T(pet) + ' t', `reforço ${T(g('p2').m['Bica corrida'] + g('p3').m['Bica corrida'])} t · sub-base ${T(g('p4').m['Bica corrida'])} t · BGS ${T(g('p5').m['Brita graduada (BGS)'])} t`],
-      ['CBUQ', T(c.m['CBUQ']) + ' t', `${c.cnt} estacas · ${NF[0].format(c.ext)} m`],
-      ['CAP 50/70', T(c.m['CAP 50/70'], 2) + ' t', `teor ${NF[1].format(par('cap') * 100)}%`],
-      ['EMULSÃO RR-1C', T(c.m['Emulsão RR-1C'], 2) + ' t', `${NF[0].format(c.rr)} m² × ${NF[2].format(par('rr'))} kg/m²`],
-      ['EMULSÃO EAI', T(im.m['Emulsão EAI'], 2) + ' t', `${NF[0].format(im.q)} m² × ${NF[2].format(par('eai'))} kg/m²`],
-      ['XISTO', NF[0].format(c.m['Xisto (L)']) + ' L', `${NF[1].format(par('xisto'))} L por t de CBUQ`],
-    ].map(([l, v, cc]) => `<div class="kpi"><span class="label">${l}</span><span class="v num">${esc(v)}</span><span class="c">${esc(cc)}</span></div>`).join('');
-    $('#s-tab').innerHTML = `<table class="itbl"><thead><tr><th>Serviço</th><th class="n">Estacas</th><th class="n">Extensão</th><th class="n">Quantidade</th><th>Material</th></tr></thead><tbody>${R.map(r => `<tr><td><b>${esc(r.n)}</b>${r.ja ? ` <span class="pill na" title="Estacas já concluídas no retigráfico">${r.ja} já concluída${r.ja > 1 ? 's' : ''}</span>` : ''}</td>
-      <td class="n" data-l="Estacas">${r.cnt || '–'}</td><td class="n" data-l="Extensão">${r.cnt ? NF[0].format(r.ext) + ' m' : '–'}</td><td class="n" data-l="Quantidade">${r.cnt ? NF[1].format(r.q) + ' ' + r.un : '–'}</td>
-      <td class="src">${r.cnt ? Object.entries(r.m).map(([k, v]) => `${esc(k.replace(' (L)', ''))}: <b>${k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' ? 1 : 2].format(v) + ' t'}</b>`).join(' · ') : ''}</td></tr>`).join('')}
-      <tr class="tot"><td>Material pétreo (reforço + sub-base + base)</td><td></td><td></td><td></td><td><b>${T(pet)} t</b></td></tr></tbody></table>`;
+      card(ico('M3 20l5-9 4 6 3-4 6 7z'), 'Material pétreo', T(pet), 't', `bica corrida ${T(g('p2').m['Bica corrida'] + g('p3').m['Bica corrida'] + g('p4').m['Bica corrida'])} t · BGS ${T(g('p5').m['Brita graduada (BGS)'])} t`),
+      card(ico('M3 17h18M5 13h14M7 9h10'), 'CBUQ', T(c.m['CBUQ']), 't', `${NF[2].format(c.ext / 1000)} km de pista`),
+      card(ico('M12 3c3 4 6 7 6 10a6 6 0 1 1-12 0c0-3 3-6 6-10z'), 'CAP 50/70', T(c.m['CAP 50/70'], 2), 't', `teor de ${NF[1].format(par('cap') * 100)}% sobre o CBUQ`),
+      card(ico('M4 18h16M6 14h12M12 3v8'), 'Emulsão RR-1C', T(c.m['Emulsão RR-1C'], 2), 't', `pintura de ligação · ${NF[0].format(c.rr)} m²`),
+      card(ico('M4 18h16M8 14l4-8 4 8'), 'Emulsão EAI', T(im.m['Emulsão EAI'], 2), 't', `imprimação · ${NF[0].format(im.q)} m²`),
+      card(ico('M7 3h10l-1 4H8zM6 7h12v14H6z'), 'Xisto', NF[0].format(c.m['Xisto (L)']), 'L', `${NF[1].format(par('xisto'))} L por tonelada de CBUQ`),
+    ].join('');
+    // barras: executado / simulado / restante por serviço (km)
+    const TOTKM = TOT / 1000;
+    $('#s-bars').innerHTML = `<div class="sbars">${R.map(r => { const f = AV.frentes.find(x => x.id === r.id); let ex = 0; const sl = simSel(r.id); let si = 0;
+        for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') ex += cellLen(k); else if (sl[k] === '1') si += cellLen(k); }
+        const rest = Math.max(0, TOT - ex - si);
+        return `<div class="sbar"><span class="sb-n">${esc(r.n)}</span><div class="sb-t" title="${esc(r.n)}: executado ${NF[2].format(ex / 1000)} km · simulado ${NF[2].format(si / 1000)} km · restante ${NF[2].format(rest / 1000)} km">
+          <i class="ex" style="width:${ex / TOT * 100}%"></i><i class="si" style="width:${si / TOT * 100}%"></i></div>
+          <span class="sb-v"><b>${NF[1].format((ex + si) / TOT * 100)}%</b> ${si ? `<em>+${NF[2].format(si / 1000)} km</em>` : ''}</span></div>`; }).join('')}
+      <div class="sbar ax"><span></span><div class="sb-ax">${[0, 25, 50, 75, 100].map(v => `<i style="left:${v}%">${NF[1].format(TOTKM * v / 100)}</i>`).join('')}</div><span></span></div></div>
+      <div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw rest"></i>restante</span><span class="note">% = executado + simulado sobre ${NF[2].format(TOTKM)} km</span></div>`;
+    $('#s-tab').innerHTML = `<table class="itbl stab"><thead><tr><th>Serviço</th><th class="n">Extensão</th><th class="n">Quantidade</th><th>Material</th><th class="n">Total</th></tr></thead><tbody>${R.map(r => { const ms = Object.entries(r.m);
+        return ms.map(([k, v], i) => `<tr class="${i ? 'cont' : ''}">${i ? '<td></td><td></td><td></td>' : `<td rowspan="1"><i class="dot" style="background:${SCOL[r.id]}"></i> <b>${esc(r.n)}</b>${r.ja ? ` <span class="pill na" title="Estacas simuladas que já constam como executadas">${r.ja} já executada${r.ja > 1 ? 's' : ''}</span>` : ''}</td><td class="n" data-l="Extensão">${r.cnt ? NF[0].format(r.ext) + ' m' : '–'}</td><td class="n" data-l="Quantidade">${r.cnt ? NF[1].format(r.q) + ' ' + r.un : '–'}</td>`}
+          <td data-l="Material">${esc(k.replace(' (L)', ''))}</td><td class="n" data-l="Total"><b>${r.cnt ? (k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' || k === 'Bica corrida' || k.startsWith('Brita') ? 1 : 2].format(v) + ' t') : '–'}</b></td></tr>`).join(''); }).join('')}
+      <tr class="tot"><td colspan="4">Material pétreo (reforço + sub-base + base)</td><td class="n">${T(pet)} t</td></tr></tbody></table>`;
+    $('#s-prem-sum').textContent = `bica ${NF[3].format(par('dBica'))} t/m³ · BGS ${NF[3].format(par('dBgs'))} t/m³ · CAP ${NF[1].format(par('cap') * 100)}% · EAI ${NF[2].format(par('eai'))} kg/m² · RR-1C ${NF[2].format(par('rr'))} kg/m² · xisto ${NF[1].format(par('xisto'))} L/t`;
     for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) { const el = $('#' + id); if (document.activeElement !== el) el.value = NF[k === 'cap' ? 2 : 3].format(k === 'cap' ? par(k) * 100 : par(k)).replace(/\./g, ''); }
   }
   function renderAv() {
@@ -289,7 +309,7 @@ export function initObra(X) {
       if (sim) {
         for (const r of SIMR) {
           const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id);
-          h += `<div class="fgrp"><div class="lrow rs" data-sim="${r.id}"><span class="ln"><span class="fn">${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Selecionar as estacas que faltam nesta faixa">faltam</button></span><div class="cells">`;
+          h += `<div class="fgrp"><div class="lrow rs${BR.has(r.id) ? ' inb' : ''}" data-sim="${r.id}"><span class="ln"><span class="fn"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Selecionar as estacas que faltam nesta faixa">faltam</button></span><div class="cells">`;
           for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${sl[k] === '1' ? ' sel' : st === '2' ? ' done' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
           h += '</div></div></div>';
         }
@@ -310,12 +330,18 @@ export function initObra(X) {
   function avPaintAt(el, first) {
     const c = el && el.closest && el.closest('i.c'); if (!c) return;
     const row = c.closest('.lrow'); const k = +c.dataset.k;
-    if (row.dataset.sim) {   // simulação: seleção célula a célula
-      const id = row.dataset.sim, sl = simSel(id);
-      if (first) avDown = { sim: id, to: sl[k] === '1' ? '0' : '1' };
-      if (!avDown || avDown.sim !== id || sl[k] === avDown.to) return;
-      SIM[id] = sl.slice(0, k) + avDown.to + sl.slice(k + 1); avDirty = true;
-      c.classList.toggle('sel', avDown.to === '1'); return;
+    if (row.dataset.sim) {   // simulação: pincel com um ou mais serviços, célula a célula
+      const id = row.dataset.sim;
+      if (first) { const ids = BR.size > 1 && BR.has(id) ? [...BR] : [id]; avDown = { sim: id, ids, to: SMODE === 'del' ? '0' : '1' }; }
+      if (!avDown || (avDown.ids.length === 1 && avDown.sim !== id)) return;
+      for (const t of avDown.ids) {
+        const f = AV.frentes.find(x => x.id === t), sl = simSel(t);
+        if (avDown.to === '1' && SKIP && f && f.c[k] === '2') continue;
+        if (sl[k] === avDown.to) continue;
+        SIM[t] = sl.slice(0, k) + avDown.to + sl.slice(k + 1); avDirty = true;
+        const el = document.querySelector(`#s-grid .lrow[data-sim="${t}"] i.c[data-k="${k}"]`); if (el) el.classList.toggle('sel', avDown.to === '1');
+      }
+      return;
     }
     const f = AV.frentes.find(x => x.id === row.dataset.id); const val = row.dataset.sub;
     if (first) avDown = { id: f.id, val, to: f.c[k] === val ? '0' : val };
@@ -333,10 +359,10 @@ export function initObra(X) {
     g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
     g.addEventListener('click', ev => {
       const fb = ev.target.closest('[data-fill]');
-      if (fb) { const id = fb.dataset.fill, f = AV.frentes.find(x => x.id === id); const a = +fb.dataset.s0, b = +fb.dataset.s1; let sl = simSel(id).split('');
-        const all = sl.slice(a, b).every((v, i) => v === '1' || (f && f.c[a + i] === '2'));
-        for (let k = a; k < b; k++) if (!f || f.c[k] !== '2') sl[k] = all ? '0' : '1';
-        SIM[id] = sl.join(''); simSave(); renderSim(); return; }
+      if (fb) { const id0 = fb.dataset.fill, a = +fb.dataset.s0, b = +fb.dataset.s1; const ids = BR.size > 1 && BR.has(id0) ? [...BR] : [id0];
+        const f0 = AV.frentes.find(x => x.id === id0); const all = simSel(id0).slice(a, b).split('').every((v, i) => v === '1' || (f0 && f0.c[a + i] === '2'));
+        for (const id of ids) { const f = AV.frentes.find(x => x.id === id); const sl = simSel(id).split(''); for (let k = a; k < b; k++) if (!f || f.c[k] !== '2') sl[k] = all ? '0' : '1'; SIM[id] = sl.join(''); }
+        simSave(); renderSim(); return; }
       const ob = ev.target.closest('[data-oac]');
       if (ob) { const o = AV.oac[+ob.dataset.oac];
         if (!sim && paintOn) { o.st = { n: 'a', a: 'c', c: 'n' }[o.st]; avSave(); renderAv(); $(tip).textContent = `${o.t} (est. ${estStr(o.e)}): ${oacName(o.st)}.`; }
@@ -352,6 +378,14 @@ export function initObra(X) {
     $('#a-paint').onclick = need(() => { paintOn = !paintOn; renderAv(); });
     for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) $('#' + id).onchange = ev => { const v = parseFloat(ev.target.value.replace(/\./g, '').replace(',', '.')); if (Number.isFinite(v) && v >= 0) SP[k] = k === 'cap' ? v / 100 : v; else SP[k] = null; store.set('simPar', SP); renderSim(); };
     $('#s-clear').onclick = () => { if (!confirm('Limpar todas as células simuladas?')) return; SIM = {}; simSave(); renderSim(); };
+    $('#s-brush').addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b) return; const v = b.dataset.b;
+      if (v === 'all') BR = new Set(SIMR.map(r => r.id)); else if (v === 'none') BR = new Set(); else BR.has(v) ? BR.delete(v) : BR.add(v);
+      store.set('simBrush', [...BR]); renderSim(); });
+    $$('#s-mode button').forEach(b => b.onclick = () => { SMODE = b.dataset.m; renderSim(); });
+    $('#s-skip').onchange = () => { SKIP = $('#s-skip').checked; store.set('simSkip', SKIP); };
+    $('#s-rest').onclick = () => { const ids = BR.size ? [...BR] : SIMR.map(r => r.id);
+      for (const id of ids) { const f = AV.frentes.find(x => x.id === id); let t = ''; for (let k = 0; k < NC; k++) t += f && f.c[k] === '2' ? simSel(id)[k] : '1'; SIM[id] = t; }
+      simSave(); renderSim(); $('#s-tip').textContent = `Marcado todo o restante de: ${ids.map(i => SIMR.find(r => r.id === i).n).join(', ')}.`; };
     $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Serviço', 'Estacas selecionadas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
       for (const r of R) for (const [k, v] of Object.entries(r.m)) L.push([r.n, r.cnt ? (() => { const a = []; const sl = simSel(r.id); for (let i = 0; i < NC; i++) if (sl[i] === '1') a.push(i); return a.join(' '); })() : '', r.ext, r.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']);
       L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);

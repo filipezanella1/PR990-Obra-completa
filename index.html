@@ -222,28 +222,45 @@
 
   <!-- =============================== SIMULAÇÃO -->
   <section class="view" id="v-simulacao" hidden>
-    <div class="av-head">
-      <div><h2>Simulação de materiais</h2><p class="note">Toque nas células (estaca a estaca) do que quer executar: o simulado fica <b class="ylw">amarelo</b> e o que já foi executado aparece em <b class="grn">verde</b>. Arraste na horizontal para marcar várias seguidas; “faltam” marca, na faixa, tudo o que ainda não foi executado. <span id="s-fonte"></span></p></div>
-      <a class="btn" href="#avanco">← Retigráfico</a>
+    <div class="sim-hero">
+      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · Pavimentação</span><h2>Simulação de materiais</h2><p id="s-fonte"></p></div>
+      <div class="sh-r" id="s-hero"></div>
     </div>
-    <div class="panel sim-panel">
-      <div class="kpis k6" id="s-kpis"></div>
-      <div class="tbl-wrap" id="s-tab"></div>
-      <details class="av-more"><summary>Premissas</summary>
-        <div class="sim-par">
-          <label class="lbl">Bica corrida <input id="s-dbica" inputmode="decimal"> t/m³</label>
-          <label class="lbl">BGS <input id="s-dbgs" inputmode="decimal"> t/m³</label>
-          <label class="lbl">Teor de CAP <input id="s-cap" inputmode="decimal"> %</label>
-          <label class="lbl">EAI <input id="s-eai" inputmode="decimal"> kg/m²</label>
-          <label class="lbl">RR-1C <input id="s-rr" inputmode="decimal"> kg/m²</label>
-          <label class="lbl">Xisto <input id="s-xisto" inputmode="decimal"> L/t de CBUQ</label>
-          <p class="note">Massas da bica corrida e da BGS por m³ compactado: as das CPUs 530200 e 531100 (transporte). Teor de CAP, EAI e RR-1C: as premissas do Painel, se não alterar aqui. Reforço: cada camada de 15 cm = metade do volume do reforço na estaca.</p>
-        </div></details>
-      <div class="filters"><button class="btn" type="button" id="s-clear">Limpar seleção</button><button class="btn" type="button" data-print="simulacao">PDF</button><button class="btn primary" type="button" id="s-csv">Exportar (CSV)</button></div>
+
+    <div class="panel sim-brush">
+      <div class="sb-row"><span class="label">Pincel – serviços pintados juntos</span><div class="sb-chips" id="s-brush"></div></div>
+      <div class="sb-row sb-act">
+        <div class="seg" id="s-mode"><button type="button" data-m="add">Marcar</button><button type="button" data-m="del">Apagar</button></div>
+        <label class="chk"><input type="checkbox" id="s-skip" checked> Não marcar o que já foi executado</label>
+        <span class="sp"></span>
+        <button class="btn" type="button" id="s-rest">Marcar todo o restante</button>
+        <button class="btn" type="button" id="s-clear">Limpar</button>
+        <button class="btn" type="button" data-print="simulacao">PDF</button>
+        <button class="btn primary" type="button" id="s-csv">Exportar (CSV)</button>
+      </div>
+      <p class="note">Escolha os serviços no pincel e toque ou arraste sobre as estacas: todos os serviços do pincel são marcados juntos. Com um só serviço no pincel, a pintura vale só para a linha tocada.</p>
+    </div>
+
+    <div class="sim-kpis" id="s-kpis"></div>
+
+    <div class="row2 sim-row">
+      <div class="panel"><h3>Avanço por serviço</h3><p class="note">Extensão executada, simulada e restante de cada camada (km).</p><div id="s-bars"></div></div>
+      <div class="panel"><h3>Quadro de materiais</h3><div class="tbl-wrap" id="s-tab"></div></div>
     </div>
 
     <p class="note tip" id="s-tip" role="status"></p>
     <div class="panel"><div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw atk"></i>em execução (atacado)</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw"></i>a executar</span></div><div class="retig" id="s-grid"></div></div>
+
+    <details class="panel sim-prem"><summary><b>Premissas de cálculo</b> <span class="note" id="s-prem-sum"></span></summary>
+      <div class="sim-par">
+        <label class="lbl">Bica corrida <input id="s-dbica" inputmode="decimal"> t/m³</label>
+        <label class="lbl">BGS <input id="s-dbgs" inputmode="decimal"> t/m³</label>
+        <label class="lbl">Teor de CAP <input id="s-cap" inputmode="decimal"> %</label>
+        <label class="lbl">EAI <input id="s-eai" inputmode="decimal"> kg/m²</label>
+        <label class="lbl">RR-1C <input id="s-rr" inputmode="decimal"> kg/m²</label>
+        <label class="lbl">Xisto <input id="s-xisto" inputmode="decimal"> L/t de CBUQ</label>
+        <p class="note">Quantidades por estaca das tabelas de volumes do projeto de pavimentação (eixo principal). Massas da bica corrida e da BGS por m³ compactado: CPUs 530200 e 531100 do contrato. Teor de CAP, EAI e RR-1C: premissas do Painel, se não alteradas aqui. Reforço: cada camada de 15 cm = metade do volume do reforço na estaca. RR-1C: pintura de ligação sobre a área do CBUQ.</p>
+      </div></details>
   </section>
 
   <!-- =============================== CAMPO -->
