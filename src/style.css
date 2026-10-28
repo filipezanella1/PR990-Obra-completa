@@ -576,3 +576,28 @@ td.nowv b { color: var(--accent-ink); }
 .sw.m { background: radial-gradient(circle, #111 0 2.5px, #76923c 3px); }
 @media print { .cells i.c.m::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 @media (max-width: 760px) { .kpis.k6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* retigráfico no modelo da obra (atacado × concluído) */
+.avleg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .8rem; color: var(--muted); }
+.avleg .lg1 { display: inline-flex; align-items: center; gap: 4px; }
+.avleg .lg1 b { color: var(--fg); margin-right: 2px; }
+.avleg .sw { margin: 0 2px 0 6px; }
+.avleg svg { vertical-align: middle; }
+.blk .mrow { height: 30px; }
+.oac { position: absolute; bottom: 0; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 2px; background: none; border: 0; padding: 0; cursor: pointer; z-index: 1; }
+.oac span { font-size: .6rem; white-space: nowrap; color: var(--fg); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 0 2px; border-radius: 2px; }
+.oac.m svg { filter: drop-shadow(0 0 2px #111); }
+.oae { position: absolute; bottom: 2px; height: 12px; background: #1f497d; color: #fff; font-size: .6rem; text-align: center; line-height: 12px; border-radius: 2px; }
+.fgrp { border: 1px solid #8a949c; border-bottom: 0; }
+.fgrp:last-of-type { border-bottom: 1px solid #8a949c; }
+.fgrp .ln { border: 0; border-right: 1px solid #8a949c; display: flex; justify-content: space-between; gap: 4px; height: 14px; line-height: 13px; font-size: .68rem; }
+.fgrp .lrow.ra .ln { border-bottom: 1px dotted #b5bcc2; }
+.fgrp .ln .fn { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fgrp .ln .sb { color: var(--muted); flex: none; }
+.fgrp .cells i.c { height: 14px; border-top: 0; border-right: 1px solid #d5d9dd; background: #fff; }
+.fgrp .lrow.ra .cells i.c { border-bottom: 1px dotted #d5d9dd; }
+.fgrp .cells i.c.on { border-right-color: rgba(0,0,0,.18); }
+.fgrp + .erow, .blk .erow { margin-top: 2px; }
+#v-avanco.painting .fgrp .cells i.c:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 760px) { .fgrp .ln { font-size: .6rem; } .oac span { display: none; } }
+@media print { .fgrp .cells i.c.on, .oae, .oac svg path { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

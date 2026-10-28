@@ -189,24 +189,23 @@
 
   <!-- =============================== AVANÇO -->
   <section class="view" id="v-avanco" hidden>
-    <div><h2>Retigráfico de avanço físico</h2><p class="note">Uma linha por frente de serviço e uma célula por estaca (20 m), no modelo do retigráfico da obra. Escolha a cor e ligue <b>Pintar</b> para marcar o que já foi executado, o que está em execução, o planejado para os próximos meses e o que falta (em branco). As alterações ficam salvas neste aparelho; use Exportar para levar a outro aparelho. <span id="a-fonte"></span></p></div>
+    <div><h2>Retigráfico de avanço físico</h2><p class="note">No modelo do retigráfico da obra: para cada frente, a linha <b>Atacado</b> (em execução, cor clara) e a linha <b>Concluído</b> (executado, cor escura), uma célula por estaca de 20 m; em branco, o que falta executar. Acima de cada faixa, os bueiros e galerias (OAC) com a situação. Ligue <b>Editar</b> e toque ou arraste sobre a linha Atacado ou Concluído para marcar ou desmarcar; toque no ícone de um OAC para trocar a situação. Fica salvo neste aparelho; use Exportar para levar a outro. <span id="a-fonte"></span></p></div>
     <div class="panel av-tools">
-      <div class="brushes" id="a-brush"></div>
+      <div id="a-brush"></div>
       <div class="filters">
-        <button class="btn primary" type="button" id="a-paint">Pintar no retigráfico</button>
-        <label class="lbl">Mês 1 <input id="a-m1" class="mes"></label><label class="lbl">Mês 2 <input id="a-m2" class="mes"></label>
+        <button class="btn primary" type="button" id="a-paint">Editar o retigráfico</button>
         <button class="btn" type="button" data-print="avanco">PDF</button>
         <button class="btn" type="button" id="a-exp">Exportar</button>
         <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
         <button class="btn" type="button" id="a-csv">CSV</button>
       </div>
       <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o que foi medido na medição</span></label>
-      <details class="av-more"><summary>Pintar por intervalo de estacas, frentes e ajustes</summary>
+      <details class="av-more"><summary>Marcar por intervalo de estacas, frentes e ajustes</summary>
         <div class="av-range">
           <label class="lbl">Frentes <select id="a-lay" multiple size="5" aria-label="Frentes"></select></label>
           <div class="av-r2"><label class="lbl">Da estaca <input id="a-ei" placeholder="400" inputmode="decimal"></label><label class="lbl">até <input id="a-ef" placeholder="420+10" inputmode="decimal"></label>
           <label class="lbl">Situação <select id="a-st"></select></label><button class="btn primary" type="button" id="a-apply">Aplicar</button></div>
-          <div class="av-r2"><button class="btn" type="button" id="a-add">Nova frente</button><button class="btn" type="button" id="a-ren">Renomear / remover frente</button><button class="btn" type="button" id="a-med">Atualizar drenagem pela medição</button><button class="btn" type="button" id="a-reset">Voltar ao retigráfico de out/26</button></div>
+          <div class="av-r2"><button class="btn" type="button" id="a-add">Nova frente</button><button class="btn" type="button" id="a-ren">Renomear / remover frente</button><button class="btn" type="button" id="a-reset">Voltar ao retigráfico de 14/09/2026</button></div>
         </div></details>
       <p class="note" id="a-tip" role="status"></p>
     </div>

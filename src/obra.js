@@ -133,26 +133,23 @@ export function initObra(X) {
     download(`medicao_${MED.nome.replace(/\W+/g, '_')}_${estStr(a)}_a_${estStr(b)}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
   }
 
-  // ===================================================================== AVANÇO (retigráfico)
-  const ST = { '1': { n: 'Executado', c: '#76923c' }, '2': { n: 'Em execução', c: '#e26b0a' }, '3': { n: 'Planejado', c: '#31869b' }, '4': { n: 'Planejado', c: '#7030a0' }, '0': { n: 'A executar', c: '#ffffff' }, '9': { n: 'Sem serviço', c: 'na' } };
-  const NC = 643;   // células: estaca 0 … 642
-  const DRL = [
-    { id: 'dsup', n: 'Drenagem superficial', re: /^(VPA|VPC|STC|SZC|STB|MFC|TSS)/, ct: ['650000', '653400', '653600', '660100', '660300', '660500', '661100', '661300', '661500', '810200', '810700', '655500'] },
-    { id: 'dpro', n: 'Drenagem profunda', re: /^(DPS|DPR|DSS)/, ct: ['641800', '643100', '644200'] },
-    { id: 'oac', n: 'Bueiros e galerias', re: /^(BSTC|BDTC|BTTC|BSCC|BTCC)/, ct: ['610500', '610700', '610900', '611100', '611300', '611500', '612000', '798072', '798082', '798091'] },
-  ];
-  // serviços da medição que alimentam cada frente do retigráfico (para destacar o medido na medição atual)
+  // ===================================================================== AVANÇO (retigráfico no modelo da obra: atacado × concluído por frente)
+  const NC = 643;   // células: estaca 0 … 642 (a célula k vai da estaca k à k+1)
+  const ST = { '2': 'Concluído', '1': 'Atacado (em execução)', '0': 'A executar' };
+  const PAL = [['#fcd5b5', '#e46c0a'], ['#b7dee8', '#31859c'], ['#ccc1da', '#604a7b'], ['#d7e4bd', '#77933c'], ['#e6b9b8', '#953735'], ['#948a54', '#4a452a'], ['#c6d9f1', '#1f497d'], ['#fde9d9', '#c0504d']];
+  // serviços da medição que alimentam cada frente (para destacar o medido na medição atual)
   const FRM = {
     p0: it => it.g === 'TERRAPLENAGEM', p1: it => it.c === '511200',
     p2: (it, tb) => it.c === '530200' && !/sub/i.test(tb || ''), p3: (it, tb) => it.c === '530200' && !/sub/i.test(tb || ''),
     p4: (it, tb) => it.c === '530200' && /sub/i.test(tb || ''), p5: it => it.c === '531100',
     p6: it => ['560100', '589190'].includes(it.c), p7: it => ['570400', '589000'].includes(it.c),
-    dsup: it => DRL[0].ct.includes(it.c), dpro: it => DRL[1].ct.includes(it.c), oac: it => DRL[2].ct.includes(it.c) || /^6(00300|01200|02000|03000|05300)$/.test(it.c),
   };
+  const OACC = /^(6(05|06|07|08|10|11|12|20|21)\d{3}|79(80|81|82|83|84|85)\d{2}|600300|601200|602000|603000|605300)$/;
   let MCELL = null, MCELLn = null;
-  function medCells() {   // frente → Map(célula → [serviços medidos na medição atual])
+  function medCells() {   // frente → Map(célula → serviços medidos na medição atual)
     if (MCELL && MCELLn === MED) return MCELL; MCELL = {}; MCELLn = MED;
-    for (const [id, f] of Object.entries(FRM)) {
+    const all = { ...FRM, oac: it => OACC.test(it.c) };
+    for (const [id, f] of Object.entries(all)) {
       const m = new Map();
       for (const it of MED.itens) for (const r of it.r) {
         if (r[4] !== MED.n || !f(it, it.tb && it.tb[r[5]])) continue;
@@ -164,117 +161,111 @@ export function initObra(X) {
     return MCELL;
   }
   let avHl = store.get('avHl', true);
-  let AV = null, brush = store.get('avBrush', '1'), paintOn = false;
+  let AV = null, paintOn = false;
+  const AVKEY = 'avanco2';
   function avDefault() {
-    const base = D.avanco;
-    const c = base.camadas.map(x => ({ ...x }));
-    for (const d of DRL) c.push({ id: d.id, n: d.n, c: avFromMed(d) });
-    return { v: 1, fonte: base.fonte, data: base.data, meses: [...base.meses], camadas: c, atualizado: base.data };
+    const b = D.avanco;
+    return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, atualizado: b.data };
   }
-  function avFromMed(d) {   // projeto × medição por estaca → executado / em execução / a executar / sem serviço
-    const proj = new Float64Array(NC), med = new Float64Array(NC);
-    const add = (arr, ei, ef, q) => {
-      if (ef !== null && ef > ei + 1e-9) { for (let k = Math.floor(ei); k < Math.min(NC, Math.ceil(ef)); k++) { const o = Math.min(ef, k + 1) - Math.max(ei, k); if (o > 0) arr[k] += q * o / (ef - ei); } }
-      else { const k = Math.min(NC - 1, Math.max(0, Math.floor(ei))); arr[k] += q; }
-    };
-    for (const r of tab('Drenagem linear')) if (d.re.test(String(r['Dispositivo'] || '').trim())) add(proj, num(r['Est. inicial (dec.)']), num(r['Est. final (dec.)']), num(r['L (m)']) || 1);
-    for (const r of tab('Drenagem pontual')) if (d.re.test(String(r['Dispositivo'] || '').trim())) add(proj, num(r['Estaca (dec.)']), null, num(r['L (m)']) || 1);
-    const m = MED || D.medicao;
-    for (const it of m.itens) if (d.ct.includes(it.c)) for (const r of it.r) add(med, r[0], r[1], Math.abs(r[3]));
-    let s = '';
-    for (let k = 0; k < NC; k++) s += proj[k] <= 1e-9 ? '9' : med[k] >= proj[k] * 0.8 ? '1' : med[k] > 1e-9 ? '2' : '0';
-    return s;
+  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes) AV = avDefault(); }
+  function avSave() { AV.atualizado = today(); store.set(AVKEY, AV); }
+  const stName = k => ST[k] || ST['0'];
+  const cellLen = k => k >= 642 ? 15.817 : 20;
+  function avStats(c) { const s = { '0': 0, '1': 0, '2': 0 }; for (let k = 0; k < NC; k++) s[c[k]] = (s[c[k]] || 0) + cellLen(k); return s; }
+  const TOT = 642.79085 * 20;
+  const oacName = st => st === 'c' ? 'concluído' : st === 'a' ? 'atacado' : 'não iniciado';
+  function oacIcon(st) {
+    const f = st === 'c' ? '#1f3864' : st === 'a' ? '#00b0f0' : '#fff';
+    return `<svg viewBox="0 0 14 22" width="11" height="17" aria-hidden="true"><path d="M1 1h12l-3 5v10l3 5H1l3-5V6z" fill="${f}" stroke="#1f3864" stroke-width="1.4"/></svg>`;
   }
-  function avLoad() { AV = store.get('avanco', null); if (!AV || AV.v !== 1) AV = avDefault(); }
-  function avSave() { AV.atualizado = today(); store.set('avanco', AV); }
-  function stColor(k) { return k === '3' || k === '4' ? ST[k].c : ST[k].c; }
-  function stName(k) { return k === '3' ? 'Planejado – ' + AV.meses[0] : k === '4' ? 'Planejado – ' + AV.meses[1] : ST[k].n; }
-  function avStats(c) {
-    const s = { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '9': 0 }; for (const ch of c) s[ch] = (s[ch] || 0) + 1;
-    const tot = NC - s['9']; return { s, tot };
-  }
-  let avCols = 0;
   function renderAv() {
     if (!AV) avLoad();
     $('#a-fonte').textContent = `${AV.fonte} · alterado em ${AV.atualizado.split('-').reverse().join('/')}`;
-    $('#a-m1').value = AV.meses[0]; $('#a-m2').value = AV.meses[1]; $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o que foi medido na ${MED.n || ''}ª medição`;
-    $('#a-brush').innerHTML = ['1', '2', '3', '4', '0', '9'].map(k => `<button type="button" class="brush${k === brush ? ' on' : ''}" data-k="${k}"><i class="sw s${k}"></i>${esc(stName(k))}</button>`).join('');
-    $$('#a-brush .brush').forEach(bt => bt.onclick = () => { brush = bt.dataset.k; store.set('avBrush', brush); renderAv(); });
-    $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Pintando – toque para parar' : 'Pintar no retigráfico';
+    $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o que foi medido na ${MED.n || ''}ª medição`;
+    $('#a-brush').innerHTML = `<div class="avleg">${AV.frentes.map(f => `<span class="lg1"><b>${esc(f.n)}</b>${f.a ? `<i class="sw" style="background:${f.ca}"></i>atacado` : ''}<i class="sw" style="background:${f.cc}"></i>concluído</span>`).join('')}
+      <span class="lg1"><b>OAC</b>${oacIcon('c')} concluído ${oacIcon('a')} atacado ${oacIcon('n')} não iniciado</span></div>`;
+    $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Editando – toque para parar' : 'Editar o retigráfico';
     $('#v-avanco').classList.toggle('painting', paintOn);
-    // resumo por camada
-    $('#a-sum').innerHTML = `<table class="itbl avsum"><thead><tr><th>Frente</th><th class="n">Executado</th><th class="n">Em execução</th><th class="n">Planejado</th><th class="n">A executar</th><th class="n">Medido na ${MED.n || ''}ª</th><th style="width:30%">Avanço</th></tr></thead><tbody>` +
-      AV.camadas.map(l => { const { s, tot } = avStats(l.c); const p = k => tot ? s[k] / tot : 0; const mc = medCells()[l.id];
-        return `<tr><td><b>${esc(l.n)}</b></td><td class="n" data-l="Executado">${fPc(p('1'))}</td><td class="n" data-l="Em execução">${fPc(p('2'))}</td><td class="n" data-l="Planejado">${fPc(p('3') + p('4'))}</td><td class="n" data-l="A executar">${fPc(p('0'))}</td><td class="n" data-l="Medido na ${MED.n || ''}ª">${mc && mc.size ? mc.size + ' est.' : '–'}</td>
-          <td><div class="stk">${['1', '2', '3', '4'].map(k => `<i class="s${k}" style="width:${(p(k) * 100).toFixed(2)}%"></i>`).join('')}</div></td></tr>`; }).join('') + '</tbody></table>';
+    const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++);
+    $('#a-sum').innerHTML = `<table class="itbl avsum"><thead><tr><th>Frente</th><th class="n">Concluído</th><th class="n">Atacado (em execução)</th><th class="n">A executar</th><th class="n">Medido na ${MED.n || ''}ª</th><th style="width:30%">Avanço</th></tr></thead><tbody>` +
+      AV.frentes.map(f => { const s = avStats(f.c); const mc = medCells()[f.id]; const p = k => s[k] / TOT;
+        return `<tr><td><b>${esc(f.n)}</b></td><td class="n" data-l="Concluído">${fPc(p('2'))} <span class="note">${NF[2].format(s['2'] / 1000)} km</span></td><td class="n" data-l="Atacado">${f.a ? `${fPc(p('1'))} <span class="note">${NF[2].format(s['1'] / 1000)} km</span>` : '–'}</td>
+          <td class="n" data-l="A executar">${fPc(p('0'))}</td><td class="n" data-l="Medido na ${MED.n || ''}ª">${mc && mc.size ? mc.size + ' est.' : '–'}</td>
+          <td><div class="stk"><i style="width:${(p('2') * 100).toFixed(2)}%;background:${f.cc}"></i><i style="width:${(p('1') * 100).toFixed(2)}%;background:${f.ca || f.cc}"></i></div></td></tr>`; }).join('') +
+      `<tr><td><b>OAC – bueiros e galerias</b></td><td class="n" data-l="Concluídos">${oc.c} de ${AV.oac.length}</td><td class="n" data-l="Atacados">${oc.a}</td><td class="n" data-l="Não iniciados">${oc.n}</td><td class="n">${medCells().oac.size ? medCells().oac.size + ' est.' : '–'}</td><td><div class="stk"><i style="width:${oc.c / AV.oac.length * 100}%;background:#1f3864"></i><i style="width:${oc.a / AV.oac.length * 100}%;background:#00b0f0"></i></div></td></tr></tbody></table>`;
     const sel = $('#a-lay'); const prev = [...sel.selectedOptions].map(o => o.value);
-    sel.innerHTML = AV.camadas.map(l => `<option value="${l.id}" ${prev.includes(l.id) ? 'selected' : ''}>${esc(l.n)}</option>`).join('');
-    $('#a-st').innerHTML = ['1', '2', '3', '4', '0', '9'].map(k => `<option value="${k}" ${k === brush ? 'selected' : ''}>${esc(stName(k))}</option>`).join('');
+    sel.innerHTML = AV.frentes.map(f => `<option value="${f.id}" ${prev.includes(f.id) ? 'selected' : ''}>${esc(f.n)}</option>`).join('');
+    $('#a-st').innerHTML = ['2', '1', '0'].map(k => `<option value="${k}">${esc(stName(k))}</option>`).join('');
     drawGrid();
-  }
-  function marks() {
-    const out = [{ e: 235.3, t: 'Ponte sobre o Rio do Salto' }];
-    for (const r of tab('Drenagem pontual')) { const d = String(r['Dispositivo'] || ''); if (/^(BSCC|BTCC)/.test(d)) out.push({ e: num(r['Estaca (dec.)']), t: d + ' · est. ' + estStr(num(r['Estaca (dec.)'])) }); }
-    return out;
   }
   function drawGrid() {
     const host = $('#a-grid'); const w = host.clientWidth || 1000;
-    const labW = w < 700 ? 92 : 150, cw = w < 700 ? 15 : 17;
-    const per = Math.max(10, Math.floor((w - labW - 4) / cw)); avCols = per;
-    const mk = marks();
+    const labW = w < 700 ? 112 : 190, cw = w < 700 ? 15 : 17;
+    const per = Math.max(10, Math.floor((w - labW - 4) / cw));
+    const mc = avHl ? medCells() : {};
     let h = '';
     for (let s0 = 0; s0 < NC; s0 += per) {
       const s1 = Math.min(NC, s0 + per);
-      const mm = mk.filter(m => m.e >= s0 && m.e < s1);
-      h += `<div class="blk" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow">${mm.map(m => `<span class="mk" style="left:calc(var(--lw) + ${(m.e - s0) * cw}px)" title="${esc(m.t)}">${esc(m.t.split(' · ')[0])}</span>`).join('')}</div>`;
-      for (const l of AV.camadas) {
-        h += `<div class="lrow" data-id="${l.id}"><span class="ln" title="${esc(l.n)}">${esc(l.n)}</span><div class="cells">`;
-        const mc = avHl ? medCells()[l.id] : null;
-        for (let k = s0; k < s1; k++) h += `<i class="c s${l.c[k]}${mc && mc.has(k) ? ' m' : ''}" data-k="${k}"></i>`;
-        h += '</div></div>';
+      const oa = AV.oac.map((o, i) => ({ o, i })).filter(({ o }) => o.e >= s0 && o.e < s1);
+      const oe = (AV.oae || []).filter(o => o.e1 >= s0 && o.e0 < s1);
+      h += `<div class="blk" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow">` +
+        oe.map(o => `<span class="oae" style="left:calc(var(--lw) + ${(Math.max(o.e0, s0) - s0) * cw}px);width:${(Math.min(o.e1, s1) - Math.max(o.e0, s0)) * cw}px" title="${esc(o.n)}">OAE</span>`).join('') +
+        oa.map(({ o, i }) => `<button type="button" class="oac ${o.st}${mc.oac && mc.oac.has(Math.floor(o.e)) ? ' m' : ''}" data-oac="${i}" style="left:calc(var(--lw) + ${(o.e - s0) * cw}px)" title="${esc(o.t)} · est. ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''} · ${oacName(o.st)}">${oacIcon(o.st)}<span>${esc(o.t)}${o.L ? ' · ' + esc(o.L) + ' m' : ''}</span></button>`).join('') + '</div>';
+      for (const f of AV.frentes) {
+        const m = mc[f.id];
+        const row = (sub, val, col) => { let r = `<div class="lrow ${sub}" data-id="${f.id}" data-sub="${val}"><span class="ln"><span class="fn">${sub === 'ra' || !f.a ? esc(f.n) : ''}</span><span class="sb">${val === '1' ? 'Atacado' : 'Concluído'}</span></span><div class="cells">`;
+          for (let k = s0; k < s1; k++) r += `<i class="c${f.c[k] === val ? ' on' : ''}${m && val === '2' && m.has(k) ? ' m' : ''}" data-k="${k}"${f.c[k] === val ? ` style="background:${col}"` : ''}></i>`;
+          return r + '</div></div>'; };
+        h += `<div class="fgrp">${f.a ? row('ra', '1', f.ca) : ''}${row('rc', '2', f.cc)}</div>`;
       }
       h += `<div class="erow"><span class="ln">Estaca</span><div class="cells">${Array.from({ length: s1 - s0 }, (_, i) => `<b>${s0 + i}</b>`).join('')}</div></div></div>`;
     }
     host.innerHTML = h;
   }
-  function avPaintAt(el) {
+  let avDirty = false, avDown = null;
+  function avPaintAt(el, first) {
     const c = el && el.closest && el.closest('i.c'); if (!c) return;
-    const row = c.closest('.lrow'); const L = AV.camadas.find(x => x.id === row.dataset.id); const k = +c.dataset.k;
-    if (L.c[k] === brush) return;
-    L.c = L.c.slice(0, k) + brush + L.c.slice(k + 1); c.className = 'c s' + brush; avDirty = true;
+    const row = c.closest('.lrow'); const f = AV.frentes.find(x => x.id === row.dataset.id); const k = +c.dataset.k; const val = row.dataset.sub;
+    if (first) avDown = { id: f.id, val, to: f.c[k] === val ? '0' : val };
+    if (!avDown || avDown.id !== f.id || avDown.val !== val) return;
+    if (f.c[k] === avDown.to) return;
+    f.c = f.c.slice(0, k) + avDown.to + f.c.slice(k + 1); avDirty = true;
+    const grp = row.parentElement; grp.querySelectorAll(`i.c[data-k="${k}"]`).forEach(x => { const sv = x.closest('.lrow').dataset.sub; const on = f.c[k] === sv; x.classList.toggle('on', on); x.style.background = on ? (sv === '1' ? f.ca : f.cc) : ''; });
   }
-  let avDirty = false, avDown = false;
   function avInitEvents() {
     const g = $('#a-grid');
-    g.addEventListener('pointerdown', ev => { if (!paintOn) return; avDown = true; g.setPointerCapture(ev.pointerId); avPaintAt(ev.target); ev.preventDefault(); });
+    g.addEventListener('pointerdown', ev => { if (!paintOn || !ev.target.closest('i.c')) return; g.setPointerCapture(ev.pointerId); avPaintAt(ev.target, true); ev.preventDefault(); });
     g.addEventListener('pointermove', ev => { if (!paintOn || !avDown) return; avPaintAt(document.elementFromPoint(ev.clientX, ev.clientY)); });
-    const up = () => { if (!avDown) return; avDown = false; if (avDirty) { avDirty = false; avSave(); renderAv(); } };
+    const up = () => { if (!avDown) return; avDown = null; if (avDirty) { avDirty = false; avSave(); renderAv(); } };
     g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
-    g.addEventListener('click', ev => { if (paintOn) return; const c = ev.target.closest('i.c'); if (!c) return; const row = c.closest('.lrow'); const L = AV.camadas.find(x => x.id === row.dataset.id);
-      const mc = medCells()[L.id]?.get(+c.dataset.k);
-      $('#a-tip').textContent = `${L.n} · estaca ${c.dataset.k} a ${+c.dataset.k + 1}: ${stName(L.c[+c.dataset.k])}.${mc ? ` Medido na ${MED.n}ª medição: ${[...mc].join(', ')}.` : ''} Ligue “Pintar” para alterar.`; });
+    g.addEventListener('click', ev => {
+      const ob = ev.target.closest('[data-oac]');
+      if (ob) { const o = AV.oac[+ob.dataset.oac];
+        if (paintOn) { o.st = { n: 'a', a: 'c', c: 'n' }[o.st]; avSave(); renderAv(); $('#a-tip').textContent = `${o.t} (est. ${estStr(o.e)}): ${oacName(o.st)}.`; }
+        else $('#a-tip').textContent = `${o.t} · estaca ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''}: ${oacName(o.st)}.${o.obs ? ' ' + o.obs + '.' : ''} Em “Editar”, toque no ícone para trocar a situação.`; return; }
+      if (paintOn) return; const c = ev.target.closest('i.c'); if (!c) return; const f = AV.frentes.find(x => x.id === c.closest('.lrow').dataset.id); const k = +c.dataset.k;
+      const m = medCells()[f.id]?.get(k);
+      $('#a-tip').textContent = `${f.n} · estaca ${k} a ${k + 1}: ${stName(f.c[k])}.${m ? ` Medido na ${MED.n}ª medição: ${[...m].join(', ')}.` : ''} Em “Editar”, toque na linha Atacado ou Concluído para marcar ou desmarcar.`; });
     $('#a-hl').onchange = () => { avHl = $('#a-hl').checked; store.set('avHl', avHl); drawGrid(); };
     $('#a-paint').onclick = () => { paintOn = !paintOn; renderAv(); };
-    $('#a-m1').onchange = () => { AV.meses[0] = $('#a-m1').value.trim() || 'Mês 1'; avSave(); renderAv(); };
-    $('#a-m2').onchange = () => { AV.meses[1] = $('#a-m2').value.trim() || 'Mês 2'; avSave(); renderAv(); };
     $('#a-apply').onclick = () => {
       const a = parseEstIn($('#a-ei').value), b = parseEstIn($('#a-ef').value), k = $('#a-st').value; const ids = [...$('#a-lay').selectedOptions].map(o => o.value);
       if (a === null || b === null || !ids.length) { $('#a-tip').textContent = 'Informe estaca inicial, final e ao menos uma frente.'; return; }
       const i0 = Math.max(0, Math.floor(Math.min(a, b))), i1 = Math.min(NC - 1, Math.ceil(Math.max(a, b)) - 1);
-      for (const L of AV.camadas) if (ids.includes(L.id)) { let c = L.c.split(''); for (let i = i0; i <= Math.max(i0, i1); i++) c[i] = k; L.c = c.join(''); }
+      for (const f of AV.frentes) if (ids.includes(f.id)) { const kk = k === '1' && !f.a ? '2' : k; const c = f.c.split(''); for (let i = i0; i <= Math.max(i0, i1); i++) c[i] = kk; f.c = c.join(''); }
       avSave(); renderAv(); $('#a-tip').textContent = `Aplicado: ${stName(k)} da estaca ${i0} a ${Math.max(i0, i1) + 1} em ${ids.length} frente(s).`;
     };
-    $('#a-add').onclick = () => { const n = prompt('Nome da nova frente (ex.: Sinalização horizontal):'); if (!n) return; AV.camadas.push({ id: 'u' + Date.now(), n: n.trim(), c: '0'.repeat(NC) }); avSave(); renderAv(); };
-    $('#a-ren').onclick = () => { const ids = [...$('#a-lay').selectedOptions].map(o => o.value); if (ids.length !== 1) { $('#a-tip').textContent = 'Selecione uma frente na lista para renomear ou remover.'; return; } const L = AV.camadas.find(x => x.id === ids[0]); const n = prompt('Novo nome (deixe vazio para remover a frente):', L.n); if (n === null) return; if (!n.trim()) { if (confirm('Remover a frente “' + L.n + '”?')) AV.camadas = AV.camadas.filter(x => x !== L); } else L.n = n.trim(); avSave(); renderAv(); };
-    $('#a-med').onclick = () => { for (const d of DRL) { const L = AV.camadas.find(x => x.id === d.id); if (L) L.c = avFromMed(d); } avSave(); renderAv(); $('#a-tip').textContent = `Drenagem atualizada pelos lançamentos da ${MED.nome} (executado quando a medição cobre ≥ 80% do projeto na estaca).`; };
-    $('#a-reset').onclick = () => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As pinturas feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); avSave(); renderAv(); };
+    $('#a-add').onclick = () => { const n = prompt('Nome da nova frente (ex.: Sarjetas, Drenos, Sinalização horizontal):'); if (!n) return; const pc = PAL[AV.frentes.length % PAL.length]; AV.frentes.push({ id: 'u' + Date.now(), n: n.trim(), a: true, ca: pc[0], cc: pc[1], c: '0'.repeat(NC) }); avSave(); renderAv(); };
+    $('#a-ren').onclick = () => { const ids = [...$('#a-lay').selectedOptions].map(o => o.value); if (ids.length !== 1) { $('#a-tip').textContent = 'Selecione uma frente na lista para renomear ou remover.'; return; } const f = AV.frentes.find(x => x.id === ids[0]); const n = prompt('Novo nome (deixe vazio para remover a frente):', f.n); if (n === null) return; if (!n.trim()) { if (confirm('Remover a frente “' + f.n + '”?')) AV.frentes = AV.frentes.filter(x => x !== f); } else f.n = n.trim(); avSave(); renderAv(); };
+    $('#a-reset').onclick = () => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As alterações feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); avSave(); renderAv(); };
     $('#a-exp').onclick = () => download(`retigrafico_PR-990_${today()}.json`, JSON.stringify(AV), 'application/json');
-    $('#a-csv').onclick = () => { const L = [['Estaca inicial', 'Estaca final', ...AV.camadas.map(l => l.n)]]; for (let k = 0; k < NC; k++) L.push([k, Math.min(k + 1, 642.79085), ...AV.camadas.map(l => stName(l.c[k]))]); download(`retigrafico_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
-    $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.camadas) throw new Error('arquivo sem camadas'); AV = { ...avDefault(), ...j, v: 1 }; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
+    $('#a-csv').onclick = () => { const L = [['Estaca inicial', 'Estaca final', ...AV.frentes.map(f => f.n)]]; for (let k = 0; k < NC; k++) L.push([k, Math.min(k + 1, 642.79085), ...AV.frentes.map(f => stName(f.c[k]))]); L.push([], ['OAC', 'Estaca', 'Comprimento (m)', 'Situação']); for (const o of AV.oac) L.push([o.t, estStr(o.e), o.L || '', oacName(o.st)]); download(`retigrafico_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
+    $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.frentes) throw new Error('arquivo de outro modelo de retigráfico'); AV = { ...avDefault(), ...j, v: 2 }; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
     let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (X.current() === 'avanco') drawGrid(); }, 200); });
   }
   const parseEstIn = s => { s = String(s || '').trim().replace(/\s/g, ''); if (!s) return null; if (s.includes('+')) { const [e, m] = s.split('+'); const v = +e + (parseFloat(m.replace(',', '.')) || 0) / 20; return Number.isFinite(v) ? v : null; } const v = parseFloat(s.replace(',', '.')); return Number.isFinite(v) ? v : null; };
-  function avAt(k) { if (!AV) avLoad(); k = Math.max(0, Math.min(NC - 1, Math.floor(k))); return AV.camadas.map(l => ({ n: l.n, k: l.c[k] })); }
+  function avAt(k) { if (!AV) avLoad(); k = Math.max(0, Math.min(NC - 1, Math.floor(k))); return AV.frentes.map(f => ({ n: f.n, k: f.c[k], col: f.c[k] === '2' ? f.cc : f.c[k] === '1' ? f.ca : '#fff' })); }
+  function oacNear(est, r) { if (!AV) avLoad(); return AV.oac.filter(o => Math.abs(o.e - est) * 20 <= r); }
 
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
@@ -339,7 +330,7 @@ export function initObra(X) {
       <dl class="kv"><dt>Segmento · seção tipo</dt><dd>${esc(es['Segmento'] || '–')} · ${esc(es['Seção tipo'] || '–')}</dd><dt>Largura do CBUQ</dt><dd>${es['Largura CBUQ acabado W (m)'] ? fQ(es['Largura CBUQ acabado W (m)']) + ' m' : '–'}</dd>
       <dt>Cota terreno → projeto</dt><dd>${geo['Cota do terreno (m)'] ? fQ(geo['Cota do terreno (m)']) + ' → ' + fQ(geo['Cota de projeto (m)']) + ' m' : '–'}</dd><dt>Situação</dt><dd>${esc(geo['Situação'] || '–')} ${geo['Altura (projeto − terreno) (m)'] !== undefined ? '(' + fQ(geo['Altura (projeto − terreno) (m)']) + ' m)' : ''}</dd>
       <dt>Greide · curva</dt><dd>${geo['Rampa do greide (%)'] !== undefined ? fQ(geo['Rampa do greide (%)'], 3) + '%' : '–'}${geo['Curva horizontal'] ? ' · ' + esc(geo['Curva horizontal']) + ' R=' + fQ(geo['Raio (m)'], 0) : ''}</dd></dl>
-      <div class="avst"><span class="label">Avanço nesta estaca</span>${av.map(a => `<span class="avchip"><i class="sw s${a.k}"></i>${esc(a.n)}:&nbsp;<b>${esc(stName(a.k))}</b></span>`).join('')}</div>
+      <div class="avst"><span class="label">Avanço nesta estaca</span>${av.map(a => `<span class="avchip"><i class="sw" style="background:${a.col}"></i>${esc(a.n)}:&nbsp;<b>${esc(stName(a.k))}</b></span>`).join('')}${oacNear(est, raio).map(o => `<span class="avchip">${oacIcon(o.st)}&nbsp;${esc(o.t)} (est. ${estStr(o.e)}):&nbsp;<b>OAC ${oacName(o.st)}</b></span>`).join('')}</div>
       ${(() => { const L = MED.itens.map(it => { const q = it.r.filter(r => r[4] === MED.n && (r[1] !== null && r[1] > r[0] ? est >= r[0] - 1e-9 && est <= r[1] + 1e-9 : Math.abs(r[0] - est) <= 0.5)).reduce((s, r) => s + r[3], 0); return { it, q }; }).filter(o => Math.abs(o.q) > 1e-9);
         return L.length ? `<div class="avst"><span class="label">Medido aqui na ${MED.n}ª medição</span>${L.map(o => `<span class="avchip"><b>${esc(o.it.c)}</b>&nbsp;${esc(o.it.s.slice(0, 48))} · ${fQ(o.q)} ${esc(o.it.u)}</span>`).join('')}</div>` : ''; })()}
       <div class="here-act"><button class="btn" type="button" id="g-tr">Usar como trecho no painel (± 1 estaca)</button><button class="btn" type="button" id="g-av">Ver no retigráfico</button></div></div>`;
@@ -609,7 +600,7 @@ export function initObra(X) {
     for (const [s, t] of Object.entries(X.SHEETS)) if (norm('DR-4-' + s + ' ' + t).includes(n)) add('Pranchas', `DR-4-${s} · ${t}`, 'Drenagem – detalhe tipo', () => X.lbOpen(s));
     for (const p of D.pranchas || []) if (norm(p.id + ' ' + p.t + ' ' + DISC.find(d => d.id === p.d).n).includes(n)) add('Pranchas', `${p.id} · ${p.t}`, DISC.find(d => d.id === p.d).n, () => prOpenSheet(p.id));
     const seen = new Set(); for (const [c, rows] of Object.entries(INS().consumos)) for (const r of rows) { const k = r[0] + r[1]; if (!seen.has(k) && norm(r[1] + ' ' + r[2]).includes(n)) { seen.add(k); add('Insumos', `${r[2]}`, `${r[0]} · código ${r[1]}`, () => { location.hash = '#insumos'; $('#i-q2').value = r[2]; X.renderIns(); }); } }
-    for (const l of (AV || { camadas: [] }).camadas) if (norm(l.n).includes(n)) add('Avanço', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
+    for (const l of (AV || { frentes: [] }).frentes) if (norm(l.n).includes(n)) add('Avanço', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
     return res;
   }
   function searchInit() {
