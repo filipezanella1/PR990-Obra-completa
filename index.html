@@ -26,7 +26,7 @@
     <nav class="tabs" aria-label="Seções">
       <a class="nl " href="#painel" aria-current="page"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4v8H3zM10 8h4v13h-4zM17 3h4v18h-4z"/></svg><span class="lg">Painel</span><span class="sm">Painel</span></a>
       <a class="nl " href="#medicao"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v3H9zM6 5h3M15 5h3v16H6V5h0M9 11h6M9 15h6M9 19h3"/></svg><span class="lg">Medição</span><span class="sm">Medição</span></a>
-      <a class="nl " href="#avanco"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16M15 4v16"/></svg><span class="lg">Avanço</span><span class="sm">Avanço</span></a>
+      <a class="nl " href="#avanco"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3zM3 9h18M3 14h18M9 4v16M15 4v16"/></svg><span class="lg">Retigráfico</span><span class="sm">Retigráf.</span></a>
       <a class="nl " href="#campo"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg><span class="lg">Campo</span><span class="sm">Campo</span></a>
       <a class="nl x" href="#planejamento"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h3M8 17h6"/></svg><span class="lg">Planejamento</span><span class="sm">Planej.</span></a>
       <a class="nl x" href="#insumos"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v4l-2 3v11H9V10L7 7zM7 7h10M12 13v4"/></svg><span class="lg">Insumos</span><span class="sm">Insumos</span></a>
@@ -187,30 +187,53 @@
     </div>
   </section>
 
-  <!-- =============================== AVANÇO -->
+  <!-- =============================== RETIGRÁFICO -->
   <section class="view" id="v-avanco" hidden>
-    <div><h2>Retigráfico de avanço físico</h2><p class="note">No modelo do retigráfico da obra: para cada frente, a linha <b>Atacado</b> (em execução, cor clara) e a linha <b>Concluído</b> (executado, cor escura), uma célula por estaca de 20 m; em branco, o que falta executar. Acima de cada faixa, os bueiros e galerias (OAC) com a situação. Ligue <b>Editar</b> e toque ou arraste sobre a linha Atacado ou Concluído para marcar ou desmarcar; toque no ícone de um OAC para trocar a situação. Fica salvo neste aparelho; use Exportar para levar a outro. <span id="a-fonte"></span></p></div>
-    <div class="panel av-tools">
-      <div id="a-brush"></div>
+    <div class="av-head">
+      <div><h2>Retigráfico</h2><p class="note" id="a-fonte"></p></div>
+      <div class="seg" id="a-mode" role="tablist" aria-label="Modo"><button type="button" data-m="obra" role="tab">Situação da obra</button><button type="button" data-m="sim" role="tab">Simulação de materiais</button></div>
+    </div>
+    <div class="av-cards" id="a-cards"></div>
+
+    <div class="panel av-tools only-obra">
       <div class="filters">
-        <button class="btn primary" type="button" id="a-paint">Editar o retigráfico</button>
+        <button class="btn primary" type="button" id="a-paint">Editar</button>
+        <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o medido na medição</span></label>
+        <span class="sp"></span>
         <button class="btn" type="button" data-print="avanco">PDF</button>
+        <button class="btn" type="button" id="a-csv">CSV</button>
         <button class="btn" type="button" id="a-exp">Exportar</button>
         <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
-        <button class="btn" type="button" id="a-csv">CSV</button>
       </div>
-      <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o que foi medido na medição</span></label>
+      <p class="note">Toque numa célula ou num bueiro para ver a situação. Em <b>Editar</b>, toque ou arraste sobre a linha <i>atacado</i> ou <i>concluído</i> de cada frente para marcar ou desmarcar, e toque no ícone de um bueiro para trocar a situação.</p>
       <details class="av-more"><summary>Marcar por intervalo de estacas, frentes e ajustes</summary>
         <div class="av-range">
           <label class="lbl">Frentes <select id="a-lay" multiple size="5" aria-label="Frentes"></select></label>
           <div class="av-r2"><label class="lbl">Da estaca <input id="a-ei" placeholder="400" inputmode="decimal"></label><label class="lbl">até <input id="a-ef" placeholder="420+10" inputmode="decimal"></label>
           <label class="lbl">Situação <select id="a-st"></select></label><button class="btn primary" type="button" id="a-apply">Aplicar</button></div>
-          <div class="av-r2"><button class="btn" type="button" id="a-add">Nova frente</button><button class="btn" type="button" id="a-ren">Renomear / remover frente</button><button class="btn" type="button" id="a-reset">Voltar ao retigráfico de 14/09/2026</button></div>
+          <div class="av-r2"><button class="btn" type="button" id="a-add">Nova frente</button><button class="btn" type="button" id="a-ren">Renomear / remover frente</button><button class="btn" type="button" id="a-reset">Voltar ao retigráfico original</button></div>
         </div></details>
-      <p class="note" id="a-tip" role="status"></p>
     </div>
-    <div class="panel"><h3>Avanço por frente</h3><div class="tbl-wrap" id="a-sum"></div></div>
-    <div class="panel"><div class="retig" id="a-grid"></div></div>
+
+    <div class="panel sim-panel only-sim">
+      <p class="note">Toque nas células (estaca a estaca) de cada serviço que quer executar; arraste para marcar várias. “faltam” seleciona, na faixa, as estacas que ainda não estão concluídas. As quantidades saem das tabelas de volumes por estaca do projeto de pavimentação.</p>
+      <div class="kpis k6" id="s-kpis"></div>
+      <div class="tbl-wrap" id="s-tab"></div>
+      <details class="av-more"><summary>Premissas</summary>
+        <div class="sim-par">
+          <label class="lbl">Bica corrida <input id="s-dbica" inputmode="decimal"> t/m³</label>
+          <label class="lbl">BGS <input id="s-dbgs" inputmode="decimal"> t/m³</label>
+          <label class="lbl">Teor de CAP <input id="s-cap" inputmode="decimal"> %</label>
+          <label class="lbl">EAI <input id="s-eai" inputmode="decimal"> kg/m²</label>
+          <label class="lbl">RR-1C <input id="s-rr" inputmode="decimal"> kg/m²</label>
+          <label class="lbl">Xisto <input id="s-xisto" inputmode="decimal"> L/t de CBUQ</label>
+          <p class="note">Massas da bica corrida e da BGS por m³ compactado: as das CPUs 530200 e 531100 (transporte). Teor de CAP, EAI e RR-1C: as premissas do Painel, se não alterar aqui. Reforço: cada camada de 15 cm = metade do volume do reforço na estaca.</p>
+        </div></details>
+      <div class="filters"><button class="btn" type="button" id="s-clear">Limpar seleção</button><button class="btn" type="button" data-print="avanco">PDF</button><button class="btn primary" type="button" id="s-csv">Exportar (CSV)</button></div>
+    </div>
+
+    <p class="note tip" id="a-tip" role="status"></p>
+    <div class="panel"><div class="legend av-legend" id="a-legend"></div><div class="retig" id="a-grid"></div></div>
   </section>
 
   <!-- =============================== CAMPO -->

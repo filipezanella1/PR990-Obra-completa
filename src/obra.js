@@ -167,7 +167,7 @@ export function initObra(X) {
     const b = D.avanco;
     return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, atualizado: b.data };
   }
-  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes) AV = avDefault(); }
+  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); }
   function avSave() { AV.atualizado = today(); store.set(AVKEY, AV); }
   const stName = k => ST[k] || ST['0'];
   const cellLen = k => k >= 642 ? 15.817 : 20;
@@ -178,45 +178,131 @@ export function initObra(X) {
     const f = st === 'c' ? '#1f3864' : st === 'a' ? '#00b0f0' : '#fff';
     return `<svg viewBox="0 0 14 22" width="11" height="17" aria-hidden="true"><path d="M1 1h12l-3 5v10l3 5H1l3-5V6z" fill="${f}" stroke="#1f3864" stroke-width="1.4"/></svg>`;
   }
+  // ---------- modo: situação da obra × simulação de materiais
+  let avMode = store.get('avMode', 'obra');
+  const SIMR = [   // linhas da simulação: frente do retigráfico, coluna de quantidade por estaca, como vira material
+    { id: 'p2', n: '1ª camada de reforço', col: 'Reforço (m³)', f: 0.5, un: 'm³', mat: 'bica' },
+    { id: 'p3', n: '2ª camada de reforço', col: 'Reforço (m³)', f: 0.5, un: 'm³', mat: 'bica' },
+    { id: 'p4', n: 'Sub-base', col: 'Sub-base (m³)', f: 1, un: 'm³', mat: 'bica' },
+    { id: 'p5', n: 'Base – BGS', col: 'BGS (m³)', f: 1, un: 'm³', mat: 'bgs' },
+    { id: 'p6', n: 'Imprimação', col: 'Imprimação EAI (m²)', f: 1, un: 'm²', mat: 'eai' },
+    { id: 'p7', n: 'CBUQ', col: 'CBUQ (t)', f: 1, un: 't', mat: 'cbuq' },
+  ];
+  const SP = Object.assign({ dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
+  let SIM = store.get('simSel', {});   // id → string de 643 '0'/'1'
+  const simSel = id => SIM[id] || (SIM[id] = '0'.repeat(NC));
+  const simSave = () => store.set('simSel', SIM);
+  let QC = null;
+  function cellQ() {   // quantidade por célula (estaca k → k+1) de cada coluna de "Volumes por intervalo"
+    if (QC) return QC; QC = {};
+    const cols = [...new Set(SIMR.map(r => r.col)), 'Pintura RR-1C (m²)'];
+    cols.forEach(c => QC[c] = new Float64Array(NC));
+    for (const r of tab('Volumes por intervalo')) {
+      const a = parseEst(String(r['Estaca inicial'])), b = parseEst(String(r['Estaca final'])); if (a === null || b === null || b <= a) continue;
+      for (let k = Math.floor(a); k < Math.min(NC, Math.ceil(b)); k++) { const o = Math.min(b, k + 1) - Math.max(a, k); if (o <= 0) continue; for (const c of cols) QC[c][k] += num(r[c]) * o / (b - a); }
+    }
+    return QC;
+  }
+  const par = k => SP[k] ?? ({ cap: S.cap, eai: S.eai, rr: S.rr })[k];
+  function simCalc() {
+    const Q = cellQ(); const out = [];
+    for (const r of SIMR) {
+      const sel = simSel(r.id), f = AV.frentes.find(x => x.id === r.id); let cnt = 0, q = 0, ext = 0, ja = 0, rr = 0;
+      for (let k = 0; k < NC; k++) if (sel[k] === '1') { cnt++; ext += cellLen(k); q += Q[r.col][k] * r.f; rr += Q['Pintura RR-1C (m²)'][k]; if (f && f.c[k] === '2') ja++; }
+      const m = {};
+      if (r.mat === 'bica') m['Bica corrida'] = q * par('dBica');
+      if (r.mat === 'bgs') m['Brita graduada (BGS)'] = q * par('dBgs');
+      if (r.mat === 'eai') m['Emulsão EAI'] = q * par('eai') / 1000;
+      if (r.mat === 'cbuq') { m['CBUQ'] = q; m['CAP 50/70'] = q * par('cap'); m['Emulsão RR-1C'] = rr * par('rr') / 1000; m['Xisto (L)'] = q * par('xisto'); }
+      out.push({ ...r, cnt, q, ext, ja, m, rr });
+    }
+    return out;
+  }
+  function renderSim() {
+    const R = simCalc();
+    const pet = R.filter(r => r.mat === 'bica' || r.mat === 'bgs').reduce((s, r) => s + Object.values(r.m)[0], 0);
+    const g = (id) => R.find(r => r.id === id);
+    const c = g('p7'), im = g('p6');
+    const T = (v, d = 1) => Math.abs(v) < 5e-7 ? '–' : NF[d].format(v);
+    $('#s-kpis').innerHTML = [
+      ['MATERIAL PÉTREO', T(pet) + ' t', `reforço ${T(g('p2').m['Bica corrida'] + g('p3').m['Bica corrida'])} t · sub-base ${T(g('p4').m['Bica corrida'])} t · BGS ${T(g('p5').m['Brita graduada (BGS)'])} t`],
+      ['CBUQ', T(c.m['CBUQ']) + ' t', `${c.cnt} estacas · ${NF[0].format(c.ext)} m`],
+      ['CAP 50/70', T(c.m['CAP 50/70'], 2) + ' t', `teor ${NF[1].format(par('cap') * 100)}%`],
+      ['EMULSÃO RR-1C', T(c.m['Emulsão RR-1C'], 2) + ' t', `${NF[0].format(c.rr)} m² × ${NF[2].format(par('rr'))} kg/m²`],
+      ['EMULSÃO EAI', T(im.m['Emulsão EAI'], 2) + ' t', `${NF[0].format(im.q)} m² × ${NF[2].format(par('eai'))} kg/m²`],
+      ['XISTO', NF[0].format(c.m['Xisto (L)']) + ' L', `${NF[1].format(par('xisto'))} L por t de CBUQ`],
+    ].map(([l, v, cc]) => `<div class="kpi"><span class="label">${l}</span><span class="v num">${esc(v)}</span><span class="c">${esc(cc)}</span></div>`).join('');
+    $('#s-tab').innerHTML = `<table class="itbl"><thead><tr><th>Serviço</th><th class="n">Estacas</th><th class="n">Extensão</th><th class="n">Quantidade</th><th>Material</th></tr></thead><tbody>${R.map(r => `<tr><td><b>${esc(r.n)}</b>${r.ja ? ` <span class="pill na" title="Estacas já concluídas no retigráfico">${r.ja} já concluída${r.ja > 1 ? 's' : ''}</span>` : ''}</td>
+      <td class="n" data-l="Estacas">${r.cnt || '–'}</td><td class="n" data-l="Extensão">${r.cnt ? NF[0].format(r.ext) + ' m' : '–'}</td><td class="n" data-l="Quantidade">${r.cnt ? NF[1].format(r.q) + ' ' + r.un : '–'}</td>
+      <td class="src">${r.cnt ? Object.entries(r.m).map(([k, v]) => `${esc(k.replace(' (L)', ''))}: <b>${k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' ? 1 : 2].format(v) + ' t'}</b>`).join(' · ') : ''}</td></tr>`).join('')}
+      <tr class="tot"><td>Material pétreo (reforço + sub-base + base)</td><td></td><td></td><td></td><td><b>${T(pet)} t</b></td></tr></tbody></table>`;
+    for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) { const el = $('#' + id); if (document.activeElement !== el) el.value = NF[k === 'cap' ? 2 : 3].format(k === 'cap' ? par(k) * 100 : par(k)).replace(/\./g, ''); }
+  }
   function renderAv() {
     if (!AV) avLoad();
-    $('#a-fonte').textContent = `${AV.fonte} · alterado em ${AV.atualizado.split('-').reverse().join('/')}`;
-    $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o que foi medido na ${MED.n || ''}ª medição`;
-    $('#a-brush').innerHTML = `<div class="avleg">${AV.frentes.map(f => `<span class="lg1"><b>${esc(f.n)}</b>${f.a ? `<i class="sw" style="background:${f.ca}"></i>atacado` : ''}<i class="sw" style="background:${f.cc}"></i>concluído</span>`).join('')}
-      <span class="lg1"><b>OAC</b>${oacIcon('c')} concluído ${oacIcon('a')} atacado ${oacIcon('n')} não iniciado</span></div>`;
-    $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Editando – toque para parar' : 'Editar o retigráfico';
-    $('#v-avanco').classList.toggle('painting', paintOn);
+    $('#a-fonte').textContent = `${AV.fonte} · alterado no app em ${AV.atualizado.split('-').reverse().join('/')}`;
+    $$('#a-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === avMode));
+    $('#v-avanco').dataset.mode = avMode;
+    $('#a-hl').checked = avHl; $('#a-hln').textContent = `Destacar o medido na ${MED.n || ''}ª medição`;
+    $('#a-paint').classList.toggle('on', paintOn); $('#a-paint').textContent = paintOn ? 'Concluir edição' : 'Editar';
+    $('#v-avanco').classList.toggle('painting', paintOn || avMode === 'sim');
+    // cartões de avanço
     const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++);
-    $('#a-sum').innerHTML = `<table class="itbl avsum"><thead><tr><th>Frente</th><th class="n">Concluído</th><th class="n">Atacado (em execução)</th><th class="n">A executar</th><th class="n">Medido na ${MED.n || ''}ª</th><th style="width:30%">Avanço</th></tr></thead><tbody>` +
-      AV.frentes.map(f => { const s = avStats(f.c); const mc = medCells()[f.id]; const p = k => s[k] / TOT;
-        return `<tr><td><b>${esc(f.n)}</b></td><td class="n" data-l="Concluído">${fPc(p('2'))} <span class="note">${NF[2].format(s['2'] / 1000)} km</span></td><td class="n" data-l="Atacado">${f.a ? `${fPc(p('1'))} <span class="note">${NF[2].format(s['1'] / 1000)} km</span>` : '–'}</td>
-          <td class="n" data-l="A executar">${fPc(p('0'))}</td><td class="n" data-l="Medido na ${MED.n || ''}ª">${mc && mc.size ? mc.size + ' est.' : '–'}</td>
-          <td><div class="stk"><i style="width:${(p('2') * 100).toFixed(2)}%;background:${f.cc}"></i><i style="width:${(p('1') * 100).toFixed(2)}%;background:${f.ca || f.cc}"></i></div></td></tr>`; }).join('') +
-      `<tr><td><b>OAC – bueiros e galerias</b></td><td class="n" data-l="Concluídos">${oc.c} de ${AV.oac.length}</td><td class="n" data-l="Atacados">${oc.a}</td><td class="n" data-l="Não iniciados">${oc.n}</td><td class="n">${medCells().oac.size ? medCells().oac.size + ' est.' : '–'}</td><td><div class="stk"><i style="width:${oc.c / AV.oac.length * 100}%;background:#1f3864"></i><i style="width:${oc.a / AV.oac.length * 100}%;background:#00b0f0"></i></div></td></tr></tbody></table>`;
+    $('#a-cards').innerHTML = AV.frentes.map(f => { const st = avStats(f.c); const p2 = st['2'] / TOT, p1 = st['1'] / TOT; const mc = medCells()[f.id];
+      return `<div class="avc"><div class="avc-h"><i class="dot" style="background:${f.cc}"></i><span>${esc(f.n)}</span></div><div class="avc-v"><b>${fPc(p2)}</b><span>${NF[2].format(st['2'] / 1000)} km</span></div>
+        <div class="stk"><i style="width:${(p2 * 100).toFixed(2)}%;background:${f.cc}"></i><i style="width:${(p1 * 100).toFixed(2)}%;background:${f.ca || f.cc}"></i></div>
+        <div class="avc-f">${f.a ? (st['1'] ? `atacado ${NF[2].format(st['1'] / 1000)} km · ` : '') : ''}falta ${NF[2].format(st['0'] / 1000)} km${mc && mc.size && avHl ? ` · <span title="Estacas com lançamento na ${MED.n}ª medição">● ${mc.size}</span>` : ''}</div></div>`; }).join('') +
+      `<div class="avc"><div class="avc-h">${oacIcon('c')}<span>OAC – bueiros e galerias</span></div><div class="avc-v"><b>${oc.c}/${AV.oac.length}</b><span>concluídos</span></div>
+        <div class="stk"><i style="width:${oc.c / AV.oac.length * 100}%;background:#1f3864"></i><i style="width:${oc.a / AV.oac.length * 100}%;background:#00b0f0"></i></div><div class="avc-f">${oc.a} atacados · ${oc.n} não iniciados</div></div>`;
+    $('#a-legend').innerHTML = avMode === 'sim'
+      ? `<span class="lg1"><i class="sw sel"></i>selecionada para a simulação</span><span class="lg1"><i class="sw done"></i>já concluída no retigráfico</span><span class="lg1"><i class="sw atk"></i>atacada</span><span class="lg1"><i class="sw"></i>a executar</span>`
+      : AV.frentes.map(f => `<span class="lg1"><b>${esc(f.n)}</b>${f.a ? `<i class="sw" style="background:${f.ca}"></i>atacado` : ''}<i class="sw" style="background:${f.cc}"></i>concluído</span>`).join('') +
+        `<span class="lg1"><b>OAC</b>${oacIcon('c')} concluído ${oacIcon('a')} atacado ${oacIcon('n')} não iniciado</span>`;
     const sel = $('#a-lay'); const prev = [...sel.selectedOptions].map(o => o.value);
     sel.innerHTML = AV.frentes.map(f => `<option value="${f.id}" ${prev.includes(f.id) ? 'selected' : ''}>${esc(f.n)}</option>`).join('');
     $('#a-st').innerHTML = ['2', '1', '0'].map(k => `<option value="${k}">${esc(stName(k))}</option>`).join('');
+    if (avMode === 'sim') renderSim();
     drawGrid();
   }
+  // rótulos dos OAC em faixas, sem sobrepor (ícone na estaca; nome acima quando não cabe ao lado)
+  function oacLayout(list, s0, cw) {
+    const lanes = []; const out = [];
+    for (const it of list.sort((a, b) => a.o.e - b.o.e)) {
+      const x = (it.o.e - s0) * cw; const txt = it.o.t + (it.o.L ? ' · ' + it.o.L + ' m' : ''); const w = txt.length * 5.3 + 10;
+      let lane = 0; while (lane < 8 && lanes[lane] !== undefined && lanes[lane] > x - 4) lane++;
+      lanes[lane] = x + w; out.push({ ...it, x, txt, lane });
+    }
+    return { out, n: Math.max(1, lanes.length) };
+  }
   function drawGrid() {
-    const host = $('#a-grid'); const w = host.clientWidth || 1000;
+    const host = $('#a-grid'); const w = host.clientWidth || 1000; const sim = avMode === 'sim';
     const labW = w < 700 ? 112 : 190, cw = w < 700 ? 15 : 17;
     const per = Math.max(10, Math.floor((w - labW - 4) / cw));
-    const mc = avHl ? medCells() : {};
+    const mc = avHl && !sim ? medCells() : {};
     let h = '';
     for (let s0 = 0; s0 < NC; s0 += per) {
       const s1 = Math.min(NC, s0 + per);
-      const oa = AV.oac.map((o, i) => ({ o, i })).filter(({ o }) => o.e >= s0 && o.e < s1);
+      const L = oacLayout(AV.oac.map((o, i) => ({ o, i })).filter(({ o }) => o.e >= s0 && o.e < s1), s0, cw);
       const oe = (AV.oae || []).filter(o => o.e1 >= s0 && o.e0 < s1);
-      h += `<div class="blk" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow">` +
-        oe.map(o => `<span class="oae" style="left:calc(var(--lw) + ${(Math.max(o.e0, s0) - s0) * cw}px);width:${(Math.min(o.e1, s1) - Math.max(o.e0, s0)) * cw}px" title="${esc(o.n)}">OAE</span>`).join('') +
-        oa.map(({ o, i }) => `<button type="button" class="oac ${o.st}${mc.oac && mc.oac.has(Math.floor(o.e)) ? ' m' : ''}" data-oac="${i}" style="left:calc(var(--lw) + ${(o.e - s0) * cw}px)" title="${esc(o.t)} · est. ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''} · ${oacName(o.st)}">${oacIcon(o.st)}<span>${esc(o.t)}${o.L ? ' · ' + esc(o.L) + ' m' : ''}</span></button>`).join('') + '</div>';
-      for (const f of AV.frentes) {
-        const m = mc[f.id];
-        const row = (sub, val, col) => { let r = `<div class="lrow ${sub}" data-id="${f.id}" data-sub="${val}"><span class="ln"><span class="fn">${sub === 'ra' || !f.a ? esc(f.n) : ''}</span><span class="sb">${val === '1' ? 'Atacado' : 'Concluído'}</span></span><div class="cells">`;
-          for (let k = s0; k < s1; k++) r += `<i class="c${f.c[k] === val ? ' on' : ''}${m && val === '2' && m.has(k) ? ' m' : ''}" data-k="${k}"${f.c[k] === val ? ` style="background:${col}"` : ''}></i>`;
-          return r + '</div></div>'; };
-        h += `<div class="fgrp">${f.a ? row('ra', '1', f.ca) : ''}${row('rc', '2', f.cc)}</div>`;
+      h += `<div class="blk${sim ? ' sim' : ''}" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow" style="height:${L.out.length ? 22 + L.n * 13 : 22}px">` +
+        oe.map(o => `<span class="oae" style="left:calc(var(--lw) + ${(Math.max(o.e0, s0) - s0) * cw}px);width:${Math.max(18, (Math.min(o.e1, s1) - Math.max(o.e0, s0)) * cw)}px" title="${esc(o.n)}">OAE</span>`).join('') +
+        L.out.map(({ o, i, x, txt, lane }) => `<button type="button" class="oac ${o.st}${mc.oac && mc.oac.has(Math.floor(o.e)) ? ' m' : ''}" data-oac="${i}" style="left:calc(var(--lw) + ${x}px)" title="${esc(o.t)} · est. ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''} · ${oacName(o.st)}">${oacIcon(o.st)}</button>` +
+          `<i class="ldr" style="left:calc(var(--lw) + ${x}px);height:${4 + lane * 13}px"></i><span class="oacl" style="left:calc(var(--lw) + ${x}px);bottom:${20 + lane * 13}px">${esc(txt)}</span>`).join('') + '</div>';
+      if (sim) {
+        for (const r of SIMR) {
+          const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id);
+          h += `<div class="fgrp"><div class="lrow rs" data-sim="${r.id}"><span class="ln"><span class="fn">${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Selecionar as estacas que faltam nesta faixa">faltam</button></span><div class="cells">`;
+          for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${sl[k] === '1' ? ' sel' : st === '2' ? ' done' : st === '1' ? ' atk' : ''}" data-k="${k}"${st === '2' && sl[k] !== '1' ? ` style="--fc:${f.cc}"` : ''}></i>`; }
+          h += '</div></div></div>';
+        }
+      } else {
+        for (const f of AV.frentes) {
+          const m = mc[f.id];
+          const row = (sub, val, col) => { let r = `<div class="lrow ${sub}" data-id="${f.id}" data-sub="${val}"><span class="ln"><span class="fn">${sub === 'ra' || !f.a ? `<i class="dot" style="background:${f.cc}"></i>${esc(f.n)}` : ''}</span><span class="sb">${val === '1' ? 'atacado' : 'concluído'}</span></span><div class="cells">`;
+            for (let k = s0; k < s1; k++) r += `<i class="c${f.c[k] === val ? ' on' : ''}${m && val === '2' && m.has(k) ? ' m' : ''}" data-k="${k}"${f.c[k] === val ? ` style="background:${col}"` : ''}></i>`;
+            return r + '</div></div>'; };
+          h += `<div class="fgrp">${f.a ? row('ra', '1', f.ca) : ''}${row('rc', '2', f.cc)}</div>`;
+        }
       }
       h += `<div class="erow"><span class="ln">Estaca</span><div class="cells">${Array.from({ length: s1 - s0 }, (_, i) => `<b>${s0 + i}</b>`).join('')}</div></div></div>`;
     }
@@ -225,7 +311,15 @@ export function initObra(X) {
   let avDirty = false, avDown = null;
   function avPaintAt(el, first) {
     const c = el && el.closest && el.closest('i.c'); if (!c) return;
-    const row = c.closest('.lrow'); const f = AV.frentes.find(x => x.id === row.dataset.id); const k = +c.dataset.k; const val = row.dataset.sub;
+    const row = c.closest('.lrow'); const k = +c.dataset.k;
+    if (row.dataset.sim) {   // simulação: seleção célula a célula
+      const id = row.dataset.sim, sl = simSel(id);
+      if (first) avDown = { sim: id, to: sl[k] === '1' ? '0' : '1' };
+      if (!avDown || avDown.sim !== id || sl[k] === avDown.to) return;
+      SIM[id] = sl.slice(0, k) + avDown.to + sl.slice(k + 1); avDirty = true;
+      c.classList.toggle('sel', avDown.to === '1'); return;
+    }
+    const f = AV.frentes.find(x => x.id === row.dataset.id); const val = row.dataset.sub;
     if (first) avDown = { id: f.id, val, to: f.c[k] === val ? '0' : val };
     if (!avDown || avDown.id !== f.id || avDown.val !== val) return;
     if (f.c[k] === avDown.to) return;
@@ -234,20 +328,33 @@ export function initObra(X) {
   }
   function avInitEvents() {
     const g = $('#a-grid');
-    g.addEventListener('pointerdown', ev => { if (!paintOn || !ev.target.closest('i.c')) return; g.setPointerCapture(ev.pointerId); avPaintAt(ev.target, true); ev.preventDefault(); });
-    g.addEventListener('pointermove', ev => { if (!paintOn || !avDown) return; avPaintAt(document.elementFromPoint(ev.clientX, ev.clientY)); });
-    const up = () => { if (!avDown) return; avDown = null; if (avDirty) { avDirty = false; avSave(); renderAv(); } };
+    const can = () => paintOn || avMode === 'sim';
+    g.addEventListener('pointerdown', ev => { if (!can() || !ev.target.closest('i.c')) return; g.setPointerCapture(ev.pointerId); avPaintAt(ev.target, true); ev.preventDefault(); });
+    g.addEventListener('pointermove', ev => { if (!can() || !avDown) return; avPaintAt(document.elementFromPoint(ev.clientX, ev.clientY)); });
+    const up = () => { if (!avDown) return; const wasSim = avDown.sim; avDown = null; if (avDirty) { avDirty = false; if (wasSim) { simSave(); renderSim(); } else { avSave(); renderAv(); } } };
     g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
     g.addEventListener('click', ev => {
+      const fb = ev.target.closest('[data-fill]');
+      if (fb) { const id = fb.dataset.fill, f = AV.frentes.find(x => x.id === id); const a = +fb.dataset.s0, b = +fb.dataset.s1; let sl = simSel(id).split('');
+        const all = sl.slice(a, b).every((v, i) => v === '1' || (f && f.c[a + i] === '2'));
+        for (let k = a; k < b; k++) if (!f || f.c[k] !== '2') sl[k] = all ? '0' : '1';
+        SIM[id] = sl.join(''); simSave(); renderSim(); drawGrid(); return; }
       const ob = ev.target.closest('[data-oac]');
       if (ob) { const o = AV.oac[+ob.dataset.oac];
         if (paintOn) { o.st = { n: 'a', a: 'c', c: 'n' }[o.st]; avSave(); renderAv(); $('#a-tip').textContent = `${o.t} (est. ${estStr(o.e)}): ${oacName(o.st)}.`; }
         else $('#a-tip').textContent = `${o.t} · estaca ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''}: ${oacName(o.st)}.${o.obs ? ' ' + o.obs + '.' : ''} Em “Editar”, toque no ícone para trocar a situação.`; return; }
-      if (paintOn) return; const c = ev.target.closest('i.c'); if (!c) return; const f = AV.frentes.find(x => x.id === c.closest('.lrow').dataset.id); const k = +c.dataset.k;
+      if (can()) return; const c = ev.target.closest('i.c'); if (!c) return; const f = AV.frentes.find(x => x.id === c.closest('.lrow').dataset.id); const k = +c.dataset.k;
       const m = medCells()[f.id]?.get(k);
-      $('#a-tip').textContent = `${f.n} · estaca ${k} a ${k + 1}: ${stName(f.c[k])}.${m ? ` Medido na ${MED.n}ª medição: ${[...m].join(', ')}.` : ''} Em “Editar”, toque na linha Atacado ou Concluído para marcar ou desmarcar.`; });
-    $('#a-hl').onchange = () => { avHl = $('#a-hl').checked; store.set('avHl', avHl); drawGrid(); };
+      $('#a-tip').textContent = `${f.n} · estaca ${k} a ${k + 1}: ${stName(f.c[k])}.${m ? ` Medido na ${MED.n}ª medição: ${[...m].join(', ')}.` : ''} Em “Editar”, toque na linha atacado ou concluído para marcar ou desmarcar.`; });
+    $$('#a-mode button').forEach(b => b.onclick = () => { avMode = b.dataset.m; store.set('avMode', avMode); paintOn = false; renderAv(); });
+    $('#a-hl').onchange = () => { avHl = $('#a-hl').checked; store.set('avHl', avHl); renderAv(); };
     $('#a-paint').onclick = () => { paintOn = !paintOn; renderAv(); };
+    for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) $('#' + id).onchange = ev => { const v = parseFloat(ev.target.value.replace(/\./g, '').replace(',', '.')); if (Number.isFinite(v) && v >= 0) SP[k] = k === 'cap' ? v / 100 : v; else SP[k] = null; store.set('simPar', SP); renderSim(); };
+    $('#s-clear').onclick = () => { SIM = {}; simSave(); renderSim(); drawGrid(); };
+    $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Serviço', 'Estacas selecionadas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
+      for (const r of R) for (const [k, v] of Object.entries(r.m)) L.push([r.n, r.cnt ? (() => { const a = []; const sl = simSel(r.id); for (let i = 0; i < NC; i++) if (sl[i] === '1') a.push(i); return a.join(' '); })() : '', r.ext, r.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']);
+      L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);
+      download(`simulacao_materiais_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
     $('#a-apply').onclick = () => {
       const a = parseEstIn($('#a-ei').value), b = parseEstIn($('#a-ef').value), k = $('#a-st').value; const ids = [...$('#a-lay').selectedOptions].map(o => o.value);
       if (a === null || b === null || !ids.length) { $('#a-tip').textContent = 'Informe estaca inicial, final e ao menos uma frente.'; return; }
@@ -600,7 +707,7 @@ export function initObra(X) {
     for (const [s, t] of Object.entries(X.SHEETS)) if (norm('DR-4-' + s + ' ' + t).includes(n)) add('Pranchas', `DR-4-${s} · ${t}`, 'Drenagem – detalhe tipo', () => X.lbOpen(s));
     for (const p of D.pranchas || []) if (norm(p.id + ' ' + p.t + ' ' + DISC.find(d => d.id === p.d).n).includes(n)) add('Pranchas', `${p.id} · ${p.t}`, DISC.find(d => d.id === p.d).n, () => prOpenSheet(p.id));
     const seen = new Set(); for (const [c, rows] of Object.entries(INS().consumos)) for (const r of rows) { const k = r[0] + r[1]; if (!seen.has(k) && norm(r[1] + ' ' + r[2]).includes(n)) { seen.add(k); add('Insumos', `${r[2]}`, `${r[0]} · código ${r[1]}`, () => { location.hash = '#insumos'; $('#i-q2').value = r[2]; X.renderIns(); }); } }
-    for (const l of (AV || { frentes: [] }).frentes) if (norm(l.n).includes(n)) add('Avanço', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
+    for (const l of (AV || { frentes: [] }).frentes) if (norm(l.n).includes(n)) add('Retigráfico', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
     return res;
   }
   function searchInit() {
