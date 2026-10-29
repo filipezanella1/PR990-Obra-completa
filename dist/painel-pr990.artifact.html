@@ -1016,6 +1016,19 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .ver-pub .lbl { display: grid; gap: 4px; } .ver-pub input { width: 100%; }
 .ver-btn .vs { display: none; } @media (max-width: 760px) { .ver-btn .vl { display: none; } .ver-btn .vs { display: inline; } }
 
+/* organizar abas */
+.tab-org { background: transparent; border: 0; color: #8e99a2; padding: 6px 8px; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; }
+.tab-org svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.tab-org:hover { color: #fff; background: rgba(255,255,255,.08); }
+.tab-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; touch-action: none; }
+.tab-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.tab-list li.sep { display: block; border: 0; background: none; padding: 8px 2px 2px; font-size: .78rem; color: var(--muted); }
+.tab-list li.drag { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+.tab-list .hd { cursor: grab; color: var(--muted); padding: 4px 6px; font-weight: 700; letter-spacing: -2px; user-select: none; }
+.tab-list .tn { font-weight: 600; }
+.ms-org { grid-column: 1 / -1; background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 10px; color: var(--muted); font: inherit; cursor: pointer; }
+@media (max-width: 760px) { nav.tabs .tab-org { display: none; } }
+
 </style>
 
 
@@ -1038,6 +1051,7 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
       <a class="nl x lk" href="#base"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="lg">Base de dados</span><span class="sm">Base</span></a>
       <a class="nl x" href="#sobre"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7.5v.5"/></svg><span class="lg">Sobre</span><span class="sm">Sobre</span></a>
       <a class="more" id="nav-more" href="#mais"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span class="sm">Mais</span></a>
+    <button class="tab-org" id="tab-org" type="button" title="Organizar abas" aria-label="Organizar abas"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
     </nav>
     <div class="top-actions">
       <button class="lock-btn ver-btn" id="ver-btn" type="button" title="Versão mestra e suas alterações">Versão mestra</button>
@@ -1055,6 +1069,7 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
   <button class="btn" id="ios-tip-x" type="button">Entendi</button>
 </div>
 <div class="update-bar mst-bar" id="mst-bar" hidden><span id="mst-txt"></span><span class="mst-act"><button class="btn primary" id="mst-go" type="button">Usar a versão mestra</button><button class="btn" id="mst-keep" type="button">Manter a minha</button></span></div>
+<div class="lock" id="tab-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="tab-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="tab-tit">Organizar abas</h2><button class="btn" type="button" id="tab-x">Concluir</button></div><p class="note">Arraste pela alça ⋮⋮ ou use as setas. A ordem fica salva neste aparelho.</p><ol class="tab-list" id="tab-list"></ol><button type="button" class="lnk" id="tab-reset">Voltar à ordem padrão</button></div></div>
 <div class="lock" id="ver-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="ver-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="ver-tit">Versão do app</h2><button class="btn" type="button" id="ver-x">Fechar</button></div><div id="ver-body"></div></div></div>
 <div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
 <main class="wrap">
@@ -3528,13 +3543,43 @@ function show(v) {
   if (LOCKED.includes(v) && !UNL) { askPass(v, 'A aba ' + ({ medicao: 'Medição', contrato: 'Contrato × projeto', discrepancias: 'Discrepâncias', base: 'Base de dados' })[v] + ' é restrita. Digite a senha para abrir.'); if (current === v || LOCKED.includes(current)) v = 'painel'; else { history.replaceState(null, '', '#' + current); return; } history.replaceState(null, '', '#' + v); }
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
-  const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
+  const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
   if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
 }
+// ---------------------------------------------------------------- ordem das abas (por aparelho)
+const TAB0 = () => [...document.querySelectorAll('nav.tabs a.nl')].map(a => a.getAttribute('href').slice(1));
+let TABDEF = null;
+function tabOrder() { const all = TABDEF || (TABDEF = TAB0()); const o = (store.get('tabOrder', null) || []).filter(v => all.includes(v)); return [...o, ...all.filter(v => !o.includes(v))]; }
+function tabApply() {
+  const nav = $('nav.tabs'), more = $('#nav-more'); const ord = tabOrder();
+  const byV = Object.fromEntries([...nav.querySelectorAll('a.nl')].map(a => [a.getAttribute('href').slice(1), a]));
+  ord.forEach((v, i) => { const a = byV[v]; a.classList.toggle('x', i >= 4); nav.insertBefore(a, more); });
+  const ms = $('#more-sheet .ms-in');
+  ms.innerHTML = '<span class="label">Mais seções</span>' + ord.slice(4).map(v => { const a = byV[v]; return `<a class="nl${a.classList.contains('lk') ? ' lk' : ''}" href="#${v}">${a.querySelector('svg').outerHTML}<span>${esc(a.querySelector('.lg').textContent)}</span></a>`; }).join('') +
+    '<button type="button" class="ms-org" id="ms-org">Organizar abas…</button>';
+  $('#ms-org').onclick = () => { $('#more-sheet').hidden = true; tabDlg(); };
+  if (typeof current !== 'undefined' && current) document.querySelectorAll(`a[href="#${current}"].nl`).forEach(a => a.setAttribute('aria-current', 'page'));
+}
+function tabDlg() {
+  const d = $('#tab-dlg'); let ord = tabOrder(); const all = TABDEF;
+  const name = v => { const a = document.querySelector(`nav.tabs a[href="#${v}"]`); return a.querySelector('.lg').textContent + (a.classList.contains('lk') ? ' 🔒' : ''); };
+  const draw = () => { $('#tab-list').innerHTML = ord.map((v, i) => `${i === 4 ? '<li class="sep">No celular, as abas abaixo ficam em “Mais”</li>' : ''}<li data-v="${v}"><span class="hd" aria-hidden="true">⋮⋮</span><span class="tn">${esc(name(v))}</span><button type="button" class="btn sm" data-mv="-1" aria-label="Subir ${esc(name(v))}"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn sm" data-mv="1" aria-label="Descer ${esc(name(v))}"${i < ord.length - 1 ? '' : ' disabled'}>↓</button></li>`).join(''); };
+  const save = () => { store.set('tabOrder', ord); tabApply(); draw(); };
+  draw(); d.hidden = false;
+  $('#tab-list').onclick = ev => { const b = ev.target.closest('[data-mv]'); if (!b) return; const v = b.closest('li').dataset.v; const i = ord.indexOf(v), j = i + +b.dataset.mv; if (j < 0 || j >= ord.length) return; [ord[i], ord[j]] = [ord[j], ord[i]]; save(); $(`#tab-list li[data-v="${v}"] [data-mv="${b.dataset.mv}"]`)?.focus(); };
+  // arrastar pela alça (mouse e toque)
+  let drag = null;
+  $('#tab-list').onpointerdown = ev => { const h = ev.target.closest('.hd'); if (!h) return; ev.preventDefault(); drag = h.closest('li').dataset.v; h.closest('li').classList.add('drag'); $('#tab-list').setPointerCapture(ev.pointerId); };
+  $('#tab-list').onpointermove = ev => { if (!drag) return; const li = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('#tab-list li[data-v]'); if (!li || li.dataset.v === drag) return; const i = ord.indexOf(drag), j = ord.indexOf(li.dataset.v); ord.splice(i, 1); ord.splice(j, 0, drag); draw(); $(`#tab-list li[data-v="${drag}"]`).classList.add('drag'); };
+  $('#tab-list').onpointerup = $('#tab-list').onpointercancel = () => { if (!drag) return; drag = null; save(); };
+  $('#tab-reset').onclick = () => { ord = [...all]; try { localStorage.removeItem('pr990:tabOrder'); } catch { } tabApply(); draw(); };
+  $('#tab-x').onclick = () => { d.hidden = true; };
+}
 function navInit() {
+  tabApply(); $('#tab-org').onclick = tabDlg;
   const more = $('#nav-more'), sh = $('#more-sheet');
   more.addEventListener('click', ev => { ev.preventDefault(); sh.hidden = !sh.hidden; });
   sh.addEventListener('click', ev => { if (ev.target === sh || ev.target.closest('a')) sh.hidden = true; });

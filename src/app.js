@@ -569,13 +569,43 @@ function show(v) {
   if (LOCKED.includes(v) && !UNL) { askPass(v, 'A aba ' + ({ medicao: 'Medição', contrato: 'Contrato × projeto', discrepancias: 'Discrepâncias', base: 'Base de dados' })[v] + ' é restrita. Digite a senha para abrir.'); if (current === v || LOCKED.includes(current)) v = 'painel'; else { history.replaceState(null, '', '#' + current); return; } history.replaceState(null, '', '#' + v); }
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
-  const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
+  const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
   if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
 }
+// ---------------------------------------------------------------- ordem das abas (por aparelho)
+const TAB0 = () => [...document.querySelectorAll('nav.tabs a.nl')].map(a => a.getAttribute('href').slice(1));
+let TABDEF = null;
+function tabOrder() { const all = TABDEF || (TABDEF = TAB0()); const o = (store.get('tabOrder', null) || []).filter(v => all.includes(v)); return [...o, ...all.filter(v => !o.includes(v))]; }
+function tabApply() {
+  const nav = $('nav.tabs'), more = $('#nav-more'); const ord = tabOrder();
+  const byV = Object.fromEntries([...nav.querySelectorAll('a.nl')].map(a => [a.getAttribute('href').slice(1), a]));
+  ord.forEach((v, i) => { const a = byV[v]; a.classList.toggle('x', i >= 4); nav.insertBefore(a, more); });
+  const ms = $('#more-sheet .ms-in');
+  ms.innerHTML = '<span class="label">Mais seções</span>' + ord.slice(4).map(v => { const a = byV[v]; return `<a class="nl${a.classList.contains('lk') ? ' lk' : ''}" href="#${v}">${a.querySelector('svg').outerHTML}<span>${esc(a.querySelector('.lg').textContent)}</span></a>`; }).join('') +
+    '<button type="button" class="ms-org" id="ms-org">Organizar abas…</button>';
+  $('#ms-org').onclick = () => { $('#more-sheet').hidden = true; tabDlg(); };
+  if (typeof current !== 'undefined' && current) document.querySelectorAll(`a[href="#${current}"].nl`).forEach(a => a.setAttribute('aria-current', 'page'));
+}
+function tabDlg() {
+  const d = $('#tab-dlg'); let ord = tabOrder(); const all = TABDEF;
+  const name = v => { const a = document.querySelector(`nav.tabs a[href="#${v}"]`); return a.querySelector('.lg').textContent + (a.classList.contains('lk') ? ' 🔒' : ''); };
+  const draw = () => { $('#tab-list').innerHTML = ord.map((v, i) => `${i === 4 ? '<li class="sep">No celular, as abas abaixo ficam em “Mais”</li>' : ''}<li data-v="${v}"><span class="hd" aria-hidden="true">⋮⋮</span><span class="tn">${esc(name(v))}</span><button type="button" class="btn sm" data-mv="-1" aria-label="Subir ${esc(name(v))}"${i ? '' : ' disabled'}>↑</button><button type="button" class="btn sm" data-mv="1" aria-label="Descer ${esc(name(v))}"${i < ord.length - 1 ? '' : ' disabled'}>↓</button></li>`).join(''); };
+  const save = () => { store.set('tabOrder', ord); tabApply(); draw(); };
+  draw(); d.hidden = false;
+  $('#tab-list').onclick = ev => { const b = ev.target.closest('[data-mv]'); if (!b) return; const v = b.closest('li').dataset.v; const i = ord.indexOf(v), j = i + +b.dataset.mv; if (j < 0 || j >= ord.length) return; [ord[i], ord[j]] = [ord[j], ord[i]]; save(); $(`#tab-list li[data-v="${v}"] [data-mv="${b.dataset.mv}"]`)?.focus(); };
+  // arrastar pela alça (mouse e toque)
+  let drag = null;
+  $('#tab-list').onpointerdown = ev => { const h = ev.target.closest('.hd'); if (!h) return; ev.preventDefault(); drag = h.closest('li').dataset.v; h.closest('li').classList.add('drag'); $('#tab-list').setPointerCapture(ev.pointerId); };
+  $('#tab-list').onpointermove = ev => { if (!drag) return; const li = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('#tab-list li[data-v]'); if (!li || li.dataset.v === drag) return; const i = ord.indexOf(drag), j = ord.indexOf(li.dataset.v); ord.splice(i, 1); ord.splice(j, 0, drag); draw(); $(`#tab-list li[data-v="${drag}"]`).classList.add('drag'); };
+  $('#tab-list').onpointerup = $('#tab-list').onpointercancel = () => { if (!drag) return; drag = null; save(); };
+  $('#tab-reset').onclick = () => { ord = [...all]; try { localStorage.removeItem('pr990:tabOrder'); } catch { } tabApply(); draw(); };
+  $('#tab-x').onclick = () => { d.hidden = true; };
+}
 function navInit() {
+  tabApply(); $('#tab-org').onclick = tabDlg;
   const more = $('#nav-more'), sh = $('#more-sheet');
   more.addEventListener('click', ev => { ev.preventDefault(); sh.hidden = !sh.hidden; });
   sh.addEventListener('click', ev => { if (ev.target === sh || ev.target.closest('a')) sh.hidden = true; });

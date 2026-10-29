@@ -24,6 +24,10 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 **Busca global** (botão Buscar ou tecla `/`): código, serviço, insumo, prancha ou estaca, em todas as abas.
 
+## Ordem das abas
+
+Botão ☰ no fim da barra de abas (no celular: “Mais” → “Organizar abas…”): arraste pela alça ou use as setas. A ordem fica salva no aparelho; no celular as 4 primeiras vão para a barra inferior e o resto para “Mais”.
+
 ## Versão mestra × versão individual
 
 - **Versão mestra** (`data/mestre.json`): retigráfico, simulação, britagem, coeficientes de reajuste e lançamentos financeiros da apresentação, publicados pelo dono. Todos os aparelhos leem a mestra.
