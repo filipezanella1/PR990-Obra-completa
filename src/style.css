@@ -760,3 +760,13 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " �
   .av-cards { grid-template-columns: repeat(5, 1fr); }
 }
 #pdf-dlg .lbl { justify-content: space-between; } #pdf-dlg select { min-width: 60%; }
+
+/* segmento travado (não será executado) */
+.cells i.c.lk, .blk.sim .cells i.c.lk { background: repeating-linear-gradient(135deg, #e3e6e9 0 3px, #c3c9ce 3px 5px) !important; cursor: not-allowed; }
+.sw.lkb, .sb-t i.lkb { background: repeating-linear-gradient(135deg, #e3e6e9 0 3px, #b9c0c6 3px 5px); }
+.sb-t i.lkb { margin-left: auto; }
+.trv { position: absolute; bottom: 2px; height: 14px; line-height: 14px; font-size: .6rem; color: #5f6870; background: repeating-linear-gradient(135deg, #eef0f2 0 3px, #dde1e4 3px 5px); border: 1px solid #b9c0c6; border-radius: 2px; padding: 0 4px; white-space: nowrap; overflow: hidden; }
+@media print { .cells i.c.lk, .trv, .sb-t i.lkb { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+.trv { z-index: 0; padding-left: 14px; }
+.sbar { grid-template-columns: 150px minmax(0, 1fr) 140px; }
+.sb-v { white-space: nowrap; }

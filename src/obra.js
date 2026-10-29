@@ -166,13 +166,19 @@ export function initObra(X) {
   const AVKEY = 'avanco2';
   function avDefault() {
     const b = D.avanco;
-    return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, atualizado: b.data };
+    return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, travas: (b.travas || []).map(t => ({ ...t })), atualizado: b.data };
   }
-  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); }
+  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); if (!AV.travas) AV.travas = (D.avanco.travas || []).map(t => ({ ...t })); LK = null; }
+  // ---------- travas: segmentos que não serão executados (não entram em "falta", nem na simulação)
+  let LK = null;
+  function lockSet() { if (LK) return LK; LK = new Uint8Array(NC); for (const t of AV.travas || []) for (let k = Math.max(0, Math.floor(t.e0 + 1e-9)); k < Math.min(NC, Math.ceil(t.e1 - 1e-9)); k++) LK[k] = 1; return LK; }
+  const isLk = k => lockSet()[k] === 1;
+  function lockLen() { let s = 0; for (let k = 0; k < NC; k++) if (isLk(k)) s += cellLen(k); return s; }
+  const travaTxt = () => (AV.travas || []).map(t => `${estStr(t.e0)} a ${estStr(t.e1)}`).join(', ');
   function avSave() { AV.atualizado = today(); store.set(AVKEY, AV); }
   const stName = k => ST[k] || ST['0'];
   const cellLen = k => k >= 642 ? 15.817 : 20;
-  function avStats(c) { const s = { '0': 0, '1': 0, '2': 0 }; for (let k = 0; k < NC; k++) s[c[k]] = (s[c[k]] || 0) + cellLen(k); return s; }
+  function avStats(c) { const s = { '0': 0, '1': 0, '2': 0, L: 0 }; for (let k = 0; k < NC; k++) { if (isLk(k) && c[k] === '0') { s.L += cellLen(k); continue; } s[c[k]] = (s[c[k]] || 0) + cellLen(k); } return s; }
   const TOT = 642.79085 * 20;
   const oacName = st => st === 'c' ? 'concluído' : st === 'a' ? 'atacado' : 'não iniciado';
   function oacIcon(st) {
@@ -208,7 +214,7 @@ export function initObra(X) {
     const Q = cellQ(); const out = [];
     for (const r of SIMR) {
       const sel = simSel(r.id), f = AV.frentes.find(x => x.id === r.id); let cnt = 0, q = 0, ext = 0, ja = 0, rr = 0;
-      for (let k = 0; k < NC; k++) if (sel[k] === '1') { cnt++; ext += cellLen(k); q += Q[r.col][k] * r.f; rr += Q['Pintura RR-1C (m²)'][k]; if (f && f.c[k] === '2') ja++; }
+      for (let k = 0; k < NC; k++) if (sel[k] === '1' && !isLk(k)) { cnt++; ext += cellLen(k); q += Q[r.col][k] * r.f; rr += Q['Pintura RR-1C (m²)'][k]; if (f && f.c[k] === '2') ja++; }
       const m = {};
       if (r.mat === 'bica') m['Bica corrida'] = q * par('dBica');
       if (r.mat === 'bgs') m['Brita graduada (BGS)'] = q * par('dBgs');
@@ -245,15 +251,15 @@ export function initObra(X) {
       card(ico('M7 3h10l-1 4H8zM6 7h12v14H6z'), 'Xisto', NF[0].format(c.m['Xisto (L)']), 'L', `${NF[1].format(par('xisto'))} L por tonelada de CBUQ`),
     ].join('');
     // barras: executado / simulado / restante por serviço (km)
-    const TOTKM = TOT / 1000;
-    $('#s-bars').innerHTML = `<div class="sbars">${R.map(r => { const f = AV.frentes.find(x => x.id === r.id); let ex = 0; const sl = simSel(r.id); let si = 0;
-        for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') ex += cellLen(k); else if (sl[k] === '1') si += cellLen(k); }
-        const rest = Math.max(0, TOT - ex - si);
-        return `<div class="sbar"><span class="sb-n">${esc(r.n)}</span><div class="sb-t" title="${esc(r.n)}: executado ${NF[2].format(ex / 1000)} km · simulado ${NF[2].format(si / 1000)} km · restante ${NF[2].format(rest / 1000)} km">
-          <i class="ex" style="width:${ex / TOT * 100}%"></i><i class="si" style="width:${si / TOT * 100}%"></i></div>
-          <span class="sb-v"><b>${NF[1].format((ex + si) / TOT * 100)}%</b> ${si ? `<em>+${NF[2].format(si / 1000)} km</em>` : ''}</span></div>`; }).join('')}
+    const TOTKM = TOT / 1000, LL = lockLen(), EXE = TOT - LL;
+    $('#s-bars').innerHTML = `<div class="sbars">${R.map(r => { const f = AV.frentes.find(x => x.id === r.id); let ex = 0, lk = 0; const sl = simSel(r.id); let si = 0;
+        for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') ex += cellLen(k); else if (isLk(k)) lk += cellLen(k); else if (sl[k] === '1') si += cellLen(k); }
+        const rest = Math.max(0, TOT - ex - si - lk);
+        return `<div class="sbar"><span class="sb-n">${esc(r.n)}</span><div class="sb-t" title="${esc(r.n)}: executado ${NF[2].format(ex / 1000)} km · simulado ${NF[2].format(si / 1000)} km · restante ${NF[2].format(rest / 1000)} km${lk ? ` · não será executado ${NF[2].format(lk / 1000)} km` : ''}">
+          <i class="ex" style="width:${ex / TOT * 100}%"></i><i class="si" style="width:${si / TOT * 100}%"></i><i class="lkb" style="width:${lk / TOT * 100}%"></i></div>
+          <span class="sb-v"><b>${NF[1].format((ex + si) / (TOT - lk) * 100)}%</b> ${si ? `<em>+${NF[2].format(si / 1000)} km</em>` : ''}</span></div>`; }).join('')}
       <div class="sbar ax"><span></span><div class="sb-ax">${[0, 25, 50, 75, 100].map(v => `<i style="left:${v}%">${NF[1].format(TOTKM * v / 100)}</i>`).join('')}</div><span></span></div></div>
-      <div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw rest"></i>restante</span><span class="note">% = executado + simulado sobre ${NF[2].format(TOTKM)} km</span></div>`;
+      <div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw rest"></i>restante</span>${LL ? `<span class="lg1"><i class="sw lkb"></i>não será executado (${esc(travaTxt())})</span>` : ''}<span class="note">% = executado + simulado sobre o trecho a executar (${NF[2].format(EXE / 1000)} km)</span></div>`;
     $('#s-tab').innerHTML = `<table class="itbl stab"><thead><tr><th>Serviço</th><th class="n">Extensão</th><th class="n">Quantidade</th><th>Material</th><th class="n">Total</th></tr></thead><tbody>${R.map(r => { const ms = Object.entries(r.m);
         return ms.map(([k, v], i) => `<tr class="${i ? 'cont' : ''}">${i ? '<td></td><td></td><td></td>' : `<td rowspan="1"><i class="dot" style="background:${SCOL[r.id]}"></i> <b>${esc(r.n)}</b>${r.ja ? ` <span class="pill na" title="Estacas simuladas que já constam como executadas">${r.ja} já executada${r.ja > 1 ? 's' : ''}</span>` : ''}</td><td class="n" data-l="Extensão">${r.cnt ? NF[0].format(r.ext) + ' m' : '–'}</td><td class="n" data-l="Quantidade">${r.cnt ? NF[1].format(r.q) + ' ' + r.un : '–'}</td>`}
           <td data-l="Material">${esc(k.replace(' (L)', ''))}</td><td class="n" data-l="Total"><b>${r.cnt ? (k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' || k === 'Bica corrida' || k.startsWith('Brita') ? 1 : 2].format(v) + ' t') : '–'}</b></td></tr>`).join(''); }).join('')}
@@ -269,17 +275,19 @@ export function initObra(X) {
     $('#v-avanco').classList.toggle('painting', paintOn);
     // cartões de avanço
     const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++);
-    $('#a-cards').innerHTML = AV.frentes.map(f => { const st = avStats(f.c); const p2 = st['2'] / TOT, p1 = st['1'] / TOT; const mc = medCells()[f.id];
+    const EXE = TOT - lockLen();
+    $('#a-cards').innerHTML = AV.frentes.map(f => { const st = avStats(f.c); const base = TOT - st.L; const p2 = st['2'] / base, p1 = st['1'] / base; const mc = medCells()[f.id];
       return `<div class="avc"><div class="avc-h"><i class="dot" style="background:${f.cc}"></i><span>${esc(f.n)}</span></div><div class="avc-v"><b>${fPc(p2)}</b><span>${NF[2].format(st['2'] / 1000)} km</span></div>
         <div class="stk"><i style="width:${(p2 * 100).toFixed(2)}%;background:${f.cc}"></i><i style="width:${(p1 * 100).toFixed(2)}%;background:${f.ca || f.cc}"></i></div>
-        <div class="avc-f">${f.a ? (st['1'] ? `atacado ${NF[2].format(st['1'] / 1000)} km · ` : '') : ''}falta ${NF[2].format(st['0'] / 1000)} km${mc && mc.size && avHl ? ` · <span title="Estacas com lançamento na ${MED.n}ª medição">● ${mc.size}</span>` : ''}</div></div>`; }).join('') +
+        <div class="avc-f">${f.a ? (st['1'] ? `atacado ${NF[2].format(st['1'] / 1000)} km · ` : '') : ''}falta ${NF[2].format(st['0'] / 1000)} km${st.L ? ` · <span title="Segmento travado: ${esc(travaTxt())}">⊘ ${NF[2].format(st.L / 1000)} km</span>` : ''}${mc && mc.size && avHl ? ` · <span title="Estacas com lançamento na ${MED.n}ª medição">● ${mc.size}</span>` : ''}</div></div>`; }).join('') +
       `<div class="avc"><div class="avc-h">${oacIcon('c')}<span>OAC – bueiros e galerias</span></div><div class="avc-v"><b>${oc.c}/${AV.oac.length}</b><span>concluídos</span></div>
         <div class="stk"><i style="width:${oc.c / AV.oac.length * 100}%;background:#1f3864"></i><i style="width:${oc.a / AV.oac.length * 100}%;background:#00b0f0"></i></div><div class="avc-f">${oc.a} atacados · ${oc.n} não iniciados</div></div>`;
-    $('#a-legend').innerHTML = `<span class="lg1"><i class="sw2"><i style="background:#e6b9b8"></i><i style="background:#953735"></i></i>cor clara = atacado · cor forte = concluído</span><span class="lg1"><i class="sw"></i>a executar</span>
+    $('#a-legend').innerHTML = `<span class="lg1"><i class="sw2"><i style="background:#e6b9b8"></i><i style="background:#953735"></i></i>cor clara = atacado · cor forte = concluído</span><span class="lg1"><i class="sw"></i>a executar</span>${AV.travas && AV.travas.length ? `<span class="lg1"><i class="sw lkb"></i>não será executado</span>` : ''}
       <span class="lg1">${oacIcon('c')}${oacIcon('a')}${oacIcon('n')}&nbsp;OAC concluído · atacado · não iniciado</span>`;
     const sel = $('#a-lay'); const prev = [...sel.selectedOptions].map(o => o.value);
     sel.innerHTML = AV.frentes.map(f => `<option value="${f.id}" ${prev.includes(f.id) ? 'selected' : ''}>${esc(f.n)}</option>`).join('');
     $('#a-st').innerHTML = ['2', '1', '0'].map(k => `<option value="${k}">${esc(stName(k))}</option>`).join('');
+    $('#a-trv-list').textContent = (AV.travas || []).length ? travaTxt() : 'nenhum';
     drawGrid(false);
   }
   // rótulos dos OAC em faixas, sem sobrepor (ícone na estaca; nome acima quando não cabe ao lado)
@@ -302,7 +310,9 @@ export function initObra(X) {
       const s1 = Math.min(NC, s0 + per);
       const L = oacLayout(AV.oac.map((o, i) => ({ o, i })).filter(({ o }) => o.e >= s0 && o.e < s1), s0, cw);
       const oe = (AV.oae || []).filter(o => o.e1 >= s0 && o.e0 < s1);
+      const tv = (AV.travas || []).filter(t => t.e1 > s0 && t.e0 < s1);
       h += `<div class="blk${sim ? ' sim' : ''}" style="--n:${s1 - s0};--cw:${cw}px;--lw:${labW}px"><div class="mrow" style="height:${L.out.length ? 22 + L.n * 13 : 22}px">` +
+        tv.map(t => `<span class="trv" style="left:calc(var(--lw) + ${(Math.max(t.e0, s0) - s0) * cw}px);width:${(Math.min(t.e1, s1) - Math.max(t.e0, s0)) * cw}px" title="${esc(t.n)}: ${estStr(t.e0)} a ${estStr(t.e1)}">⊘ ${esc(t.n)}</span>`).join('') +
         oe.map(o => `<span class="oae" style="left:calc(var(--lw) + ${(Math.max(o.e0, s0) - s0) * cw}px);width:${Math.max(18, (Math.min(o.e1, s1) - Math.max(o.e0, s0)) * cw)}px" title="${esc(o.n)}">OAE</span>`).join('') +
         L.out.map(({ o, i, x, txt, lane }) => `<button type="button" class="oac ${o.st}${mc.oac && mc.oac.has(Math.floor(o.e)) ? ' m' : ''}" data-oac="${i}" style="left:calc(var(--lw) + ${x}px)" title="${esc(o.t)} · est. ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''} · ${oacName(o.st)}">${oacIcon(o.st)}</button>` +
           `<i class="ldr" style="left:calc(var(--lw) + ${x}px);height:${4 + lane * 13}px"></i><span class="oacl" style="left:calc(var(--lw) + ${x}px);bottom:${20 + lane * 13}px">${esc(txt)}</span>`).join('') + '</div>';
@@ -310,14 +320,14 @@ export function initObra(X) {
         for (const r of SIMR) {
           const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id);
           h += `<div class="fgrp"><div class="lrow rs${BR.has(r.id) ? ' inb' : ''}" data-sim="${r.id}"><span class="ln"><span class="fn"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Preencher nesta faixa as estacas que ainda não foram executadas (toque de novo para desfazer)">preencher</button></span><div class="cells">`;
-          for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${sl[k] === '1' ? ' sel' : st === '2' ? ' done' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
+          for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${st === '2' ? (sl[k] === '1' ? ' sel' : ' done') : isLk(k) ? ' lk' : sl[k] === '1' ? ' sel' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
           h += '</div></div></div>';
         }
       } else {
         for (const f of AV.frentes) {
           const m = mc[f.id];
           const row = (sub, val, col) => { let r = `<div class="lrow ${sub}" data-id="${f.id}" data-sub="${val}"><span class="ln"><span class="fn">${sub === 'ra' || !f.a ? `<i class="dot" style="background:${f.cc}"></i>${esc(f.n)}` : ''}</span><span class="sb">${val === '1' ? 'atacado' : 'concluído'}</span></span><div class="cells">`;
-            for (let k = s0; k < s1; k++) r += `<i class="c${f.c[k] === val ? ' on' : ''}${m && val === '2' && m.has(k) ? ' m' : ''}" data-k="${k}"${f.c[k] === val ? ` style="background:${col}"` : ''}></i>`;
+            for (let k = s0; k < s1; k++) r += `<i class="c${f.c[k] === val ? ' on' : ''}${isLk(k) && f.c[k] === '0' ? ' lk' : ''}${m && val === '2' && m.has(k) ? ' m' : ''}" data-k="${k}"${f.c[k] === val ? ` style="background:${col}"` : ''}></i>`;
             return r + '</div></div>'; };
           h += `<div class="fgrp">${f.a ? row('ra', '1', f.ca) : ''}${row('rc', '2', f.cc)}</div>`;
         }
@@ -330,13 +340,18 @@ export function initObra(X) {
   function avPaintAt(el, first) {
     const c = el && el.closest && el.closest('i.c'); if (!c) return;
     const row = c.closest('.lrow'); const k = +c.dataset.k;
+    if (first && isLk(k) && !(row.dataset.sim ? false : AV.frentes.find(x => x.id === row.dataset.id)?.c[k] !== '0')) {
+      const t = (AV.travas || []).find(t => k >= Math.floor(t.e0) && k < Math.ceil(t.e1));
+      $(row.dataset.sim ? '#s-tip' : '#a-tip').textContent = `Estaca ${k}: ${t ? t.n + ' (' + estStr(t.e0) + ' a ' + estStr(t.e1) + ')' : 'segmento travado'}. Não entra no que falta nem na simulação.`;
+      avDown = null; return;
+    }
     if (row.dataset.sim) {   // simulação: pincel com um ou mais serviços, célula a célula
       const id = row.dataset.sim;
       if (first) { const ids = BR.size > 1 && BR.has(id) ? [...BR] : [id]; avDown = { sim: id, ids, to: SMODE === 'del' ? '0' : '1' }; }
       if (!avDown || (avDown.ids.length === 1 && avDown.sim !== id)) return;
       for (const t of avDown.ids) {
         const f = AV.frentes.find(x => x.id === t), sl = simSel(t);
-        if (avDown.to === '1' && SKIP && f && f.c[k] === '2') continue;
+        if (avDown.to === '1' && (isLk(k) || (SKIP && f && f.c[k] === '2'))) continue;
         if (sl[k] === avDown.to) continue;
         SIM[t] = sl.slice(0, k) + avDown.to + sl.slice(k + 1); avDirty = true;
         const el = document.querySelector(`#s-grid .lrow[data-sim="${t}"] i.c[data-k="${k}"]`); if (el) el.classList.toggle('sel', avDown.to === '1');
@@ -347,6 +362,7 @@ export function initObra(X) {
     if (first) avDown = { id: f.id, val, to: f.c[k] === val ? '0' : val };
     if (!avDown || avDown.id !== f.id || avDown.val !== val) return;
     if (f.c[k] === avDown.to) return;
+    if (isLk(k) && avDown.to !== '0') return;
     f.c = f.c.slice(0, k) + avDown.to + f.c.slice(k + 1); avDirty = true;
     const grp = row.parentElement; grp.querySelectorAll(`i.c[data-k="${k}"]`).forEach(x => { const sv = x.closest('.lrow').dataset.sub; const on = f.c[k] === sv; x.classList.toggle('on', on); x.style.background = on ? (sv === '1' ? f.ca : f.cc) : ''; });
   }
@@ -360,13 +376,14 @@ export function initObra(X) {
     g.addEventListener('click', ev => {
       const fb = ev.target.closest('[data-fill]');
       if (fb) { const id0 = fb.dataset.fill, a = +fb.dataset.s0, b = +fb.dataset.s1; const ids = BR.size > 1 && BR.has(id0) ? [...BR] : [id0];
-        const f0 = AV.frentes.find(x => x.id === id0); const all = simSel(id0).slice(a, b).split('').every((v, i) => v === '1' || (f0 && f0.c[a + i] === '2'));
-        for (const id of ids) { const f = AV.frentes.find(x => x.id === id); const sl = simSel(id).split(''); for (let k = a; k < b; k++) if (!f || f.c[k] !== '2') sl[k] = all ? '0' : '1'; SIM[id] = sl.join(''); }
+        const f0 = AV.frentes.find(x => x.id === id0); const all = simSel(id0).slice(a, b).split('').every((v, i) => v === '1' || isLk(a + i) || (f0 && f0.c[a + i] === '2'));
+        for (const id of ids) { const f = AV.frentes.find(x => x.id === id); const sl = simSel(id).split(''); for (let k = a; k < b; k++) if ((!f || f.c[k] !== '2') && !isLk(k)) sl[k] = all ? '0' : '1'; SIM[id] = sl.join(''); }
         simSave(); renderSim(); return; }
       const ob = ev.target.closest('[data-oac]');
       if (ob) { const o = AV.oac[+ob.dataset.oac];
         if (!sim && paintOn) { o.st = { n: 'a', a: 'c', c: 'n' }[o.st]; avSave(); renderAv(); $(tip).textContent = `${o.t} (est. ${estStr(o.e)}): ${oacName(o.st)}.`; }
         else $(tip).textContent = `${o.t} · estaca ${estStr(o.e)}${o.L ? ' · ' + o.L + ' m' : ''}: ${oacName(o.st)}.${o.obs ? ' ' + o.obs + '.' : ''}${sim ? '' : ' Em “Editar”, toque no ícone para trocar a situação.'}`; return; }
+      const tc = ev.target.closest('i.c.lk'); if (tc) { const t = (AV.travas || []).find(t => +tc.dataset.k >= Math.floor(t.e0) && +tc.dataset.k < Math.ceil(t.e1)); $(tip).textContent = `Estaca ${tc.dataset.k}: ${t ? t.n + ' (' + estStr(t.e0) + ' a ' + estStr(t.e1) + ')' : 'segmento travado'}. Não entra no que falta nem na simulação.`; if (can()) return; }
       if (can()) return; const c = ev.target.closest('i.c'); if (!c) return; const f = AV.frentes.find(x => x.id === c.closest('.lrow').dataset.id); const k = +c.dataset.k;
       const m = medCells()[f.id]?.get(k);
       $(tip).textContent = `${f.n} · estaca ${k} a ${k + 1}: ${stName(f.c[k])}.${m ? ` Medido na ${MED.n}ª medição: ${[...m].join(', ')}.` : ''} Em “Editar”, toque na linha atacado ou concluído para marcar ou desmarcar.`; });
@@ -384,12 +401,16 @@ export function initObra(X) {
     $$('#s-mode button').forEach(b => b.onclick = () => { SMODE = b.dataset.m; renderSim(); });
     $('#s-skip').onchange = () => { SKIP = $('#s-skip').checked; store.set('simSkip', SKIP); };
     $('#s-rest').onclick = () => { const ids = BR.size ? [...BR] : SIMR.map(r => r.id);
-      for (const id of ids) { const f = AV.frentes.find(x => x.id === id); let t = ''; for (let k = 0; k < NC; k++) t += f && f.c[k] === '2' ? simSel(id)[k] : '1'; SIM[id] = t; }
+      for (const id of ids) { const f = AV.frentes.find(x => x.id === id); let t = ''; for (let k = 0; k < NC; k++) t += isLk(k) ? '0' : f && f.c[k] === '2' ? simSel(id)[k] : '1'; SIM[id] = t; }
       simSave(); renderSim(); $('#s-tip').textContent = `Marcado todo o restante de: ${ids.map(i => SIMR.find(r => r.id === i).n).join(', ')}.`; };
     $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Serviço', 'Estacas selecionadas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
       for (const r of R) for (const [k, v] of Object.entries(r.m)) L.push([r.n, r.cnt ? (() => { const a = []; const sl = simSel(r.id); for (let i = 0; i < NC; i++) if (sl[i] === '1') a.push(i); return a.join(' '); })() : '', r.ext, r.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']);
       L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);
       download(`simulacao_materiais_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
+    $('#a-trv').onclick = need(() => { const a = parseEstIn($('#a-tei').value), b = parseEstIn($('#a-tef').value);
+      if (a === null || b === null || b <= a) { $('#a-tip').textContent = 'Informe a estaca inicial e a final do segmento a travar.'; return; }
+      AV.travas = [...(AV.travas || []), { e0: a, e1: Math.min(b, 642.79085), n: 'Não será executado' }]; LK = null; avSave(); renderAv(); $('#a-tip').textContent = `Segmento ${estStr(a)} a ${estStr(b)} travado: não entra no que falta nem na simulação.`; });
+    $('#a-trv-x').onclick = need(() => { if (!(AV.travas || []).length || !confirm('Remover todas as travas (' + travaTxt() + ')?')) return; AV.travas = []; LK = null; avSave(); renderAv(); });
     $('#a-apply').onclick = need(() => {
       const a = parseEstIn($('#a-ei').value), b = parseEstIn($('#a-ef').value), k = $('#a-st').value; const ids = [...$('#a-lay').selectedOptions].map(o => o.value);
       if (a === null || b === null || !ids.length) { $('#a-tip').textContent = 'Informe estaca inicial, final e ao menos uma frente.'; return; }
@@ -399,11 +420,11 @@ export function initObra(X) {
     });
     $('#a-add').onclick = need(() => { const n = prompt('Nome da nova frente (ex.: Sarjetas, Drenos, Sinalização horizontal):'); if (!n) return; const pc = PAL[AV.frentes.length % PAL.length]; AV.frentes.push({ id: 'u' + Date.now(), n: n.trim(), a: true, ca: pc[0], cc: pc[1], c: '0'.repeat(NC) }); avSave(); renderAv(); });
     $('#a-ren').onclick = need(() => { const ids = [...$('#a-lay').selectedOptions].map(o => o.value); if (ids.length !== 1) { $('#a-tip').textContent = 'Selecione uma frente na lista para renomear ou remover.'; return; } const f = AV.frentes.find(x => x.id === ids[0]); const n = prompt('Novo nome (deixe vazio para remover a frente):', f.n); if (n === null) return; if (!n.trim()) { if (confirm('Remover a frente “' + f.n + '”?')) AV.frentes = AV.frentes.filter(x => x !== f); } else f.n = n.trim(); avSave(); renderAv(); });
-    $('#a-reset').onclick = need(() => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As alterações feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); avSave(); renderAv(); });
+    $('#a-reset').onclick = need(() => { if (!confirm('Voltar ao retigráfico de ' + D.avanco.data.split('-').reverse().join('/') + '? As alterações feitas no app serão perdidas (exporte antes, se quiser guardar).')) return; AV = avDefault(); LK = null; avSave(); renderAv(); });
     $('#a-exp').onclick = () => download(`retigrafico_PR-990_${today()}.json`, JSON.stringify(AV), 'application/json');
     $('#a-csv').onclick = () => { const L = [['Estaca inicial', 'Estaca final', ...AV.frentes.map(f => f.n)]]; for (let k = 0; k < NC; k++) L.push([k, Math.min(k + 1, 642.79085), ...AV.frentes.map(f => stName(f.c[k]))]); L.push([], ['OAC', 'Estaca', 'Comprimento (m)', 'Situação']); for (const o of AV.oac) L.push([o.t, estStr(o.e), o.L || '', oacName(o.st)]); download(`retigrafico_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
     $('#a-imp').onclick = ev => { if (!X.unlocked()) { ev.preventDefault(); X.ask(X.current(), 'Importar um retigráfico é restrito. Digite a senha.'); } };
-    $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.frentes) throw new Error('arquivo de outro modelo de retigráfico'); AV = { ...avDefault(), ...j, v: 2 }; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
+    $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.frentes) throw new Error('arquivo de outro modelo de retigráfico'); AV = { ...avDefault(), ...j, v: 2 }; LK = null; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
     let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (X.current() === 'avanco') drawGrid(false); if (X.current() === 'simulacao') drawGrid(true); }, 200); });
   }
   const parseEstIn = s => { s = String(s || '').trim().replace(/\s/g, ''); if (!s) return null; if (s.includes('+')) { const [e, m] = s.split('+'); const v = +e + (parseFloat(m.replace(',', '.')) || 0) / 20; return Number.isFinite(v) ? v : null; } const v = parseFloat(s.replace(',', '.')); return Number.isFinite(v) ? v : null; };
