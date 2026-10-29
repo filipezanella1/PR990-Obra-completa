@@ -990,3 +990,11 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 @media print { .ap-pr .st i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 @media (max-width: 760px) { .ap-pr { grid-template-columns: minmax(0, 1fr) 64px; } .ap-pr small { display: none; } .ap-pr .fx { overflow-wrap: anywhere; } .ap-pr.ax > span:empty { display: none; } }
 @media (max-width: 760px) { .ap-pr .sx i:nth-last-child(2) { display: none; } }
+.ap-col .abar i.ot { background: #8a949c; border-radius: 0; }
+.ap-tbl tr.ot td { color: var(--muted); } .ap-tbl tr.ot small { font-size: .75em; }
+.ap-fin-act { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ap-fin { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }
+.ap-fin .note { margin: 0; }
+.ap-fin input.ap-fi { width: 9.5em; text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; }
+.ap-fin tr.tot td { font-weight: 700; border-top: 2px solid var(--fg); }
+@media print { #ap-fin-ed, .ap-fin { display: none !important; } }

@@ -998,6 +998,14 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 @media print { .ap-pr .st i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 @media (max-width: 760px) { .ap-pr { grid-template-columns: minmax(0, 1fr) 64px; } .ap-pr small { display: none; } .ap-pr .fx { overflow-wrap: anywhere; } .ap-pr.ax > span:empty { display: none; } }
 @media (max-width: 760px) { .ap-pr .sx i:nth-last-child(2) { display: none; } }
+.ap-col .abar i.ot { background: #8a949c; border-radius: 0; }
+.ap-tbl tr.ot td { color: var(--muted); } .ap-tbl tr.ot small { font-size: .75em; }
+.ap-fin-act { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ap-fin { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }
+.ap-fin .note { margin: 0; }
+.ap-fin input.ap-fi { width: 9.5em; text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; }
+.ap-fin tr.tot td { font-weight: 700; border-top: 2px solid var(--fg); }
+@media print { #ap-fin-ed, .ap-fin { display: none !important; } }
 
 </style>
 
@@ -2479,7 +2487,8 @@ function initObra(X) {
   // ===================================================================== APRESENTAÇÃO (diretoria)
   // Deck de slides montado a partir da Simulação: situação atual, retigráfico planejado mês a mês (com reprodução),
   // evolução, recursos, britagem, valores (PI + R) e pontos de atenção. Tudo recalculado da pintura da Simulação.
-  let AS = 0, AM = -1, APLAY = null;   // slide atual, mês selecionado (−1 = hoje), reprodução
+  let AS = 0, AM = null, APLAY = null, AED = false;   // slide atual, mês selecionado (começa no último), reprodução, edição dos outros serviços
+  let OFIN = store.get('aprFin', {});   // outros serviços lançados à mão: grupo do contrato → { 'aaaa-mm': PI em R$ }
   const MESL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const mesLong = ym => { const [y, m] = ym.split('-'); return `${MESL[+m - 1]} de ${y}`; };
   const mi$ = v => { const a = Math.abs(v); return a >= 1e6 ? 'R$ ' + NF[2].format(v / 1e6) + ' mi' : a >= 1e3 ? 'R$ ' + NF[0].format(v / 1e3) + ' mil' : 'R$ ' + NF[0].format(v); };
@@ -2540,19 +2549,22 @@ function initObra(X) {
   }
   function renderApr() {
     if (!AV) avLoad();
-    const A = aprData(); const nM = A.nM; if (AM >= nM) AM = nM - 1;
+    const A = aprData(); const nM = A.nM; if (AM === null || AM >= nM || AM < 0) AM = nM - 1;
     const per = nM > 1 ? `${mesNomeS(MESES[0])} – ${mesNomeS(MESES[nM - 1])}` : mesNomeS(MESES[0]);
     const pav = A.sv.filter(s => s.id !== 'p6'); const pctNow = s => s.ex / A.EXE, pctAt = (s, i) => (i < 0 ? s.ex : s.cum[i]) / A.EXE;
     const cb = A.sv.find(s => s.id === 'p7');
     const totPlan = A.sv.reduce((a, s) => Math.max(a, s.plan), 0);
-    const vt = A.val.reduce((a, v) => a + v.pi + v.r, 0), vpi = A.val.reduce((a, v) => a + v.pi, 0);
+    const GR = X.reajG ? X.reajG() : [];
+    const oth = MESES.map(ym => { let pi = 0, r = 0; GR.forEach((g, gi) => { const v = +((OFIN[gi] || {})[ym]) || 0; pi += v; r += v * g.R; }); return { pi, r }; });
+    const vt = A.val.reduce((a, v) => a + v.pi + v.r, 0) + oth.reduce((a, o) => a + o.pi + o.r, 0), vpi = A.val.reduce((a, v) => a + v.pi, 0) + oth.reduce((a, o) => a + o.pi, 0);
+    const temO = oth.some(o => o.pi > 0);
     const R = A.R; const sum = (id, k) => R.find(r => r.id === id).m[k] || 0;
     const pet = ['p2', 'p3', 'p4'].reduce((a, id) => a + sum(id, 'Bica corrida'), 0) + sum('p5', 'Brita graduada (BGS)');
     const SL = [];
     // 1 · capa
     SL.push({ t: 'Capa', h: `<div class="ap-cover"><div class="ap-k">PR-990 · Contrato 050/2024 · TCE Engenharia</div><h2>Plano de pavimentação<br><span>${per}</span></h2>
       <p class="ap-lead">Rodovia PR-364 → Rebouças · ${NF[2].format(A.EXE / 1000)} km a executar${A.LL ? ` · ${NF[2].format(A.LL / 1000)} km fora do escopo` : ''} · situação do retigráfico de ${AV.data.split('-').reverse().join('/')}</p>
-      <div class="ap-big">${[[fPc(pctNow(cb)), 'CBUQ concluído hoje'], [fPc(pctAt(cb, nM - 1)), `CBUQ ao fim de ${mesNomeS(MESES[nM - 1])}`], [NF[2].format(cb.plan / 1000) + ' km', 'de pista no período'], [mi$(vt), 'a executar (PI + R)']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+      <div class="ap-big">${[[fPc(pctNow(cb)), 'CBUQ concluído hoje'], [fPc(pctAt(cb, nM - 1)), `CBUQ ao fim de ${mesNomeS(MESES[nM - 1])}`], [NF[2].format(cb.plan / 1000) + ' km', 'de pista no período'], [mi$(vt), temO ? 'a executar (PI + R)' : 'pavimentação a executar (PI + R)']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
       <div class="ap-foot">Apresentação à diretoria · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div></div>` });
     // 2 · onde estamos
     SL.push({ t: 'Onde estamos', h: `<div class="ap-h"><span class="ap-n">01</span><h3>Onde estamos</h3><p>Onde cada frente está concluída ao longo do trecho (estacas), conforme o retigráfico de ${AV.data.split('-').reverse().join('/')}. Percentual sobre o trecho a executar.</p></div>
@@ -2565,8 +2577,8 @@ function initObra(X) {
         <div class="ap-pr ax"><span></span><span class="sx">${[0, 100, 200, 300, 400, 500, 600].map(e => `<i style="left:${(e / (TOT / 20) * 100).toFixed(2)}%">${e}</i>`).join('')}<i class="end" style="left:100%">${NF[0].format(Math.floor(TOT / 20))}</i></span><span></span><span></span></div></div>
       <div class="ap-row3">${(() => { const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++); return [[`${oc.c}/${AV.oac.length}`, 'bueiros e galerias concluídos', `${oc.a} em execução · ${oc.n} não iniciados`], [NF[2].format(cb.ex / 1000) + ' km', 'com CBUQ', `de ${NF[2].format(A.EXE / 1000)} km a executar`], [NF[2].format(Math.max(0, A.EXE - cb.ex) / 1000) + ' km', 'falta pavimentar (CBUQ)', (() => { const ft = A.all.find(x => x.id === 'p7').falta.filter(r => r[1] - r[0] >= 0.5); return 'est. ' + ft.slice(0, 4).map(r => `${Math.floor(r[0])}–${Math.ceil(r[1])}`).join(' · ') + (ft.length > 4 ? ` · +${ft.length - 4}` : ''); })()]].map(([v, l, s]) => `<div class="ap-stat"><b>${v}</b><span>${l}</span><small>${s}</small></div>`).join(''); })()}</div>` });
     // 3 · retigráfico planejado
-    SL.push({ t: 'Retigráfico planejado', h: `<div class="ap-h"><span class="ap-n">02</span><h3>Retigráfico planejado</h3><p>Escolha o mês ou reproduza: as camadas se completam mês a mês.</p></div>
-      <div class="ap-mes" role="group" aria-label="Situação ao fim do mês"><button type="button" class="ap-mb${AM < 0 ? ' on' : ''}" data-am="-1">Hoje</button>${MESES.map((ym, i) => `<button type="button" class="ap-mb${AM === i ? ' on' : ''}" data-am="${i}"><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</button>`).join('')}<button type="button" class="ap-play" id="ap-play">${APLAY ? '❚❚ Pausar' : '▶ Reproduzir'}</button></div>
+    SL.push({ t: 'Planejado', h: `<div class="ap-h"><span class="ap-n">02</span><h3>Planejado</h3><p>Situação planejada ao fim de cada mês. Escolha o mês ou reproduza.</p></div>
+      <div class="ap-mes" role="group" aria-label="Situação ao fim do mês">${MESES.map((ym, i) => `<button type="button" class="ap-mb${AM === i ? ' on' : ''}" data-am="${i}"><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</button>`).join('')}<button type="button" class="ap-play" id="ap-play">${APLAY ? '❚❚ Pausar' : '▶ Reproduzir'}</button></div>
       <div class="ap-diag ap-dg">${aprDiagram(A.sv, AM, A.sv.map(s => pctAt(s, AM)))}</div>
       <div class="ap-leg"><span><i class="ex"></i>executado</span>${MESES.map((ym, i) => `<span><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</span>`).join('')}<span><i class="fu"></i>planejado (meses seguintes)</span><span><i class="re"></i>sem mês</span>${A.LL ? '<span><i class="lk"></i>fora do escopo</span>' : ''}<span><i class="apo"></i>ponte</span></div>
       <p class="ap-cap">${AM < 0 ? `Hoje: CBUQ em ${fPc(pctNow(cb))} do trecho a executar.` : (() => { const ad = A.sv.filter(s => s.pm[AM] > 1); return `Ao fim de ${mesLong(MESES[AM])}: CBUQ em ${fPc(pctAt(cb, AM))}.` + (ad.length ? `<small>No mês: ${ad.map(s => `${esc(s.n)} +${NF[2].format(s.pm[AM] / 1000)} km`).join(' · ')}</small>` : ''); })()}</p>` });
@@ -2591,12 +2603,20 @@ function initObra(X) {
         <div class="ap-brit"><h4>Britagem · bica corrida</h4>${A.brit.map((b, i) => `<div class="ap-bb"><span>${mesNomeS(MESES[i])}</span><span class="tr"><i style="width:${Math.min(100, b.bica / mxB * 100)}%;background:${b.bica > A.capB ? 'var(--neg)' : MCOL[i]}"></i><em style="left:${A.capB / mxB * 100}%"></em></span><b class="${b.bica > A.capB ? 'warn' : ''}">${NF[0].format(b.bica / A.capB * 100)}%</b></div>`).join('')}
         <small>Traço = capacidade de ${NF[0].format(A.capB)} t/mês (${NF[0].format(bp('rate.bica'))} t/h). Total a britar no período: ${NF[0].format(A.brit.reduce((a, b) => a + b.t, 0))} t.</small></div></div>` });
     // 6 · valores
-    const mxV = Math.max(1, ...A.val.map(v => v.pi + v.r));
-    SL.push({ t: 'Valores', h: `<div class="ap-h"><span class="ap-n">05</span><h3>Produção financeira prevista</h3><p>Serviços de pavimentação e ligantes do plano, a preço do contrato (PI) mais reajuste (R) do grupo.</p></div>
-      <div class="ap-val"><div class="ap-cols">${A.val.map((v, i) => `<div class="ap-col" title="${mesNomeS(MESES[i])}: PI ${fR(v.pi)} + R ${fR(v.r)}"><b>${mi$(v.pi + v.r)}</b><span class="abar"><i class="r" style="height:${v.r / mxV * 100}%"></i><i style="height:${v.pi / mxV * 100}%;background:${MCOL[i]}"></i></span><em>${mesNomeS(MESES[i])}</em></div>`).join('')}</div>
-        <div class="ap-vt"><div class="ap-stat"><b>${mi$(vt)}</b><span>PI + R no período</span><small>PI ${fR(vpi)} · R ${fR(vt - vpi)}</small></div>
-        <div class="ap-tbl"><table><thead><tr><th>Serviço</th><th class="n">Quantidade</th><th class="n">PI + R</th></tr></thead><tbody>${APRC.map((p, j) => { const q = A.val.reduce((a, v) => a + v.it[j].qv, 0), t = A.val.reduce((a, v) => a + v.it[j].v * (1 + v.it[j].rr), 0); return `<tr><td>${esc(p.n)}</td><td class="n">${NF[p.row >= 112 ? 1 : 0].format(q)} ${esc(M().disciplinas.flatMap(d => d.linhas).find(l => l.r === p.row)?.u || '')}</td><td class="n">${fR(t)}</td></tr>`; }).join('')}</tbody></table></div></div></div>
-      <p class="note ap-note">Parte hachurada = reajuste (R). Não inclui regularização do subleito, drenagem e demais serviços fora da simulação.</p>` });
+    const mxV = Math.max(1, ...A.val.map((v, i) => v.pi + v.r + oth[i].pi + oth[i].r));
+    const pavT = A.val.reduce((a, v) => a + v.pi + v.r, 0), othT = oth.reduce((a, o) => a + o.pi + o.r, 0);
+    const fin = v => v ? NF[2].format(v) : '';
+    SL.push({ t: 'Valores', h: `<div class="ap-h"><span class="ap-n">05</span><h3>Produção financeira prevista</h3><p>${temO ? 'Pavimentação (calculada pela simulação) e demais serviços lançados à mão' : '<b>Somente serviços de pavimentação</b> (base, sub-base, reforço, imprimação, CBUQ e ligantes), calculados pela simulação'}, a preço do contrato (PI) mais reajuste (R) do grupo.</p></div>
+      <div class="ap-val"><div class="ap-cols">${A.val.map((v, i) => { const o = oth[i]; return `<div class="ap-col" title="${mesNomeS(MESES[i])}: pavimentação ${fR(v.pi)}${o.pi ? ' · demais serviços ' + fR(o.pi) : ''} · reajuste ${fR(v.r + o.r)}"><b>${mi$(v.pi + v.r + o.pi + o.r)}</b><span class="abar"><i class="r" style="height:${(v.r + o.r) / mxV * 100}%"></i>${o.pi ? `<i class="ot" style="height:${o.pi / mxV * 100}%"></i>` : ''}<i style="height:${v.pi / mxV * 100}%;background:${MCOL[i]}"></i></span><em>${mesNomeS(MESES[i])}</em></div>`; }).join('')}</div>
+        <div class="ap-vt"><div class="ap-stat"><b>${mi$(vt)}</b><span>PI + R no período</span><small>pavimentação ${fR(pavT)}${temO ? ` · demais serviços ${fR(othT)}` : ''} · R ${fR(vt - vpi)}</small></div>
+        <div class="ap-tbl"><table><thead><tr><th>Serviço</th><th class="n">Quantidade</th><th class="n">PI + R</th></tr></thead><tbody>${APRC.map((p, j) => { const q = A.val.reduce((a, v) => a + v.it[j].qv, 0), t = A.val.reduce((a, v) => a + v.it[j].v * (1 + v.it[j].rr), 0); return `<tr><td>${esc(p.n)}</td><td class="n">${NF[p.row >= 112 ? 1 : 0].format(q)} ${esc(M().disciplinas.flatMap(d => d.linhas).find(l => l.r === p.row)?.u || '')}</td><td class="n">${fR(t)}</td></tr>`; }).join('')}
+        ${GR.map((g, gi) => { const pi = MESES.reduce((a, ym) => a + (+((OFIN[gi] || {})[ym]) || 0), 0); return pi ? `<tr class="ot"><td>${esc(g.n.charAt(0) + g.n.slice(1).toLowerCase())} <small>(manual)</small></td><td class="n">–</td><td class="n">${fR(pi * (1 + g.R))}</td></tr>` : ''; }).join('')}</tbody></table></div></div></div>
+      <div class="ap-fin-act"><span class="note ap-note">Parte hachurada = reajuste (R)${temO ? ' · cinza = demais serviços lançados à mão' : ''}.${temO ? '' : ' Terraplenagem, drenagem, galerias e outros não estão incluídos.'}</span><button type="button" class="btn sm" id="ap-fin-ed">${AED ? 'Fechar lançamento' : 'Lançar demais serviços'}</button></div>
+      ${AED ? `<div class="ap-fin"><p class="note">Valor a preço inicial (PI, em R$) previsto por grupo e mês. O reajuste R do grupo é aplicado automaticamente. Pavimentação e ligantes já vêm da simulação: use essas linhas só para o que estiver fora dela (ex.: regularização do subleito).</p>
+        <div class="ap-tbl"><table><thead><tr><th>Grupo</th><th class="n">R</th>${MESES.map((ym, i) => `<th class="n"><i class="msq" style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</th>`).join('')}</tr></thead><tbody>
+        ${GR.map((g, gi) => `<tr><td>${esc(g.n)}</td><td class="n">${NF[4].format(g.R)}</td>${MESES.map(ym => `<td class="n"><input class="ap-fi" data-g="${gi}" data-ym="${ym}" inputmode="decimal" value="${fin(+((OFIN[gi] || {})[ym]) || 0)}" placeholder="0,00" aria-label="${esc(g.n)} ${mesNomeS(ym)}"></td>`).join('')}</tr>`).join('')}
+        <tr class="tot"><td colspan="2">Total demais serviços (PI)</td>${oth.map(o => `<td class="n">${fR(o.pi)}</td>`).join('')}</tr></tbody></table></div>
+        <button type="button" class="lnk" id="ap-fin-clr">Limpar lançamentos</button></div>` : ''}` });
     // 7 · atenção
     SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">06</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
       <div class="ap-att">${A.att.map(a => `<div class="ap-a ${a.k}"><span class="ic">${a.k === 'ok' ? '✓' : a.k === 'warn' ? '!' : 'i'}</span><div><b>${esc(a.t)}</b><p>${esc(a.d)}</p></div></div>`).join('')}</div>` });
@@ -2614,8 +2634,12 @@ function initObra(X) {
     $('#ap-dots').addEventListener('click', ev => { const b = ev.target.closest('[data-go]'); if (b) aprGo(+b.dataset.go); });
     $('#ap-deck').addEventListener('click', ev => {
       const m = ev.target.closest('[data-am]'); if (m) { aprStop(); AM = +m.dataset.am; renderApr(); return; }
-      if (ev.target.closest('#ap-play')) { if (APLAY) { aprStop(); renderApr(); return; } AM = -1; renderApr(); APLAY = setInterval(() => { if (X.current() !== 'apresentacao' || AM >= MESES.length - 1) { aprStop(); renderApr(); return; } AM++; renderApr(); }, 1300); renderApr(); }
+      if (ev.target.closest('#ap-fin-ed')) { AED = !AED; renderApr(); return; }
+      if (ev.target.closest('#ap-fin-clr')) { if (confirm('Apagar todos os valores lançados à mão?')) { OFIN = {}; store.set('aprFin', OFIN); renderApr(); } return; }
+      if (ev.target.closest('#ap-play')) { if (APLAY) { aprStop(); renderApr(); return; } AM = 0; renderApr(); APLAY = setInterval(() => { if (X.current() !== 'apresentacao' || AM >= MESES.length - 1) { aprStop(); renderApr(); return; } AM++; renderApr(); }, 1300); renderApr(); }
     });
+    $('#ap-deck').addEventListener('change', ev => { const t = ev.target.closest('.ap-fi'); if (!t) return; const v = parseFloat(String(t.value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')); const g = t.dataset.g;
+      OFIN[g] = { ...(OFIN[g] || {}) }; if (Number.isFinite(v) && v > 0) OFIN[g][t.dataset.ym] = v; else delete OFIN[g][t.dataset.ym]; store.set('aprFin', OFIN); renderApr(); });
     $('#ap-full').onclick = () => { const el = $('#v-apresentacao'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => { }); };
     document.addEventListener('fullscreenchange', () => { $('#ap-full').textContent = document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia'; v.classList.toggle('fs', !!document.fullscreenElement); });
     document.addEventListener('keydown', ev => { if (X.current() !== 'apresentacao' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
@@ -3521,7 +3545,7 @@ function pwa() {
 // ---------------------------------------------------------------- módulos de obra
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
-  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
 
 // ---------------------------------------------------------------- início

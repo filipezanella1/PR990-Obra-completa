@@ -611,7 +611,7 @@ function pwa() {
 // ---------------------------------------------------------------- módulos de obra
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
-  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
 
 // ---------------------------------------------------------------- início
