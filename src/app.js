@@ -35,8 +35,8 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem'].map(f => get(f + '.json')));
-  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem };
+  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem', 'reajuste'].map(f => get(f + '.json')));
+  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -99,7 +99,7 @@ function recalc() {
   $('#sel-err').textContent = err ? '⚠ ' + err : '';
   $('#sel-big').textContent = `${C('G7')}  →  ${C('G8')}`;
   $('#sel-small').textContent = err ? '' : `${NF[2].format(num(C(M.meta.sel)))} m · ${NF[1].format(num(C(M.meta.frac)) * 100)}% da obra`;
-  renderKPIs(); renderSummary(); renderInfo(); renderDetail(); renderInsMain();
+  renderKPIs(); renderSummary(); renderReaj(); renderInfo(); renderDetail(); renderInsMain();
   if (current === 'insumos') renderIns();
   if (current === 'drenagem') renderDrenagem();
   if (UNL && current === 'discrepancias') renderDisc();
@@ -168,13 +168,39 @@ function renderDetail() {
   host.innerHTML = frag.join('') || '<p class="note">Nenhum serviço encontrado para a busca.</p>';
   host.querySelectorAll('details.disc').forEach(el => el.addEventListener('toggle', () => { const i = +el.dataset.i; el.open ? detOpen.add(i) : detOpen.delete(i); store.set('detOpen', [...detOpen]); }));
 }
+// reajuste por grupo de serviço do contrato: PI (preço inicial, valores do Painel) × coeficiente R do grupo
+let REAJ = null; let RJO = store.get('reajR', {}); let RJB = store.get('reajBase', 'P');
+const rjR = i => RJO[i] ?? REAJ.grupos[i].R;
+function reajCalc(col) {
+  const g = REAJ.grupos.map((x, i) => ({ i, n: x.n, R: rjR(i), pi: 0 }));
+  for (const d of M.disciplinas) for (const l of d.linhas) { if (l.t !== 'it' || !l.ct) continue; const gi = REAJ.row[l.r]; if (gi === undefined) continue; g[gi].pi += num(C(col + l.r)); }
+  g.forEach(x => { x.r = x.pi * x.R; x.tot = x.pi + x.r; });
+  return g;
+}
+function renderReaj() {
+  if (!REAJ) return;
+  const G = reajCalc(RJB); const pi = G.reduce((a, x) => a + x.pi, 0), r = G.reduce((a, x) => a + x.r, 0);
+  document.querySelectorAll('#rj-base button').forEach(b => b.classList.toggle('on', b.dataset.b === RJB));
+  const vis = G.filter(x => Math.abs(x.pi) >= 0.005); const hid = G.length - vis.length;
+  const chg = Object.keys(RJO).length;
+  $('#rj-tab').innerHTML = `<table class="itbl stab rjtab"><thead><tr><th>Grupo de serviço</th><th class="n">R</th><th class="n">PI</th><th class="n">Reajuste (R)</th><th class="n">PI + R</th></tr></thead><tbody>${vis.map(x => `<tr><td>${esc(x.n)}</td><td class="n" data-l="Coef. R"><input class="rj-in${RJO[x.i] !== undefined ? ' chg' : ''}" data-i="${x.i}" inputmode="decimal" value="${NF[4].format(x.R)}" aria-label="Coeficiente R de ${esc(x.n)}"></td><td class="n" data-l="PI">${fR(x.pi)}</td><td class="n" data-l="Reajuste (R)">${fR(x.r)}</td><td class="n" data-l="PI + R"><b>${fR(x.tot)}</b></td></tr>`).join('')}
+    <tr class="tot"><td>Total do trecho</td><td class="n" data-l="R médio">${pi ? (r / pi).toFixed(4).replace('.', ',') : '–'}</td><td class="n" data-l="PI">${fR(pi)}</td><td class="n" data-l="Reajuste (R)">${fR(r)}</td><td class="n" data-l="PI + R">${fR(pi + r)}</td></tr></tbody></table>`;
+  $('#rj-note').innerHTML = `${esc(REAJ.fonte)}. PI = ${RJB === 'P' ? 'valor ajustado ao contrato' : 'valor do consumo real'} no trecho, a preço inicial do contrato.${hid ? ` ${hid} grupo${hid > 1 ? 's' : ''} sem valor no trecho não aparece${hid > 1 ? 'm' : ''}.` : ''}${chg ? ` <button type="button" class="lnk" id="rj-reset">Voltar aos coeficientes da medição</button>` : ''}`;
+}
+function reajInit() {
+  $('#rj-base').addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b) return; RJB = b.dataset.b; store.set('reajBase', RJB); renderReaj(); });
+  $('#rj-tab').addEventListener('change', ev => { const t = ev.target.closest('.rj-in'); if (!t) return; const v = parseFloat(t.value.replace(',', '.')); const i = +t.dataset.i;
+    if (Number.isFinite(v) && v >= 0 && v < 5 && Math.abs(v - REAJ.grupos[i].R) > 1e-9) RJO[i] = v; else delete RJO[i]; store.set('reajR', RJO); renderReaj(); });
+  $('#rj-note').addEventListener('click', ev => { if (ev.target.id === 'rj-reset') { RJO = {}; store.set('reajR', RJO); renderReaj(); } });
+}
 function exportPanel() {
-  const L = [['Disciplina', 'Código', 'Serviço', 'Un', 'LE', 'LD', 'Projeto no trecho', 'Qtd. real', 'Preço (R$)', 'Valor real (R$)', 'Qtd. ajustada', 'Valor ajustado (R$)', 'Real − ajustado (R$)', 'Base · fonte']];
+  const L = [['Disciplina', 'Código', 'Serviço', 'Un', 'LE', 'LD', 'Projeto no trecho', 'Qtd. real', 'Preço (R$)', 'Valor real (R$)', 'Qtd. ajustada', 'Valor ajustado (R$)', 'Real − ajustado (R$)', 'Base · fonte', 'Grupo do contrato', 'Coef. R', 'Ajustado PI + R (R$)', 'Real PI + R (R$)']];
   for (const d of M.disciplinas) for (const l of d.linhas) {
     if (l.t !== 'it') continue; const r = l.r; const n = a => num(C(a + r));
-    L.push([d.titulo, l.c, l.n, l.u, l.le ? n('E') : '', l.ld ? n('F') : '', l.proj ? n('G') : '', l.ct ? n('H') : '', l.ct ? n('I') : '', l.ct ? n('J') : '', l.ct ? n('K') : '', l.ct ? n('P') : '', l.ct ? n('Q') : '', l.fonte]);
+    L.push([d.titulo, l.c, l.n, l.u, l.le ? n('E') : '', l.ld ? n('F') : '', l.proj ? n('G') : '', l.ct ? n('H') : '', l.ct ? n('I') : '', l.ct ? n('J') : '', l.ct ? n('K') : '', l.ct ? n('P') : '', l.ct ? n('Q') : '', l.fonte, ...(l.ct && REAJ && REAJ.row[l.r] !== undefined ? [REAJ.grupos[REAJ.row[l.r]].n, rjR(REAJ.row[l.r]), n('P') * (1 + rjR(REAJ.row[l.r])), n('J') * (1 + rjR(REAJ.row[l.r]))] : [])]);
   }
   L.push([], ['Trecho', `${C('G7')} a ${C('G8')}`], ['Consumo real (R$)', num(C('J' + M.meta.TOTR))], ['Ajustado ao contrato (R$)', num(C('P' + M.meta.TOTR))]);
+  if (REAJ) { L.push([], ['Reajuste por grupo', 'Coef. R', 'PI ajustado (R$)', 'R ajustado (R$)', 'PI + R ajustado (R$)', 'PI real (R$)', 'R real (R$)', 'PI + R real (R$)']); const A = reajCalc('P'), B = reajCalc('J'); A.forEach((x, i) => L.push([x.n, x.R, x.pi, x.r, x.tot, B[i].pi, B[i].r, B[i].tot])); }
   download(`painel_PR-990_${C('G7')}_a_${C('G8')}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n'));
 }
 
@@ -595,7 +621,7 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
   Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas, britagem: data.britagem });
-  PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
+  REAJ = data.reajuste; reajInit(); PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
   $('#boot').hidden = true; $('#app').hidden = false;

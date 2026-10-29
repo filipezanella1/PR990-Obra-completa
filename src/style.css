@@ -832,3 +832,11 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 @media (min-width: 981px) { .sim-row.wide { grid-template-columns: minmax(0, 1fr); } }
 @media print { .sim-row.wide { grid-template-columns: minmax(0, 1fr) !important; } .bchip.on { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 .bchip.on .dot { box-shadow: 0 0 0 2px var(--surface); }
+
+/* reajuste por grupo */
+.rjp { display: grid; gap: 10px; } .rjp .note { margin: 0; }
+.rjtab input.rj-in { width: 6.5em; text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; }
+.rjtab input.rj-in.chg { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.rjtab td.n b { color: var(--fg); }
+@media print { .rjp .seg, #rj-reset { display: none !important; } .rjtab input.rj-in { border: 0; background: none; } }
+.ph h2 { margin: 0; }

@@ -5,7 +5,7 @@ const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './src/style.css', './src/engine.js', './src/app.js', './src/obra.js', './src/medparse.js', './src/xlsx.js',
   './data/model.json', './data/insumos.json', './data/base.json', './data/painel.json',
-  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json',
+  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'
 ];
 const FONTS = 'pr990-fonts';
