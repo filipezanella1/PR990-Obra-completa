@@ -256,13 +256,14 @@
   <!-- =============================== PLANEJAMENTO (oculto) -->
   <section class="view" id="v-planejamento" hidden>
     <div class="sim-hero">
-      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · área restrita</span><h2>Planejamento do contrato</h2><p>Saldo do contrato × produção das CPUs, sequência executiva das especificações de serviço e calendário de dias trabalháveis.</p></div>
+      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · área restrita</span><h2>Planejamento do contrato</h2><p>Contrato inteiro (ou saldo da medição) × produção das CPUs, sequência executiva das especificações de serviço e calendário de dias trabalháveis, mês a mês.</p></div>
       <div class="sh-r" id="pl-hero"></div>
     </div>
     <p class="note warn pl-warn" id="pl-warn" hidden>Confira as datas de início e término do contrato em Parâmetros (os valores atuais são provisórios).</p>
     <div class="cv-kpis" id="pl-kpis"></div>
     <div class="panel"><div class="ph"><h3>Cronograma</h3><span><button class="btn" type="button" data-print="planejamento">PDF</button> <button class="btn primary" type="button" id="pl-csv">Exportar (CSV)</button></span></div><div id="pl-gantt"></div></div>
     <div class="panel"><h3>Produção financeira prevista por mês</h3><div id="pl-mes"></div></div>
+    <div class="panel"><h3>Cronograma físico-financeiro mês a mês (R$ mil, PI)</h3><p class="note">Valor de cada pacote em cada mês, pelos dias trabalháveis. A cor mais forte marca o mês de maior produção do pacote; meses em vermelho estão depois do prazo.</p><div class="tbl-wrap"><div id="pl-mat"></div></div></div>
     <div class="panel"><h3>Pacotes de serviço</h3><p class="note">Altere equipes e operários por equipe: o cronograma e o caminho crítico se recalculam.</p><div class="tbl-wrap" id="pl-tab"></div></div>
     <details class="panel sim-prem" open><summary><b>Parâmetros</b></summary><div id="pl-par"></div></details>
     <div id="pl-body"></div>

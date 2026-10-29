@@ -1069,3 +1069,10 @@ html:not(.unl) a.nl.oc, html:not(.unl) .ms-in a[href="#planejamento"], html:not(
 #pl-par .lbl select { margin-left: auto; }
 @media print { #v-planejamento .sim-prem, #pl-csv { display: none !important; } .pl-svg * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 .bpar .lbl input, .bpar .lbl select { flex: none; }
+.pl-mx { border-collapse: collapse; font-size: .74rem; font-variant-numeric: tabular-nums; }
+.pl-mx th, .pl-mx td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: right; }
+.pl-mx thead th { font: 600 .7rem var(--f-mono); color: var(--muted); position: sticky; top: 0; background: var(--surface); } .pl-mx thead th.late { color: var(--neg); }
+.pl-mx tbody th { text-align: left; font-weight: 600; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.pl-mx td { background: color-mix(in srgb, var(--accent) calc(var(--a, 0) * 100%), transparent); }
+.pl-mx td.t, .pl-mx tr.tt td { font-weight: 700; background: none; } .pl-mx tr.tt th, .pl-mx tr.tt td { border-top: 1px solid var(--fg); }
+@media print { .pl-mx td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

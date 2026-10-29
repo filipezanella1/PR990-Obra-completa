@@ -1077,6 +1077,13 @@ html:not(.unl) a.nl.oc, html:not(.unl) .ms-in a[href="#planejamento"], html:not(
 #pl-par .lbl select { margin-left: auto; }
 @media print { #v-planejamento .sim-prem, #pl-csv { display: none !important; } .pl-svg * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 .bpar .lbl input, .bpar .lbl select { flex: none; }
+.pl-mx { border-collapse: collapse; font-size: .74rem; font-variant-numeric: tabular-nums; }
+.pl-mx th, .pl-mx td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: right; }
+.pl-mx thead th { font: 600 .7rem var(--f-mono); color: var(--muted); position: sticky; top: 0; background: var(--surface); } .pl-mx thead th.late { color: var(--neg); }
+.pl-mx tbody th { text-align: left; font-weight: 600; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.pl-mx td { background: color-mix(in srgb, var(--accent) calc(var(--a, 0) * 100%), transparent); }
+.pl-mx td.t, .pl-mx tr.tt td { font-weight: 700; background: none; } .pl-mx tr.tt th, .pl-mx tr.tt td { border-top: 1px solid var(--fg); }
+@media print { .pl-mx td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 
 </style>
 
@@ -1317,13 +1324,14 @@ html:not(.unl) a.nl.oc, html:not(.unl) .ms-in a[href="#planejamento"], html:not(
   <!-- =============================== PLANEJAMENTO (oculto) -->
   <section class="view" id="v-planejamento" hidden>
     <div class="sim-hero">
-      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · área restrita</span><h2>Planejamento do contrato</h2><p>Saldo do contrato × produção das CPUs, sequência executiva das especificações de serviço e calendário de dias trabalháveis.</p></div>
+      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · área restrita</span><h2>Planejamento do contrato</h2><p>Contrato inteiro (ou saldo da medição) × produção das CPUs, sequência executiva das especificações de serviço e calendário de dias trabalháveis, mês a mês.</p></div>
       <div class="sh-r" id="pl-hero"></div>
     </div>
     <p class="note warn pl-warn" id="pl-warn" hidden>Confira as datas de início e término do contrato em Parâmetros (os valores atuais são provisórios).</p>
     <div class="cv-kpis" id="pl-kpis"></div>
     <div class="panel"><div class="ph"><h3>Cronograma</h3><span><button class="btn" type="button" data-print="planejamento">PDF</button> <button class="btn primary" type="button" id="pl-csv">Exportar (CSV)</button></span></div><div id="pl-gantt"></div></div>
     <div class="panel"><h3>Produção financeira prevista por mês</h3><div id="pl-mes"></div></div>
+    <div class="panel"><h3>Cronograma físico-financeiro mês a mês (R$ mil, PI)</h3><p class="note">Valor de cada pacote em cada mês, pelos dias trabalháveis. A cor mais forte marca o mês de maior produção do pacote; meses em vermelho estão depois do prazo.</p><div class="tbl-wrap"><div id="pl-mat"></div></div></div>
     <div class="panel"><h3>Pacotes de serviço</h3><p class="note">Altere equipes e operários por equipe: o cronograma e o caminho crítico se recalculam.</p><div class="tbl-wrap" id="pl-tab"></div></div>
     <details class="panel sim-prem" open><summary><b>Parâmetros</b></summary><div id="pl-par"></div></details>
     <div id="pl-body"></div>
@@ -3024,9 +3032,10 @@ function initObra(X) {
     { id: 'mob', n: 'Desmobilização', f: 'g', end: 1, dep: [] },
   ];
   const PCOL = { t: '#b8860b', d: '#2a78d6', p: '#7a6a4f', a: '#1d2226', s: '#e8a400', o: '#6250d6', g: '#8a949c' };
-  const PPD = { ini: '2024-08-01', fim: '2027-03-31', base: 'ret', hDia: 8.8, sab: 0.5, cura: 3, lagCam: 7, lagCura: 3, lagSin: 15, lagReg: 30, lagOac: 0, lagDreno: 15, lagSup: 30, lagAmb: 45, lagFim: 15, lag0: 0, desmob: 20, durSem: 60,
+  const PPD = { v: 2, ini: '2024-08-01', fim: '2026-08-01', base: 'total', hDia: 8.8, sab: 0.5, cura: 3, lagCam: 7, lagCura: 3, lagSin: 15, lagReg: 30, lagOac: 0, lagDreno: 15, lagSup: 30, lagAmb: 45, lagFim: 15, lag0: 0, desmob: 20, durSem: 60,
     chuva: [35, 30, 25, 15, 15, 15, 10, 10, 20, 25, 25, 30], frio: [0, 0, 0, 0, 10, 20, 25, 15, 0, 0, 0, 0], eq: {}, op: {} };
-  let PP = Object.assign(JSON.parse(JSON.stringify(PPD)), store.get('planPar', {}));
+  const ppLoad = () => { const o = store.get('planPar', {}); if (o.v !== 2) { delete o.ini; delete o.fim; delete o.base; o.v = 2; } return Object.assign(JSON.parse(JSON.stringify(PPD)), o); };
+  let PP = ppLoad();
   const ppSave = () => store.set('planPar', PP);
   const iso = d => d.toISOString().slice(0, 10), dOf = s => new Date(s + 'T12:00:00Z'), addD = (d, n) => new Date(d.getTime() + n * 864e5);
   const fD = s => s ? s.split('-').reverse().join('/') : '–';
@@ -3046,7 +3055,7 @@ function initObra(X) {
     const I = INS() || {}; const PR = I.prod || {}, CO = I.consumos || {};
     // pavimento pelo retigráfico (até a estaca final da britagem, fora das travas)
     let rq = null;
-    if (PP.base === 'ret') { if (!AV) avLoad(); const R = bRest(); const Q = cellQ(); const lim = bLim(); const rem = (id, col) => { const f = AV.frentes.find(x => x.id === id); let q = 0; for (let k = 0; k < Math.min(NC, lim); k++) if (!isLk(k) && !(f && f.c[k] === '2')) q += Q[col][k]; return q; };
+    if (PP.base === 'ret__') { if (!AV) avLoad(); const R = bRest(); const Q = cellQ(); const lim = bLim(); const rem = (id, col) => { const f = AV.frentes.find(x => x.id === id); let q = 0; for (let k = 0; k < Math.min(NC, lim); k++) if (!isLk(k) && !(f && f.c[k] === '2')) q += Q[col][k]; return q; };
       const imp = rem('p6', 'Imprimação EAI (m²)'), cb = rem('p7', 'CBUQ (t)'), rr = rem('p7', 'Pintura RR-1C (m²)');
       rq = { '530200': R.ref1.vol + R.ref2.vol + R.sub.vol, '531100': R.base.vol, '560100': imp, '570400': cb, '561100': rr, '589000': cb * par('cap'), '589190': imp * par('eai') / 1000, '589420': rr * par('rr') / 1000 }; }
     const GR = X.reajG ? X.reajG() : [];
@@ -3057,7 +3066,7 @@ function initObra(X) {
       if (g === 'LIG') pk = cod === '589190' ? 'imp' : 'cbuq';
       if (g === 'DREN') pk = /bueiro|BSTC|BDTC|BTTC|BSCC|corpo de|boca de b|escoramento|meia cana/i.test(sv) ? 'oac' : /dreno|talvegue|PEAD|geot[eê]xtil|brita para dreno|valas de drenagem/i.test(sv) ? 'dreno' : /gabi[aã]o/i.test(sv) ? 'cont' : 'drensup';
       const pkg = PKG.find(p => p.id === pk);
-      const saldoC = Math.max(0, c.qtd - (ac[c.linha] || 0));
+      const tot = PP.base === 'total'; const saldoC = tot ? c.qtd : Math.max(0, c.qtd - (ac[c.linha] || 0));
       const saldo = rq && rq[cod] !== undefined && (g === 'PAV' || g === 'LIG') ? Math.max(0, rq[cod]) : saldoC;
       const pr = +PR[cod] || 0; const mo = (CO[cod] || []).filter(r => r[0] === 'Mão de obra').reduce((s, r) => s + r[4], 0); const eqh = Math.max(0, ...(CO[cod] || []).filter(r => r[0] === 'Equipamento').map(r => r[4]));
       const op = +(PP.op[pk] ?? pkg.op ?? 8);
@@ -3068,13 +3077,13 @@ function initObra(X) {
   }
   function planRun(k = 1) {
     const IT = planItens(); if (!IT) return null;
-    const st = dOf(PP.status || today()); const P = {};
+    const st = PP.base === 'total' ? dOf(PP.ini) : dOf(PP.status || today()); const P = {};
     for (const p of PKG) { const its = IT.filter(i => i.pk === p.id); P[p.id] = { ...p, its, W: its.reduce((s, i) => s + i.h, 0), v: its.reduce((s, i) => s + i.v, 0), vR: its.reduce((s, i) => s + i.v * i.R, 0), eqn: +(PP.eq[p.id] ?? p.eq ?? 1) * k,
       tot: its.reduce((s, i) => s + i.qtd * i.preco, 0), done: its.reduce((s, i) => s + Math.max(0, i.qtd - i.saldoC) * i.preco, 0) }; }
     const lagOf = key => +(PP[key] ?? 0);
     const order = []; const seen = new Set(); const visit = id => { if (seen.has(id)) return; seen.add(id); for (const [d] of P[id].dep) visit(d); order.push(id); }; PKG.forEach(p => visit(p.id));
     for (const id of order) { const p = P[id]; if (p.span || p.end) continue;
-      let S = st, why = 'data de status'; for (const [d, t, l] of p.dep) if (t === 'SS' && P[d].S) { const c = addD(P[d].S, lagOf(l)); if (c > S) { S = c; why = `${t} ${P[d].n} + ${lagOf(l)} d`; } }
+      let S = st, why = PP.base === 'total' ? 'início do contrato' : 'data de status'; for (const [d, t, l] of p.dep) if (t === 'SS' && P[d].S) { const c = addD(P[d].S, lagOf(l)); if (c > S) { S = c; why = `${t} ${P[d].n} + ${lagOf(l)} d`; } }
       let F = S, w = 0, guard = 0; const cap = PP.hDia * p.eqn;
       if (p.W > 1e-9) { while (w < p.W && guard++ < 4000) { w += cap * dayF(F, p); F = addD(F, 1); } } 
       let whyF = 'produção'; for (const [d, t, l] of p.dep) if (t === 'FF' && P[d].F) { const c = addD(P[d].F, lagOf(l)); if (c > F && p.W > 1e-9) { F = c; whyF = `${t} ${P[d].n} + ${lagOf(l)} d`; } }
@@ -3111,10 +3120,11 @@ function initObra(X) {
     const saldo = ps.reduce((s, p) => s + p.v, 0), saldoR = ps.reduce((s, p) => s + p.vR, 0);
     const tot = Object.values(R.P).reduce((s, p) => s + p.tot, 0), done = Object.values(R.P).reduce((s, p) => s + p.done, 0);
     const prazoTot = Math.round((fim - ini) / 864e5), dec = Math.round((R.st - ini) / 864e5);
-    $('#pl-hero').innerHTML = `<div><span>Término previsto</span><b class="${folga < 0 ? 'late' : ''}">${fD(iso(R.end))}</b></div><div><span>Prazo contratual</span><b>${fD(PP.fim)}</b></div><div><span>${folga < 0 ? 'Atraso' : 'Folga'}</span><b class="${folga < 0 ? 'late' : ''}">${Math.abs(folga)} dias</b></div><div><span>Saldo a executar (PI)</span><b>${mi$(saldo)}</b></div>`;
+    $('#pl-hero').innerHTML = `<div><span>Término previsto</span><b class="${folga < 0 ? 'late' : ''}">${fD(iso(R.end))}</b></div><div><span>Prazo contratual</span><b>${fD(PP.fim)}</b></div><div><span>${folga < 0 ? 'Atraso' : 'Folga'}</span><b class="${folga < 0 ? 'late' : ''}">${Math.abs(folga)} dias</b></div><div><span>${PP.base === 'total' ? 'Valor do contrato (PI)' : 'Saldo a executar (PI)'}</span><b>${mi$(saldo)}</b></div>`;
     const K = (l, v, s, c) => `<div class="cv-k${c ? ' ' + c : ''}"><span>${l}</span><b>${v}</b><small>${s}</small></div>`;
     const months = planMonths(R); const pico = Math.max(0, ...months.map(m => m.pi));
-    $('#pl-kpis').innerHTML = [K('Prazo decorrido', fPc(dec / prazoTot), `${dec} de ${prazoTot} dias (${fD(PP.ini)} a ${fD(PP.fim)})`), K('Executado (medido, PI)', fPc(done / tot), `${mi$(done)} de ${mi$(tot)}`),
+    const TT = PP.base === 'total'; const pzM = Math.round(prazoTot / 30.44); const durM = Math.round((R.end - R.st) / 864e5 / 30.44);
+    $('#pl-kpis').innerHTML = [TT ? K('Prazo do contrato', `${pzM} meses`, `${prazoTot} dias · ${fD(PP.ini)} a ${fD(PP.fim)}`) : K('Prazo decorrido', fPc(dec / prazoTot), `${dec} de ${prazoTot} dias (${fD(PP.ini)} a ${fD(PP.fim)})`), TT ? K('Duração simulada', `${durM} meses`, `contrato inteiro: ${mi$(saldo)} (PI) + R ${mi$(saldoR)}`) : K('Executado (medido, PI)', fPc(done / tot), `${mi$(done)} de ${mi$(tot)}`),
       K('Para cumprir o prazo', pf.ok ? 'no prazo' : pf.imp ? 'inviável' : `${NF[1].format(pf.k)}× equipes`, pf.ok ? 'com as equipes informadas' : pf.imp ? 'nem com 8× as equipes: sequência e esperas das normas dominam' : 'reforço sobre todas as equipes', pf.ok ? 'ok' : 'bad'),
       K('Pico mensal', mi$(pico), `média ${mi$(saldo / Math.max(1, months.length))}/mês em ${months.length} meses · R ${mi$(saldoR)}`)].join('');
     // Gantt
@@ -3127,7 +3137,7 @@ function initObra(X) {
       g += `<text x="${LW - 8}" y="${y + rh / 2 + 4}" class="pn${R.crit.has(p.id) ? ' cr' : ''}" text-anchor="end">${esc(p.n)}</text>`;
       if (pd > 0.001) g += `<rect x="${X_(ini)}" y="${y + rh * .35}" width="${Math.max(1, X_(R.st) - X_(ini))}" height="${rh * .3}" class="ex"><title>${esc(p.n)}: executado ${fPc(pd)} (medido)</title></rect><text x="${X_(R.st) - 4}" y="${y + rh * .35 - 2}" class="px" text-anchor="end">${NF[0].format(pd * 100)}%</text>`;
       if (p.S) g += `<rect x="${X_(p.S)}" y="${y}" width="${Math.max(3, X_(p.F) - X_(p.S))}" height="${rh}" rx="3" fill="${PCOL[p.f]}" class="pb${R.crit.has(p.id) ? ' cr' : ''}"><title>${esc(p.n)}: ${fD(iso(p.S))} a ${fD(iso(p.F))} · início por ${esc(p.why)}${p.whyF && p.whyF !== 'produção' ? ' · término por ' + esc(p.whyF) : ''} · saldo ${fR(p.v)}</title></rect>`; });
-    g += `<line x1="${X_(R.st)}" x2="${X_(R.st)}" y1="${top - 8}" y2="${H}" class="hj"/><text x="${X_(R.st) + 3}" y="${H - 2}" class="hjt">status ${fD(iso(R.st))}</text>`;
+    if (PP.base !== 'total') g += `<line x1="${X_(R.st)}" x2="${X_(R.st)}" y1="${top - 8}" y2="${H}" class="hj"/><text x="${X_(R.st) + 3}" y="${H - 2}" class="hjt">status ${fD(iso(R.st))}</text>`;
     g += `<line x1="${X_(fim)}" x2="${X_(fim)}" y1="${top - 8}" y2="${H}" class="pz"/><text x="${X_(fim) - 3}" y="${top - 1}" class="pzt" text-anchor="end">prazo ${fD(PP.fim)}</text>`;
     if (R.end > fim) g += `<line x1="${X_(R.end)}" x2="${X_(R.end)}" y1="${top - 8}" y2="${H}" class="pz late"/>`;
     $('#pl-gantt').innerHTML = `<div class="cv-sc"><svg viewBox="0 0 ${W} ${H}" class="pl-svg" role="img" aria-label="Cronograma do contrato">${g}</svg></div>
@@ -3141,18 +3151,26 @@ function initObra(X) {
     const mx = Math.max(1, ...months.map(m => m.pi + m.r)); let ac = 0;
     $('#pl-mes').innerHTML = `<div class="pl-bars">${months.map(m => { ac += m.pi; return `<div class="pl-b" title="${mesNomeS(m.ym)}: PI ${fR(m.pi)} · R ${fR(m.r)} · acumulado ${fR(ac)}"><span class="v">${NF[1].format((m.pi + m.r) / 1e6)}</span><span class="c"><i style="height:${(m.pi + m.r) / mx * 100}%"></i></span><em class="${m.ym > PP.fim.slice(0, 7) ? 'late' : ''}">${mesNomeS(m.ym)}</em></div>`; }).join('')}</div>
       <p class="note">R$ milhões por mês (PI + R), saldo a executar distribuído pelos dias trabalháveis de cada pacote. Meses em vermelho estão depois do prazo contratual.</p>`;
+    // mês a mês por pacote
+    const MM = months.map(m => m.ym); let acm = 0; const totPI = months.reduce((s2, m) => s2 + m.pi, 0);
+    $('#pl-mat').innerHTML = `<table class="pl-mx"><thead><tr><th>Pacote</th>${MM.map(ym => `<th class="${ym > PP.fim.slice(0, 7) ? 'late' : ''}">${mesNomeS(ym)}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+      ${rows.filter(p0 => R.P[p0.id].v > 0.5).map(p0 => { const p = R.P[p0.id]; const vs = months.map(m => m.by[p.id] || 0); const mx2 = Math.max(...vs, 1);
+        return `<tr><th><i class="dot" style="background:${PCOL[p.f]}"></i> ${esc(p.n)}</th>${vs.map(v => `<td style="--a:${(v / mx2 * .85).toFixed(2)}" title="${esc(p.n)}: ${fR(v)}">${v > 500 ? NF[0].format(v / 1e3) : ''}</td>`).join('')}<td class="t">${NF[0].format(p.v / 1e3)}</td></tr>`; }).join('')}
+      <tr class="tt"><th>Total PI (R$ mil)</th>${months.map(m => `<td>${NF[0].format(m.pi / 1e3)}</td>`).join('')}<td class="t">${NF[0].format(totPI / 1e3)}</td></tr>
+      <tr class="tt"><th>PI + R (R$ mil)</th>${months.map(m => `<td>${NF[0].format((m.pi + m.r) / 1e3)}</td>`).join('')}<td class="t">${NF[0].format((totPI + saldoR) / 1e3)}</td></tr>
+      <tr class="tt"><th>Acumulado (% do PI)</th>${months.map(m => { acm += m.pi; return `<td>${NF[0].format(acm / Math.max(1, totPI) * 100)}%</td>`; }).join('')}<td class="t">100%</td></tr></tbody></table>`;
     // parâmetros
     const inp = (k, l, u, t = 'n') => `<label class="lbl">${l} <input class="pl-p" data-k="${k}" ${t === 'd' ? 'type="date"' : 'inputmode="decimal"'} value="${t === 'd' ? (PP[k] || '') : NF[1].format(+PP[k])}"> ${u}</label>`;
     if (!$('#pl-par').dataset.ok) {
-      $('#pl-par').innerHTML = `<div class="bpar"><fieldset><legend>Contrato</legend>${inp('ini', 'Início do contrato', '', 'd')}${inp('fim', 'Término do contrato', '', 'd')}<label class="lbl">Data de status <input class="pl-p" data-k="status" type="date" value="${PP.status || today()}"></label>
-          <label class="lbl">Quantidades do pavimento <select class="pl-p" data-k="base"><option value="ret"${PP.base === 'ret' ? ' selected' : ''}>restante pelo retigráfico</option><option value="ctr"${PP.base === 'ctr' ? ' selected' : ''}>saldo do contrato</option></select></label></fieldset>
+      $('#pl-par').innerHTML = `<div class="bpar"><fieldset><legend>Contrato</legend>${inp('ini', 'Início do contrato', '', 'd')}${inp('fim', 'Término do contrato', '', 'd')}<label class="lbl">Simular <select class="pl-p" data-k="base"><option value="total"${PP.base === 'total' ? ' selected' : ''}>o contrato inteiro (desde o início)</option><option value="saldo"${PP.base === 'saldo' ? ' selected' : ''}>o saldo da medição (a partir da data de status)</option></select></label>
+          <label class="lbl">Data de status (saldo) <input class="pl-p" data-k="status" type="date" value="${PP.status || today()}"></label></fieldset>
         <fieldset><legend>Jornada</legend>${inp('hDia', 'Horas por dia', 'h')}${inp('sab', 'Sábado (fração do dia)', '')}${inp('desmob', 'Desmobilização', 'dias')}${inp('durSem', 'Pacote sem produção na CPU', 'dias')}</fieldset>
         <fieldset><legend>Sequência executiva (dias)</legend>${inp('lagCam', 'Liberação de cada camada (controle tecnológico)', 'd')}${inp('lagCura', 'Cura da imprimação antes do CBUQ', 'd')}${inp('lagSin', 'Sinalização definitiva após o CBUQ', 'd')}${inp('lagReg', 'Regularização após início da terraplenagem', 'd')}${inp('lagDreno', 'Drenos após início da terraplenagem', 'd')}${inp('lagSup', 'Drenagem superficial após início da terraplenagem', 'd')}${inp('lagAmb', 'Revestimento vegetal após terraplenagem', 'd')}${inp('lagFim', 'Acabamentos após o CBUQ', 'd')}</fieldset>
         <fieldset class="pl-cl"><legend>Dias perdidos por mês (%)</legend><div class="pl-mg"><span></span>${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map(m => `<span>${m}</span>`).join('')}
           <span>chuva</span>${PP.chuva.map((v, i) => `<input class="pl-c" data-k="chuva" data-i="${i}" inputmode="decimal" value="${v}">`).join('')}<span>frio (asfalto)</span>${PP.frio.map((v, i) => `<input class="pl-c" data-k="frio" data-i="${i}" inputmode="decimal" value="${v}">`).join('')}</div></fieldset></div>
         <p class="note">Produção por equipe: produção horária da CPU do contrato; nas CPUs sem produção definida, operários por equipe ÷ horas de mão de obra por unidade da CPU. Fornecimentos (CAP, emulsões) acompanham o pacote. Domingos e feriados nacionais não contam; a chuva reduz os pacotes sensíveis e o frio reduz imprimação e CBUQ (não executar com temperatura abaixo de 10 °C nem com chuva, conforme as especificações de serviço). <button type="button" class="lnk" id="pl-reset">Voltar aos parâmetros padrão</button></p>`;
       $('#pl-par').dataset.ok = '1'; }
-    $('#pl-warn').hidden = !!store.get('planPar', {}).fim;
+    $('#pl-warn').hidden = true;
   }
   function planInit() {
     const v = $('#v-planejamento'); if (!v) return;
@@ -3438,7 +3456,7 @@ function initObra(X) {
     for (const k of Object.keys(SP)) delete SP[k]; Object.assign(SP, { dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
     SIM = store.get('simSel', {}); MESES = store.get('simMeses', null) || [ymNext(ymNow())]; MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
     BPO = store.get('britPar', {}); BBASE = store.get('britBase', null); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
-    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null); PP = Object.assign(JSON.parse(JSON.stringify(PPD)), store.get('planPar', {}));
+    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null); PP = ppLoad();
   }
   function avMaster() { if (!AV) avLoad(); const c = JSON.parse(JSON.stringify(AV)); c.ts = Date.now(); return c; }
   function avIsLocal() { const l = store.get(AVKEY, null); const m = D.mestre && D.mestre.retigrafico; return !!(l && (!m || (l.ts || 0) > (m.ts || 0))); }
