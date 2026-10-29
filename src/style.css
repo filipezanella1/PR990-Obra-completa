@@ -700,7 +700,7 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " ðŸ
 .sb-row .sp { flex: 1; }
 .sb-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .bchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: .88rem; }
-.bchip.on { background: #fff4bf; border-color: #b38f00; box-shadow: inset 0 0 0 1px #b38f00; font-weight: 600; color: #1d2226; }
+.bchip.on { background: var(--fg); border-color: var(--fg); font-weight: 600; color: var(--surface); }
 .sim-brush .note { margin: 0; }
 .sim-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 1200px) { .sim-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -732,7 +732,7 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " ðŸ
 .stab tr:not(.cont) td { border-top: 1px solid var(--line); }
 .stab td { border-bottom: 0; }
 .stab tr.tot td { border-top: 2px solid var(--fg); font-weight: 700; font-size: .95rem; }
-.blk.sim .lrow.inb .ln { background: #fff4bf; }
+.blk.sim .lrow.inb .ln { background: var(--info-bg); box-shadow: inset 3px 0 0 var(--fg); }
 .blk.sim .lrow .ln .fn { display: inline-flex; align-items: center; gap: 4px; }
 .blk.sim .lrow .ln .dot { width: 8px; height: 8px; }
 .sim-prem summary { cursor: pointer; }
@@ -773,7 +773,7 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " ðŸ
 
 /* simulaÃ§Ã£o por mÃªs */
 .mchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px 4px 4px; cursor: pointer; font-size: .9rem; font-weight: 600; }
-.mchip.on { border-color: #8a5000; box-shadow: 0 0 0 2px #f2a900; }
+.mchip.on { border-color: var(--fg); box-shadow: 0 0 0 2px var(--fg); }
 .msw { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; font: 700 .7rem var(--f-mono); font-style: normal; border: 1px solid rgba(0,0,0,.25); }
 .sw.msw { min-width: 18px; height: 16px; border-radius: 3px; font-size: .62rem; }
 th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: middle; }
@@ -828,3 +828,7 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
   #v-britagem .panel, .sim-britp { break-inside: avoid; }
 }
 @media (max-width: 760px) { table.itbl td.emp { display: none; } .bprog td.bc { min-width: 0; } }
+
+@media (min-width: 981px) { .sim-row.wide { grid-template-columns: minmax(0, 1fr); } }
+@media print { .sim-row.wide { grid-template-columns: minmax(0, 1fr) !important; } .bchip.on { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+.bchip.on .dot { box-shadow: 0 0 0 2px var(--surface); }

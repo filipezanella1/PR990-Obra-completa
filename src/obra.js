@@ -211,8 +211,9 @@ export function initObra(X) {
   }
   const par = k => SP[k] ?? ({ cap: S.cap, eai: S.eai, rr: S.rr })[k];
   // ---------- meses da simulação: cada célula guarda o mês em que foi simulada ('0' = não simulada, '1'…'6' = mês 1…6)
-  const MCOL = ['#ffe08a', '#ffc933', '#f2a900', '#d98a00', '#b36b00', '#8a5000'];   // um tom (âmbar) do mais claro ao mais escuro, na ordem do tempo
-  const MTXT = ['#3d3000', '#3d3000', '#2b1f00', '#fff', '#fff', '#fff'];
+  // uma cor por mês (paleta categórica validada: vizinhos distinguíveis, inclusive para daltonismo); o número do mês vai na célula
+  const MCOL = ['#2a78d6', '#eb6834', '#6250d6', '#e34948', '#eda100', '#e87ba4'];
+  const MTXT = ['#fff', '#fff', '#fff', '#fff', '#1d2226', '#1d2226'];
   const MMAX = 6;
   const ymNext = ym => { let [y, m] = ym.split('-').map(Number); m++; if (m > 12) { m = 1; y++; } return `${y}-${String(m).padStart(2, '0')}`; };
   const ymNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
@@ -255,6 +256,7 @@ export function initObra(X) {
       (MESES.length < MMAX ? `<button type="button" class="btn sm" id="s-madd">+ ${mesNomeS(ymNext(MESES[MESES.length - 1]))}</button>` : '') + (MESES.length > 1 ? `<button type="button" class="lnk" id="s-mdel">remover ${mesNomeS(MESES[MESES.length - 1])}</button>` : '');
     $('#s-legend').innerHTML = `<span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw atk"></i>em execução (atacado)</span>${MESES.map((ym, i) => `<span class="lg1"><i class="sw msw" style="background:${MCOL[i]};color:${MTXT[i]}">${mesNum(ym)}</i>simulado em ${mesNomeS(ym)}</span>`).join('')}<span class="lg1"><i class="sw"></i>a executar</span>${lockLen() ? '<span class="lg1"><i class="sw lkb"></i>não será executado</span>' : ''}`;
     drawGrid(true);
+    $('#v-simulacao .sim-row').classList.toggle('wide', MESES.length > 2);
     const R = simCalc();
     const pet = R.filter(r => r.mat === 'bica' || r.mat === 'bgs').reduce((s, r) => s + Object.values(r.m)[0], 0);
     const g = (id) => R.find(r => r.id === id);
@@ -443,6 +445,9 @@ export function initObra(X) {
     $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Mês', 'Serviço', 'Estacas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
       for (const [mi, ym] of MESES.entries()) for (const r of R) { const o = r.bm[mi]; if (!o.cnt) continue; const sl = simSel(r.id); const est = []; for (let i = 0; i < NC; i++) if (sl[i] === String(mi + 1) && !isLk(i)) est.push(i);
         for (const [k, v] of Object.entries(o.m)) L.push([mesNomeS(ym), r.n, est.join(' '), o.ext, o.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']); }
+      L.push([], ['Demanda de britagem (sem CBUQ)', 'Mês', 'Volume (m³)', 'A britar (t)', ...PRD.map(p => p.n + ' (t)')]);
+      for (const r of R.filter(r => r.mat === 'bica' || r.mat === 'bgs')) for (const [mi, ym] of MESES.entries()) { const o = r.bm[mi]; if (!o.cnt) continue; const sp = bSplit(r.mat, o.q); L.push([r.n, mesNomeS(ym), o.q, sp.t, ...PRD.map(p => sp[p.id])]); }
+      L.push([`Britagem: densidade bica ${NF[2].format(bDens('bica'))} t/m³ · BGS ${NF[2].format(bDens('bgs'))} t/m³ (estudo de britagem)`]);
       L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);
       download(`simulacao_materiais_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
     $('#a-trv').onclick = need(() => { const a = parseEstIn($('#a-tei').value), b = parseEstIn($('#a-tef').value);
@@ -528,14 +533,20 @@ export function initObra(X) {
     const s = Object.fromEntries(PRD.map(p => [p.id, bp('estoque.' + p.id)]));
     let fStock = bp('rocha.furos') * bp('rocha.hEst'); const rD = bp('rocha.dens'), m3m = bp('rocha.m3m'), fCap = bp('rocha.furCap');
     const out = [];
+    // meta de produção: o que passa da capacidade de um mês é britado antes (estoque); o estoque inicial abate as primeiras demandas
+    const tgt = {}, Ct = {}, Pc = {};
+    for (const p of PRD) { let st = Math.max(0, s[p.id]); const net = M.map(ym => { const dm = (dem[ym] && dem[ym].reb[p.id]) || 0; const u = Math.min(st, dm); st -= u; return dm - u; });
+      const cap = bCap(p); const t = new Array(M.length).fill(0); let carry = 0; for (let i = M.length - 1; i >= 0; i--) { const req = net[i] + carry; t[i] = Math.min(cap, req); carry = req - t[i]; }
+      if (carry > 0) t[0] += carry;   // não cabe nem antecipando: fica para o primeiro mês e vira falta
+      tgt[p.id] = t; Ct[p.id] = 0; Pc[p.id] = 0; }
     for (let i = 0; i < M.length || (i < M.length + 12 && PRD.some(p => s[p.id] < -0.5)); i++) {
       const ym = M[i] || ymAdd(S0, i); const d = dem[ym] || { reb: {} };
       const row = { ym, p: {}, rocha: 0, fNeed: 0, drill: 0, fUse: 0, fac: 1 };
-      for (const p of PRD) { const dm = d.reb[p.id] || 0; const cap = bCap(p); const need = Math.max(0, dm - s[p.id]); row.p[p.id] = { reb: dm, dem: dm, cap, pre: Math.min(cap, need) }; }
+      for (const p of PRD) { const dm = d.reb[p.id] || 0; const cap = bCap(p); Ct[p.id] += (tgt[p.id][i] || 0); const need = Math.max(0, Ct[p.id] - Pc[p.id]); row.p[p.id] = { reb: dm, dem: dm, cap, pre: Math.min(cap, need) }; }
       const tot = PRD.reduce((a, p) => a + row.p[p.id].pre, 0); const fNeed = tot / rD / m3m;
       const drill = Math.min(fCap, Math.max(0, fNeed - fStock)); const av = fStock + drill; const use = Math.min(fNeed, av); fStock = av - use; const fac = fNeed > 1e-9 ? use / fNeed : 1;
       Object.assign(row, { fNeed, drill, fUse: use, fStock, fac, fCap });
-      for (const p of PRD) { const o = row.p[p.id]; o.prod = o.pre * fac; s[p.id] += o.prod - o.dem; o.s = s[p.id]; o.util = o.cap ? o.prod / o.cap : 0; }
+      for (const p of PRD) { const o = row.p[p.id]; o.prod = o.pre * fac; Pc[p.id] += o.prod; s[p.id] += o.prod - o.dem; o.s = s[p.id]; o.util = o.cap ? o.prod / o.cap : 0; }
       row.tot = PRD.reduce((a, p) => a + row.p[p.id].prod, 0); row.rocha = row.tot; row.m3 = row.tot / rD; row.furos = row.fUse / bp('rocha.hFuro');
       out.push(row);
     }
@@ -633,7 +644,7 @@ export function initObra(X) {
   function simBrit(R) {
     const rows = R.filter(r => r.mat === 'bica' || r.mat === 'bgs').map(r => { const mat = r.mat === 'bgs' ? 'bgs' : 'bica'; return { r, mat, tot: bSplit(mat, r.q), bm: r.bm.map(o => bSplit(mat, o.q)) }; });
     const prods = PRD.filter(p => rows.some(x => x.tot[p.id] > 0.005) || p.id === 'bica');
-    const capB = bCap(PRD[1]);
+    const capB = bCap(PRD.find(p => p.id === 'bica'));
     const mT = MESES.map((_, i) => rows.reduce((a, x) => a + x.bm[i].t, 0)), mB = MESES.map((_, i) => rows.reduce((a, x) => a + x.bm[i].bica, 0));
     const tot = rows.reduce((a, x) => a + x.tot.t, 0), m3 = tot / bp('rocha.dens'), fur = m3 / bp('rocha.m3m');
     const T0 = v => Math.abs(v) < 0.05 ? '–' : NF[1].format(v);

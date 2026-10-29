@@ -246,7 +246,7 @@
       <div class="panel"><h3>Produção por mês</h3><p class="note">Toneladas a britar em cada mês, por produto, limitadas pela capacidade de cada britador e pela furação.</p><div id="b-chart"></div></div>
       <div class="panel"><h3>Desmonte e furação</h3><div class="tbl-wrap" id="b-fur"></div></div>
     </div>
-    <div class="panel"><h3>Programa de britagem por produto</h3><p class="note">Em cada mês: toneladas a produzir, uso da capacidade e saldo (estoque ou falta que passa para o mês seguinte).</p><div class="tbl-wrap" id="b-prog"></div></div>
+    <div class="panel"><h3>Programa de britagem por produto</h3><p class="note">Em cada mês: toneladas a produzir, uso da capacidade e saldo. Quando a demanda de um mês passa da capacidade, a britagem adianta a produção nos meses anteriores (estoque); o que não couber vira falta e passa para o mês seguinte.</p><div class="tbl-wrap" id="b-prog"></div></div>
     <details class="panel sim-prem"><summary><b>Parâmetros da britagem</b> <span class="note" id="b-prem-sum"></span></summary><div id="b-par"></div></details>
   </section>
 
@@ -391,7 +391,7 @@
   <div class="lk-act"><button class="btn" type="button" id="pdf-x">Cancelar</button><button class="btn primary" type="button" id="pdf-go">Gerar PDF</button></div>
 </div></div>
 <div class="srch" id="srch" hidden role="dialog" aria-label="Buscar"><div class="srch-in"><div class="srch-bar"><input type="search" id="srch-q" placeholder="Código, serviço, insumo, prancha ou estaca" aria-label="Buscar"><button class="btn" id="srch-x" type="button">Fechar</button></div><div class="srch-out" id="srch-out"></div></div></div>
-<footer class="wrap">PR-990 · Projeto Executivo de Implantação entre a PR-364 e Rebouças · contrato R$ 87.300.000,00 (medição provisória ago/2026) · <span id="app-ver">versão __BUILD__</span></footer>
+<footer class="wrap">PR-990 · Projeto Executivo de Implantação entre a PR-364 e Rebouças · contrato R$ 87.300.000,00 (medição provisória ago/2026)<span id="app-ver"> · versão __BUILD__</span></footer>
 <!--JS--><script type="module" src="src/app.js?v=__BUILD__"></script><!--/JS-->
 </body>
 </html>
