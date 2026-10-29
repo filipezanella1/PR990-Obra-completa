@@ -557,14 +557,29 @@ function pwa() {
     $('#ios-tip').hidden = false;
   });
   $('#ios-tip-x').addEventListener('click', () => { $('#ios-tip').hidden = true; });
+  { const v = $('#app-ver'); if (v && /_{2}BUILD/.test(v.textContent)) v.hidden = true; }
   if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    const ask = w => { if (!w || !navigator.serviceWorker.controller) return; $('#update-bar').hidden = false; $('#update-go').onclick = () => w.postMessage('skipWaiting'); };
+  // atualização do app instalado: procura versão nova ao abrir, ao voltar para o app e a cada 30 min;
+  // achou logo na abertura ou com o app em segundo plano, aplica sozinho; com o app em uso, mostra a barra "Atualizar"
+  let reloading = false, want = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (want && !reloading) { reloading = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    let pend = null, used = false;
+    const mark = () => { used = true; }; addEventListener('pointerdown', mark, { once: true }); addEventListener('keydown', mark, { once: true });
+    const apply = () => { if (!pend) return; want = true; pend.postMessage('skipWaiting'); };
+    const ask = w => {
+      if (!w || !navigator.serviceWorker.controller) return;
+      pend = w;
+      if (document.hidden || !used) return apply();       // ninguém mexeu ainda: atualiza direto
+      $('#update-bar').hidden = false; $('#update-go').onclick = apply;
+    };
+    const check = () => reg.update().catch(() => { });
     if (reg.waiting) ask(reg.waiting);
     reg.addEventListener('updatefound', () => { const w = reg.installing; w && w.addEventListener('statechange', () => { if (w.state === 'installed') ask(w); }); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) apply(); else check(); });
+    window.addEventListener('focus', check); window.addEventListener('online', check);
+    setInterval(check, 30 * 60e3);
   }).catch(() => { });
-  let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading && !$('#update-bar').hidden) { reloading = true; location.reload(); } });
 }
 
 // ---------------------------------------------------------------- módulos de obra
