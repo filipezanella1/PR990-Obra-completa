@@ -126,8 +126,12 @@ for o in oac:
         if lab: o['t'] = re.sub(r'\s*Estaca.*', '', lab); o['obs'] = f'rótulo no retigráfico: "{lab}"'
 print(len(oac), 'OAC:', sum(o['st'] == 'c' for o in oac), 'concluídos ·', sum(o['st'] == 'a' for o in oac), 'atacados ·', sum(o['st'] == 'n' for o in oac), 'não iniciados')
 print('rótulos sem ícone:', [labs[k][0] for k in range(len(labs)) if k not in used])
-try: TRAV = json.load(open(dst, encoding='utf-8')).get('travas', [])
-except Exception: TRAV = []
-json.dump(dict(travas=TRAV, fonte=f'Retigráfico da obra 515 – PR-990 Rebouças (TCE), atualização de {upd.strftime("%d/%m/%Y")}', data=upd.isoformat(),
+try: OLD = json.load(open(dst, encoding='utf-8'))
+except Exception: OLD = {}
+TRAV = OLD.get('travas', []); FIX = OLD.get('oacFix', [])   # travas e correções manuais de OAC continuam valendo
+for fx in FIX:
+    for o in oac:
+        if abs(o['e'] - fx['e']) < 0.01: o['st'] = fx['st']
+json.dump(dict(travas=TRAV, oacFix=FIX, fixRev=OLD.get('fixRev', 0) + (1 if FIX else 0), fonte=f'Retigráfico da obra 515 – PR-990 Rebouças (TCE), atualização de {upd.strftime("%d/%m/%Y")}', data=upd.isoformat(),
                frentes=frentes, oac=oac, oae=[dict(e0=235.3, e1=237.05, n='Ponte sobre o Rio do Salto')]),
           open(dst, 'w', encoding='utf-8'), ensure_ascii=False)

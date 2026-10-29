@@ -168,7 +168,9 @@ export function initObra(X) {
     const b = D.avanco;
     return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, travas: (b.travas || []).map(t => ({ ...t })), atualizado: b.data };
   }
-  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); if (!AV.travas) AV.travas = (D.avanco.travas || []).map(t => ({ ...t })); LK = null; }
+  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); if (!AV.travas) AV.travas = (D.avanco.travas || []).map(t => ({ ...t }));
+    if ((AV.fixRev || 0) < (D.avanco.fixRev || 0)) { for (const fx of D.avanco.oacFix || []) { const o = AV.oac.find(x => Math.abs(x.e - fx.e) < 0.01); if (o) o.st = fx.st; } AV.fixRev = D.avanco.fixRev; store.set(AVKEY, AV); }
+    LK = null; }
   // ---------- travas: segmentos que não serão executados (não entram em "falta", nem na simulação)
   let LK = null;
   function lockSet() { if (LK) return LK; LK = new Uint8Array(NC); for (const t of AV.travas || []) for (let k = Math.max(0, Math.floor(t.e0 + 1e-9)); k < Math.min(NC, Math.ceil(t.e1 - 1e-9)); k++) LK[k] = 1; return LK; }
