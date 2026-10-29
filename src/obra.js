@@ -473,7 +473,6 @@ export function initObra(X) {
   // Premissas do estudo de britagem (data/britagem.json) com ajustes do usuário (britPar: caminho → valor);
   // demanda restante = retigráfico (o que não está concluído até a estaca final) × volumes por estaca × densidade × composição
   const PRD = [   // produtos da britagem; cores: paleta categórica (slots 1–5) da biblioteca de gráficos
-    { id: 'mac', n: 'Macadame / rachão', fx: '5" a 2"', pri: true, c: '#2a78d6' },
     { id: 'bica', n: 'Bica corrida', fx: '1 1/4" ao fundo', c: '#eb6834' },
     { id: 'b1', n: 'Brita 01', fx: '7/8" a 3/8"', c: '#1baf7a' },
     { id: 'ped', n: 'Pedrisco', fx: '3/8" a 3/16"', c: '#eda100' },
@@ -502,7 +501,6 @@ export function initObra(X) {
   const bStart = () => BST.ini || ymNext(ymNow());
   const bLim = () => BST.lim ?? 624;
   const bMode = () => BST.mode || 'prazo';
-  const bRio = () => BST.rio ?? true;
   const bSch = r => { const s = (BST.sch || {})[r.id]; return s || { i: ymAdd(bStart(), r.d0), f: ymAdd(bStart(), r.d1) }; };
   // o que falta de cada serviço do pavimento (não concluído no retigráfico, antes da estaca final e fora das travas)
   function bRest() {
@@ -519,22 +517,21 @@ export function initObra(X) {
   // demanda mensal (t por produto) e programa de britagem limitado pela capacidade e pela furação
   function bPlan() {
     const R = bRest(), S0 = bStart(), mode = bMode(); const dem = {}; const rows = [];
-    const add = (ym, mat, vol, src) => { if (!vol) return; if (ymCmp(ym, S0) < 0) ym = S0; const s = bSplit(mat, vol); (dem[ym] ||= { reb: {}, rio: {} }); for (const p of PRD) dem[ym][src][p.id] = (dem[ym][src][p.id] || 0) + s[p.id]; };
+    const add = (ym, mat, vol, src) => { if (!vol) return; if (ymCmp(ym, S0) < 0) ym = S0; const s = bSplit(mat, vol); (dem[ym] ||= { reb: {} }); for (const p of PRD) dem[ym][src][p.id] = (dem[ym][src][p.id] || 0) + s[p.id]; };
     for (const r of BROWS) {
       const o = R[r.id]; const sp = bSplit(r.mat, o.vol); const sch = bSch(r); const bym = {};
       if (mode === 'sim' && !r.xo) { for (const [ym, v] of Object.entries(o.byM)) { add(ym, r.mat, v, 'reb'); bym[ym] = (bym[ym] || 0) + v; } }
       else { const i = ymCmp(sch.i, sch.f) <= 0 ? sch.i : sch.f, f = ymCmp(sch.i, sch.f) <= 0 ? sch.f : sch.i; const ms = []; for (let m = i; ymCmp(m, f) <= 0 && ms.length < 36; m = ymNext(m)) ms.push(m); for (const m of ms) { add(m, r.mat, o.vol / ms.length, 'reb'); bym[m] = o.vol / ms.length; } }
       rows.push({ ...r, ...o, sp, sch, bym });
     }
-    if (bRio()) for (const p of PRD) for (const [ym, t] of Object.entries(D.britagem.riozinho[p.id] || {})) if (ymCmp(ym, S0) >= 0 && t) { (dem[ym] ||= { reb: {}, rio: {} }); dem[ym].rio[p.id] = (dem[ym].rio[p.id] || 0) + t; }
     const last = Object.keys(dem).sort().pop() || S0; const M = []; for (let m = S0; ymCmp(m, last) <= 0; m = ymNext(m)) M.push(m);
     const s = Object.fromEntries(PRD.map(p => [p.id, bp('estoque.' + p.id)]));
     let fStock = bp('rocha.furos') * bp('rocha.hEst'); const rD = bp('rocha.dens'), m3m = bp('rocha.m3m'), fCap = bp('rocha.furCap');
     const out = [];
     for (let i = 0; i < M.length || (i < M.length + 12 && PRD.some(p => s[p.id] < -0.5)); i++) {
-      const ym = M[i] || ymAdd(S0, i); const d = dem[ym] || { reb: {}, rio: {} };
+      const ym = M[i] || ymAdd(S0, i); const d = dem[ym] || { reb: {} };
       const row = { ym, p: {}, rocha: 0, fNeed: 0, drill: 0, fUse: 0, fac: 1 };
-      for (const p of PRD) { const dm = (d.reb[p.id] || 0) + (d.rio[p.id] || 0); const cap = bCap(p); const need = Math.max(0, dm - s[p.id]); row.p[p.id] = { reb: d.reb[p.id] || 0, rio: d.rio[p.id] || 0, dem: dm, cap, pre: Math.min(cap, need) }; }
+      for (const p of PRD) { const dm = d.reb[p.id] || 0; const cap = bCap(p); const need = Math.max(0, dm - s[p.id]); row.p[p.id] = { reb: dm, dem: dm, cap, pre: Math.min(cap, need) }; }
       const tot = PRD.reduce((a, p) => a + row.p[p.id].pre, 0); const fNeed = tot / rD / m3m;
       const drill = Math.min(fCap, Math.max(0, fNeed - fStock)); const av = fStock + drill; const use = Math.min(fNeed, av); fStock = av - use; const fac = fNeed > 1e-9 ? use / fNeed : 1;
       Object.assign(row, { fNeed, drill, fUse: use, fStock, fac, fCap });
@@ -553,19 +550,17 @@ export function initObra(X) {
     $('#b-fonte').textContent = `${B.fonte} · demanda de Rebouças pelo retigráfico de ${AV.data.split('-').reverse().join('/')}${AV.atualizado !== AV.data ? ' (com alterações feitas no app)' : ''}, até a estaca ${lim}`;
     $$('#b-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === bMode()));
     $('#b-ini').value = P.S0; if (document.activeElement !== $('#b-lim')) $('#b-lim').value = String(lim).replace('.', ',');
-    $('#b-rio').checked = bRio();
     const used = PRD.filter(p => P.M.some(r => r.p[p.id].dem > 0.5) || P.rows.some(r => r.sp[p.id] > 0.5));
     const sum = (f) => P.M.reduce((a, r) => a + f(r), 0);
-    const totReb = P.rows.reduce((a, r) => a + r.sp.t, 0), totRio = sum(r => PRD.reduce((a, p) => a + r.p[p.id].rio, 0));
+    const totReb = P.rows.reduce((a, r) => a + r.sp.t, 0);
     const totProd = sum(r => r.tot), fur = sum(r => r.fUse), furos = fur / bp('rocha.hFuro');
     const per = P.M.length ? (P.M.length > 1 ? mesNomeS(P.M[0].ym) + ' – ' + mesNomeS(P.M[P.M.length - 1].ym) : mesNomeS(P.M[0].ym)) : '–';
-    $('#b-hero').innerHTML = `<div><span>Período</span><b>${per}</b></div><div><span>A britar${bRio() ? ' (com Riozinho)' : ''}</span><b>${NF[0].format(totReb + totRio)} t</b></div><div><span>Rocha a desmontar</span><b>${NF[0].format(totProd / bp('rocha.dens'))} m³</b></div><div><span>Fim da britagem</span><b>${P.falta.length ? 'além de ' + mesNomeS(P.M[P.M.length - 1].ym) : P.fim ? mesNomeS(P.fim) : '–'}</b></div>`;
+    $('#b-hero').innerHTML = `<div><span>Período</span><b>${per}</b></div><div><span>A britar</span><b>${NF[0].format(totReb)} t</b></div><div><span>Rocha a desmontar</span><b>${NF[0].format(totProd / bp('rocha.dens'))} m³</b></div><div><span>Fim da britagem</span><b>${P.falta.length ? 'além de ' + mesNomeS(P.M[P.M.length - 1].ym) : P.fim ? mesNomeS(P.fim) : '–'}</b></div>`;
     const card = (l, v, u, sub, c) => `<div class="skpi"${c ? ` style="border-top-color:${c}"` : ''}><div class="sk-h"><span>${l}</span></div><div class="sk-v"><b>${v}</b><i>${u}</i></div><div class="sk-s">${sub}</div></div>`;
     const pt = id => sum(r => r.p[id].dem), pk = id => Math.max(0, ...P.M.map(r => r.p[id].util));
     $('#b-kpis').innerHTML = [
-      card('Rebouças – restante', NF[0].format(totReb), 't', `${NF[0].format(P.rows.filter(r => !r.xo).reduce((a, r) => a + r.vol, 0))} m³ de pavimento + drenos e concreto`),
-      bRio() ? card('Riozinho (515.01)', NF[0].format(totRio), 't', `estudo de britagem, a partir de ${mesNomeS(P.S0)}`) : card('Riozinho (515.01)', 'fora', '', 'marque “Incluir Riozinho” para dividir a pedreira'),
-      ...['bica', 'po', 'b1'].map(id => { const p = PRD.find(x => x.id === id); return card(p.n, NF[0].format(pt(id)), 't', `pico de ${NF[0].format(pk(id) * 100)}% da capacidade (${NF[0].format(bCap(p))} t/mês)`, p.c); }),
+      card('A britar – restante', NF[0].format(totReb), 't', `${NF[0].format(P.rows.filter(r => !r.xo).reduce((a, r) => a + r.vol, 0))} m³ de pavimento + drenos e concreto`),
+      ...['bica', 'po', 'b1', 'ped'].map(id => { const p = PRD.find(x => x.id === id); return card(p.n, NF[0].format(pt(id)), 't', `pico de ${NF[0].format(pk(id) * 100)}% da capacidade (${NF[0].format(bCap(p))} t/mês)`, p.c); }),
       card('Furação', NF[0].format(fur), 'm', `${NF[0].format(Math.ceil(furos))} furos de ${NF[0].format(bp('rocha.hFuro'))} m · estoque inicial ${NF[0].format(bp('rocha.furos'))} furos`),
     ].join('');
     // demanda restante
@@ -579,9 +574,8 @@ export function initObra(X) {
         <td class="n" data-l="Restante">${r.xo ? 'saldo' : NF[2].format(r.ext / 1000) + ' km'}</td><td class="n" data-l="Volume">${r.xo ? `<input class="bvi" data-p="reb515.${r.id}" inputmode="decimal" value="${NF[1].format(r.vol).replace(/\./g, '')}">` : NF[0].format(r.vol)} m³</td><td class="n" data-l="Densidade">${NF[2].format(bDens(r.mat))}</td><td class="n" data-l="A britar"><b>${NF[0].format(r.sp.t)} t</b></td>
         ${used.map(p => `<td class="n" data-l="${esc(p.n)}">${bT(r.sp[p.id])}</td>`).join('')}
         <td data-l="Execução">${sim && !r.xo ? `<span class="note">conforme a simulação${r.semSim > 0 ? ` · <b class="warn">${NF[2].format(r.semSim / 1000)} km sem mês</b>` : ''}</span>` : `<span class="bsch">${mi(r.id, 'i', r.sch.i)}<span>a</span>${mi(r.id, 'f', r.sch.f)}</span>`}</td></tr>`).join('')}
-      <tr class="tot"><td colspan="4">Rebouças (515.02)</td><td class="n" data-l="A britar">${NF[0].format(totReb)} t</td>${used.map(p => `<td class="n" data-l="${esc(p.n)}">${bT(P.rows.reduce((a, r) => a + r.sp[p.id], 0))}</td>`).join('')}<td class="emp"></td></tr>
-      ${bRio() ? `<tr><td colspan="4">Riozinho (515.01) – estudo de britagem, a partir de ${mesNomeS(P.S0)}</td><td class="n" data-l="A britar">${NF[0].format(totRio)} t</td>${used.map(p => `<td class="n" data-l="${esc(p.n)}">${bT(sum(r => r.p[p.id].rio))}</td>`).join('')}<td class="emp"></td></tr>
-      <tr class="tot"><td colspan="4">Total da pedreira</td><td class="n" data-l="A britar">${NF[0].format(totReb + totRio)} t</td>${used.map(p => `<td class="n" data-l="${esc(p.n)}">${bT(pt(p.id))}</td>`).join('')}<td class="emp"></td></tr>` : ''}</tbody></table>`;
+      <tr class="tot"><td colspan="4">Total a britar – Rebouças</td><td class="n" data-l="A britar">${NF[0].format(totReb)} t</td>${used.map(p => `<td class="n" data-l="${esc(p.n)}">${bT(P.rows.reduce((a, r) => a + r.sp[p.id], 0))}</td>`).join('')}<td class="emp"></td></tr>
+</tbody></table>`;
     // gráfico: produção por mês empilhada por produto
     const mx = Math.max(1, ...P.M.map(r => Math.max(r.tot, PRD.reduce((a, p) => a + r.p[p.id].dem, 0))));
     $('#b-chart').innerHTML = `<div class="bch">${P.M.map(r => { const dm = PRD.reduce((a, p) => a + r.p[p.id].dem, 0);
@@ -605,7 +599,7 @@ export function initObra(X) {
       <fieldset><legend>Densidade (t/m³)</legend>${inp('dens.bica', 'Bica corrida (reforço e sub-base)', '')}${inp('dens.bgs', 'BGS (base)', '')}${inp('dens.dreno', 'Brita p/ dreno', '')}${inp('dens.conc', 'Concreto', '')}</fieldset>
       <fieldset><legend>Composição</legend>${inp('comp.bgs.bica', 'BGS: bica corrida', '% (resto = pó)', 1)}${inp('comp.conc.b1', 'Concreto: brita 01', '%', 1)}${inp('comp.conc.ped', 'Concreto: pedrisco', '%', 1)}${inp('comp.conc.po', 'Concreto: pó', '%', 1)}</fieldset>
       <fieldset><legend>Produtividade (t/h)</legend>${PRD.map(p => inp('rate.' + p.id, p.n, 't/h')).join('')}</fieldset>
-      <fieldset><legend>Jornada</legend>${inp('pri.h', 'Primário: horas/turno', 'h')}${inp('pri.t', 'Primário: turnos', '')}${inp('pri.d', 'Primário: dias/mês', '')}${inp('reb.h', 'Rebritagem: horas/turno', 'h')}${inp('reb.t', 'Rebritagem: turnos', '')}${inp('reb.d', 'Rebritagem: dias/mês', '')}${inp('rend', 'Rendimento mecânico', '%', 1)}</fieldset>
+      <fieldset><legend>Jornada</legend>${inp('reb.h', 'Rebritagem: horas/turno', 'h')}${inp('reb.t', 'Rebritagem: turnos', '')}${inp('reb.d', 'Rebritagem: dias/mês', '')}${inp('rend', 'Rendimento mecânico', '%', 1)}</fieldset>
       <fieldset><legend>Desmonte e furação</legend>${inp('rocha.dens', 'Densidade da rocha', 't/m³')}${inp('rocha.m3m', 'Rocha por metro furado', 'm³/m')}${inp('rocha.hFuro', 'Altura do furo', 'm')}${inp('rocha.furCap', 'Capacidade de furação', 'm/mês')}${inp('rocha.furos', 'Furos em estoque', 'un')}</fieldset>
       <fieldset><legend>Estoque inicial (t)</legend>${PRD.map(p => inp('estoque.' + p.id, p.n, 't')).join('')}</fieldset>
       </div><p class="note">Valores do ${esc(B.fonte)}. Campos alterados ficam destacados. <button type="button" class="lnk" id="b-reset">Voltar aos valores do estudo</button></p>`;
@@ -622,14 +616,13 @@ export function initObra(X) {
       if (t.id === 'b-ini') { if (!/^\d{4}-\d{2}$/.test(t.value)) return; const old = bStart(), n = t.value; const sh = (a) => { const [y1, m1] = old.split('-').map(Number), [y2, m2] = n.split('-').map(Number); return ymAdd(a, (y2 - y1) * 12 + m2 - m1); };
         if (BST.sch) for (const k of Object.keys(BST.sch)) BST.sch[k] = { i: sh(BST.sch[k].i), f: sh(BST.sch[k].f) }; BST.ini = n; bSave(); renderBrit(); return; }
       if (t.id === 'b-lim') { const x = num2(t.value); BST.lim = x === null ? null : Math.max(0, Math.min(NC, x)); bSave(); renderBrit(); return; }
-      if (t.id === 'b-rio') { BST.rio = t.checked; bSave(); renderBrit(); }
     });
     v.addEventListener('click', ev => {
       const m = ev.target.closest('#b-mode [data-m]'); if (m) { BST.mode = m.dataset.m; bSave(); renderBrit(); return; }
       if (ev.target.closest('#b-reset')) { if (!confirm('Voltar todos os parâmetros aos valores do estudo de britagem?')) return; BPO = {}; store.set('britPar', BPO); renderBrit(); }
     });
-    $('#b-csv').onclick = () => { const P = bPlan(); const L = [['Mês', 'Produto', 'Demanda Rebouças (t)', 'Demanda Riozinho (t)', 'Demanda total (t)', 'Capacidade (t)', 'Produzir (t)', 'Utilização', 'Estoque (+) / falta (−) no fim (t)']];
-      for (const r of P.M) for (const p of PRD) { const o = r.p[p.id]; if (o.dem < 0.5 && o.prod < 0.5) continue; L.push([mesNomeS(r.ym), p.n, o.reb, o.rio, o.dem, o.cap, o.prod, o.util, o.s]); }
+    $('#b-csv').onclick = () => { const P = bPlan(); const L = [['Mês', 'Produto', 'Demanda (t)', 'Capacidade (t)', 'Produzir (t)', 'Utilização', 'Estoque (+) / falta (−) no fim (t)']];
+      for (const r of P.M) for (const p of PRD) { const o = r.p[p.id]; if (o.dem < 0.5 && o.prod < 0.5) continue; L.push([mesNomeS(r.ym), p.n, o.dem, o.cap, o.prod, o.util, o.s]); }
       L.push([], ['Mês', 'Rocha britada (t)', 'Rocha in situ (m³)', 'Furação necessária (m)', 'Furação a executar (m)', 'Furos', 'Estoque furado no fim (m)']);
       for (const r of P.M) L.push([mesNomeS(r.ym), r.tot, r.m3, r.fNeed, r.drill, r.furos, r.fStock]);
       L.push([], ['Serviço', 'Restante (km)', 'Volume (m³)', 'Densidade (t/m³)', 'A britar (t)', ...PRD.map(p => p.n + ' (t)'), 'Início', 'Término']);
