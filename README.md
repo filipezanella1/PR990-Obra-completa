@@ -47,6 +47,9 @@ Para regerar o texto: `python3 tools/memorias.py <pasta com t1.txt … t4.txt e 
 Aba **Controle tecnológico**: parâmetros de projeto e exigências de cada serviço de terraplenagem, pavimentação, drenagem e concreto/OAE (`data/controle.json`). Cada item indica a especificação e a página da memória, que abre direto no leitor. Ao digitar o resultado de um ensaio, o app indica se atende (os resultados ficam só no aparelho).
 Os **traços de concreto** são editáveis: cimento, areia, brita, a/c, aditivo e abatimento, com massas unitárias ajustáveis. O app calcula a água, o traço unitário em massa e as quantidades por saco de 50 kg, e alerta quando a/c passa do máximo de projeto. Os traços fazem parte da versão mestra.
 
+## CPUs do contrato
+Aba **CPUs**: as 673 composições de preço unitário do contrato (`data/cpus.json`, gerado por `python3 tools/cpus.py <CPUS_DO_CONTRATO.xlsx> data/cpus.json`). Busca por código, serviço ou insumo; cada CPU mostra equipamentos, mão de obra, produção da equipe, materiais, serviços auxiliares (com link para a CPU auxiliar), transportes, custo direto, BDI e preço. Em todas as abas, o código de um serviço que tem CPU fica sublinhado: um toque abre a CPU dele.
+
 ## Uso sem internet
 
 Depois de aberto uma vez com internet, o app inteiro (telas, tabelas, painel, simulação, retigráfico, britagem, apresentação, área restrita com a senha) fica salvo no aparelho pelo service worker e abre sem internet; aparece o aviso “Sem internet – usando a cópia salva”. As miniaturas das pranchas (≈3 MB) já são salvas; as pranchas completas (≈26 MB) são baixadas pelo botão em Sobre → Uso sem internet e ficam guardadas entre versões (`pr990-midia`). A lista de imagens (`data/midia.json`) é gerada pelo `tools/bundle.py`.

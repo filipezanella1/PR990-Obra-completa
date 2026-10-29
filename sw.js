@@ -5,7 +5,7 @@ const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './src/style.css', './src/engine.js', './src/app.js', './src/obra.js', './src/medparse.js', './src/xlsx.js', './src/retig.js',
   './data/model.json', './data/insumos.json', './data/base.json', './data/painel.json',
-  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json', './data/midia.json', './data/controle.json', './data/cff.json', './data/aditivo.json', './data/memorias.json',
+  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json', './data/midia.json', './data/controle.json', './data/cff.json', './data/aditivo.json', './data/cpus.json', './data/memorias.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'
 ];
 const FONTS = 'pr990-fonts';

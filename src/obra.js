@@ -1336,6 +1336,64 @@ export function initObra(X) {
       if (t.classList.contains('tr-p')) { TRP = { ...TRP, [t.dataset.k]: num2(t.value) || TRP[t.dataset.k] }; store.set('tracoPar', TRP); renderCt(); } });
   }
 
+  // ===================================================================== CPUs DO CONTRATO (pesquisável) + link automático nos códigos
+  let CPUP = null, CPQ = '', CPSEL = null, CPV = 0; let CPIDX = null;
+  const cpuLoad = () => CPUP || (CPUP = (window.__PR990__ && window.__PR990__.cpus ? Promise.resolve(window.__PR990__.cpus) : fetch('data/cpus.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }))
+    .then(d => { D.cpus = d; CPIDX = new Map(); d.cpus.forEach((c, i) => { c.k = i; c.nn = nrm(c.c + ' ' + c.n); c.ni = nrm(['eq', 'mo', 'mat', 'ser', 'tr'].flatMap(s => (c[s] || []).map(r => r[0] + ' ' + r[1])).join(' | ')); if (!CPIDX.has(c.c)) CPIDX.set(c.c, []); CPIDX.get(c.c).push(c); });
+      for (const v of CPIDX.values()) v.sort((a, b) => (b.pt != null) - (a.pt != null)); cpuMark(); return d; }).catch(e => { CPUP = null; throw e; }));
+  const cpuPU = c => c.pt ?? c.pu;
+  const F4 = v => v === null || v === undefined ? '' : Math.abs(v) >= 100 ? NF[2].format(v) : NF[4].format(v).replace(/0{1,2}$/, '');
+  function cpuOpen(code) { CPSEL = code; CPV = 0; if (X.current() !== 'cpus') location.hash = '#cpus'; else renderCpu(); }
+  function cpuDetail(code) {
+    const L = CPIDX.get(code) || []; const c = L[Math.min(CPV, L.length - 1)]; if (!c) return `<p class="note">CPU ${esc(code)} não encontrada.</p>`;
+    const lk = x => CPIDX.has(x) && x !== c.c ? `<button type="button" class="lnk" data-cpu="${esc(x)}">${esc(x)}</button>` : esc(x);
+    const usedIn = D.cpus.cpus.filter(o => o !== c && (o.ser || []).some(r => r[0] === c.c)).filter((o, i, a) => a.findIndex(z => z.c === o.c) === i);
+    const pl = M().disciplinas.flatMap(d => d.linhas.map(l => ({ d, l }))).filter(o => o.l.t === 'it' && o.l.c === c.c);
+    const tb = (t, h, rows, tot) => rows && rows.length ? `<h4>${t}</h4><div class="tbl-wrap"><table class="itbl cp-t"><thead><tr>${h.map(x => `<th${x.n ? ' class="n"' : ''}>${x.t}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody>${tot ? `<tfoot><tr><td colspan="${h.length - 1}">${tot[0]}</td><td class="n"><b>${tot[1]}</b></td></tr></tfoot>` : ''}</table></div>` : '';
+    const N = (t, n = 1) => ({ t, n });
+    return `<div class="cp-hd"><div><span class="label">CPU ${esc(c.c)} · ${esc(c.u)}</span><h3>${esc(c.n)}</h3>
+        ${L.length > 1 ? `<div class="cp-var">${L.map((o, i) => `<button type="button" class="chip${i === Math.min(CPV, L.length - 1) ? ' on' : ''}" data-cpv="${i}">Composição ${i + 1}${o.pt != null ? '' : ' (auxiliar)'}</button>`).join('')}</div>` : ''}</div>
+        <div class="cp-pu"><b>${cpuPU(c) != null ? 'R$ ' + NF[2].format(cpuPU(c)) : '–'}</b><span>preço unitário por ${esc(c.u)}</span></div></div>
+      <div class="cp-k">${[['Produção da equipe', c.prod != null ? F4(c.prod) + ' ' + esc(c.u) + '/h' : '–'], ['Custo horário (A+B+C)', c.ch != null ? 'R$ ' + NF[2].format(c.ch) : '–'], ['Custo unitário de execução', c.ce != null ? 'R$ ' + NF[2].format(c.ce) : '–'], ['Custo direto', c.cd != null ? 'R$ ' + NF[2].format(c.cd) : '–'], ['BDI', c.bdi != null ? NF[2].format(c.bdi) + '%' + (c.bdiV != null ? ' · R$ ' + NF[2].format(c.bdiV) : '') : '–']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>
+      ${pl.length ? `<p class="note">No contrato: ${pl.map(o => `<button type="button" class="lnk" data-row="${o.l.r}">${esc(o.d.curto || o.d.titulo)} · ${esc(o.l.n)}</button>`).join(' · ')}</p>` : ''}
+      ${tb('A – Equipamentos', [N('Código', 0), N('Equipamento', 0), N('Qtd.'), N('Utiliz. prod.'), N('Utiliz. improd.'), N('Custo prod. (R$/h)'), N('Custo improd. (R$/h)'), N('Custo horário')], (c.eq || []).map(r => `<tr><td class="code">${esc(r[0])}</td><td>${esc(r[1])}</td>${r.slice(2).map(v => `<td class="n">${F4(v)}</td>`).join('')}</tr>`), ['A – Custo horário de equipamento', 'R$ ' + NF[2].format(c.eqT || 0)])}
+      ${tb('B – Mão de obra', [N('Código', 0), N('Função', 0), N('Eq. salarial'), N('Enc. sociais %'), N('Consumo'), N('Salário/h'), N('Custo horário')], (c.mo || []).map(r => `<tr><td class="code">${esc(r[0])}</td><td>${esc(r[1])}</td>${r.slice(2).map(v => `<td class="n">${F4(v)}</td>`).join('')}</tr>`), ['B – Custo horário de mão de obra' + (c.inc && c.inc[1] ? ` · C – ${esc(c.inc[0].toLowerCase())} ${NF[2].format(c.inc[1])}%` : ''), 'R$ ' + NF[2].format(c.moCT ?? c.moT ?? 0)])}
+      ${tb('F – Materiais', [N('Código', 0), N('Material', 0), N('Un', 0), N('Custo'), N('Consumo'), N('Custo unit.')], (c.mat || []).map(r => `<tr><td class="code">${lk(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>${r.slice(3).map(v => `<td class="n">${F4(v)}</td>`).join('')}</tr>`), ['F – Custo total de materiais', 'R$ ' + NF[2].format(c.matT || 0)])}
+      ${tb('G – Serviços (CPUs auxiliares)', [N('Código', 0), N('Serviço', 0), N('Un', 0), N('Custo'), N('Consumo'), N('Custo unit.')], (c.ser || []).map(r => `<tr><td class="code">${lk(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>${r.slice(3).map(v => `<td class="n">${F4(v)}</td>`).join('')}</tr>`), ['G – Custo total de serviços', 'R$ ' + NF[2].format(c.serT || 0)])}
+      ${tb('H – Transportes', [N('Código', 0), N('Item', 0), N('Un', 0), N('DMT ×1 pav.'), N('DMT ×2 terra'), N('DMT total'), N('Custo'), N('Consumo'), N('Custo unit.')], (c.tr || []).filter(r => r.slice(3).some(v => v)).map(r => `<tr><td class="code">${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>${r.slice(3).map(v => `<td class="n">${F4(v)}</td>`).join('')}</tr>`), ['H – Custo total de transporte', 'R$ ' + NF[2].format(c.trT || 0)])}
+      <div class="cp-sum"><span>Custo direto (E + F + G + H)</span><b>${c.cd != null ? 'R$ ' + NF[2].format(c.cd) : '–'}</b><span>BDI ${c.bdi != null ? NF[2].format(c.bdi) + '%' : ''}</span><b>${c.bdiV != null ? 'R$ ' + NF[2].format(c.bdiV) : '–'}</b><span>Preço unitário</span><b>${cpuPU(c) != null ? 'R$ ' + NF[2].format(cpuPU(c)) : '–'}</b></div>
+      ${usedIn.length ? `<p class="note">Usada como auxiliar em: ${usedIn.slice(0, 30).map(o => `<button type="button" class="lnk" data-cpu="${esc(o.c)}">${esc(o.c)}</button> ${esc(o.n.slice(0, 50))}`).join(' · ')}</p>` : ''}`;
+  }
+  async function renderCpu() {
+    const host = $('#cp-body'); if (!host) return;
+    if (!D.cpus) { host.innerHTML = '<p class="note">Carregando as CPUs…</p>'; try { await cpuLoad(); } catch (e) { host.innerHTML = `<p class="note warn">Não foi possível carregar as CPUs (${esc(e.message)}).</p>`; return; } }
+    const all = D.cpus.cpus; const q = nrm(CPQ).trim(); const terms = q.split(/\s+/).filter(Boolean);
+    let L = all.filter(c => c.pt != null || !all.some(o => o !== c && o.c === c.c && o.pt != null));
+    let viaIns = new Set();
+    if (terms.length) { L = L.filter(c => { const a = terms.every(t => c.nn.includes(t)); if (a) return true; const b = terms.every(t => c.ni.includes(t) || c.nn.includes(t)); if (b) viaIns.add(c); return b; }); L.sort((a, b) => (viaIns.has(a) - viaIns.has(b)) || (a.c.startsWith(q) ? -1 : 0) - (b.c.startsWith(q) ? -1 : 0)); }
+    $('#cp-n').textContent = `${terms.length ? L.length + ' de ' : ''}${all.length} composições`;
+    const list = L.slice(0, 200).map(c => `<button type="button" class="cp-r${CPSEL === c.c ? ' on' : ''}" data-cpu="${esc(c.c)}"><span class="code">${esc(c.c)}</span><span class="cp-n">${hl(c.n, terms)}${viaIns.has(c) ? '<small>contém o insumo buscado</small>' : ''}</span><span class="cp-u">${esc(c.u)}</span><span class="cp-p">${cpuPU(c) != null ? NF[2].format(cpuPU(c)) : '–'}</span></button>`).join('') + (L.length > 200 ? `<p class="note">+${L.length - 200} composições: refine a busca.</p>` : '') || '<p class="note">Nenhuma CPU encontrada.</p>';
+    host.innerHTML = `<div class="cp-wrap${CPSEL ? ' sel' : ''}"><div class="cp-list">${list}</div><div class="cp-det panel" id="cp-det">${CPSEL ? `<button type="button" class="btn sm cp-back" data-cpback>← Lista</button>${cpuDetail(CPSEL)}` : '<p class="note">Escolha uma composição na lista, ou toque no código de um serviço em qualquer aba do app (Painel, Medição, Insumos, Contrato…) para abrir a CPU dele aqui.</p>'}</div></div>`;
+    if (CPSEL) { const d = $('#cp-det'); if (window.matchMedia('(max-width: 900px)').matches) d.scrollIntoView({ block: 'start' }); }
+  }
+  // marca os códigos de serviço com CPU em qualquer aba (células de código) e abre a CPU ao tocar
+  let CPMT = null;
+  function cpuMark() { if (!CPIDX) return; const app = document.getElementById('app'); if (!app) return;
+    for (const el of app.querySelectorAll('td.code, .code, td b, span b')) { if (el.dataset.cpk || el.closest('#v-cpus') || el.children.length) continue; const t = el.textContent.trim(); if (/^\d{5,6}[a-z]?$/.test(t) && CPIDX.has(t)) { el.dataset.cpk = t; el.classList.add('cp-lk'); el.title = 'Abrir a CPU ' + t; } } }
+  function cpuInit() {
+    const v = $('#v-cpus'); if (!v) return;
+    let tm; $('#cp-q').addEventListener('input', ev => { clearTimeout(tm); tm = setTimeout(() => { CPQ = ev.target.value; renderCpu(); }, 150); });
+    v.addEventListener('click', ev => {
+      const r = ev.target.closest('[data-cpu]'); if (r) { CPSEL = r.dataset.cpu; CPV = 0; renderCpu(); return; }
+      const w = ev.target.closest('[data-cpv]'); if (w) { CPV = +w.dataset.cpv; renderCpu(); return; }
+      if (ev.target.closest('[data-cpback]')) { CPSEL = null; renderCpu(); return; }
+      const g = ev.target.closest('[data-row]'); if (g) X.gotoRow(+g.dataset.row);
+    });
+    document.addEventListener('click', ev => { const el = ev.target.closest('[data-cpk]'); if (!el || el.closest('#v-cpus')) return; ev.preventDefault(); ev.stopPropagation(); cpuOpen(el.dataset.cpk); }, true);
+    new MutationObserver(() => { clearTimeout(CPMT); CPMT = setTimeout(cpuMark, 200); }).observe(document.getElementById('app') || document.body, { childList: true, subtree: true });
+    if ('requestIdleCallback' in window) requestIdleCallback(() => cpuLoad().catch(() => { }), { timeout: 5000 }); else setTimeout(() => cpuLoad().catch(() => { }), 2500);
+  }
+
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
     const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), rad = Math.PI / 180;
@@ -1568,6 +1626,7 @@ export function initObra(X) {
     for (const p of D.pranchas || []) if (norm(p.id + ' ' + p.t + ' ' + DISC.find(d => d.id === p.d).n).includes(n)) add('Pranchas', `${p.id} · ${p.t}`, DISC.find(d => d.id === p.d).n, () => prOpenSheet(p.id));
     const seen = new Set(); for (const [c, rows] of Object.entries(INS().consumos)) for (const r of rows) { const k = r[0] + r[1]; if (!seen.has(k) && norm(r[1] + ' ' + r[2]).includes(n)) { seen.add(k); add('Insumos', `${r[2]}`, `${r[0]} · código ${r[1]}`, () => { location.hash = '#insumos'; $('#i-q2').value = r[2]; X.renderIns(); }); } }
     for (const l of (AV || { frentes: [] }).frentes) if (norm(l.n).includes(n)) add('Retigráfico', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
+    if (D.cpus) { let k = 0; for (const c of D.cpus.cpus) { if (k >= 10) break; if (c.pt == null && D.cpus.cpus.some(o => o !== c && o.c === c.c && o.pt != null)) continue; if (c.nn.includes(n)) { k++; add('CPU', `${c.c} · ${c.n}`, `${c.u} · ${cpuPU(c) != null ? 'R$ ' + NF[2].format(cpuPU(c)) : ''}`, () => cpuOpen(c.c)); } } }
     if (D.mem) for (const r of memSearch(q, '').slice(0, 12)) { const s = secOf(r.d, r.i + 1); add('Memória justificativa', `${r.d.n} · p. ${r.i + 1}${s ? ' · ' + s.s + ' ' + s.t : ''}`, r.snip.slice(0, 160), () => memOpen(r.d.id, r.i + 1, q)); }
     if (D.controle) for (const g of D.controle.grupos) for (const sv of g.s) for (const it of sv.it) if (norm(sv.n + ' ' + it.p + ' ' + sv.es).includes(n)) add('Controle tecnológico', `${sv.n} · ${it.p}`, it.c, () => { CTG = g.g; if (X.current() === 'controle') renderCt(); else location.hash = '#controle'; });
     return res;
@@ -1636,8 +1695,8 @@ export function initObra(X) {
     $('#m-file').onchange = e => { const f = e.target.files[0]; if (f) medUpload(f); e.target.value = ''; };
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
-    avInitEvents(); britInit(); aprInit(); planInit(); memInit(); ctInit(); campoInit(); cmpInit(); searchInit();
+    avInitEvents(); britInit(); aprInit(); planInit(); memInit(); ctInit(); cpuInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderPlan, renderMem, renderCt, memSearch, memOpen, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderPlan, renderMem, renderCt, memSearch, memOpen, renderCpu, cpuOpen, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }
