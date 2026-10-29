@@ -292,8 +292,8 @@ export function initObra(X) {
     }
     return { out, n: Math.max(1, lanes.length) };
   }
-  function drawGrid(sim) {
-    const host = $(sim ? '#s-grid' : '#a-grid'); const w = host.clientWidth || 1000;
+  function drawGrid(sim, forcedW) {
+    const host = $(sim ? '#s-grid' : '#a-grid'); const w = forcedW || host.clientWidth || 1000;
     const labW = w < 700 ? 112 : 190, cw = w < 700 ? 15 : 17;
     const per = Math.max(10, Math.floor((w - labW - 4) / cw));
     const mc = avHl && !sim ? medCells() : {};
@@ -309,7 +309,7 @@ export function initObra(X) {
       if (sim) {
         for (const r of SIMR) {
           const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id);
-          h += `<div class="fgrp"><div class="lrow rs${BR.has(r.id) ? ' inb' : ''}" data-sim="${r.id}"><span class="ln"><span class="fn"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Selecionar as estacas que faltam nesta faixa">faltam</button></span><div class="cells">`;
+          h += `<div class="fgrp"><div class="lrow rs${BR.has(r.id) ? ' inb' : ''}" data-sim="${r.id}"><span class="ln"><span class="fn"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Preencher nesta faixa as estacas que ainda não foram executadas (toque de novo para desfazer)">preencher</button></span><div class="cells">`;
           for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${sl[k] === '1' ? ' sel' : st === '2' ? ' done' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
           h += '</div></div></div>';
         }
@@ -651,13 +651,27 @@ export function initObra(X) {
   }
 
   // ===================================================================== IMPRESSÃO / PDF
-  function printView(v) {
+  // PDF: escolhe papel e orientação; a grade do retigráfico é refeita na largura da página e cada faixa fica inteira numa página
+  const PAPER = { A4: [297, 210], A3: [420, 297] };
+  function askPdf(v) {
+    const dl = $('#pdf-dlg'); const pf = store.get('pdfPaper', { f: 'A4', o: 'landscape' });
+    $('#pdf-f').value = pf.f; $('#pdf-o').value = pf.o; dl.hidden = false;
+    $('#pdf-go').onclick = () => { const f = $('#pdf-f').value, o = $('#pdf-o').value; store.set('pdfPaper', { f, o }); dl.hidden = true; printView(v, f, o); };
+    $('#pdf-x').onclick = () => { dl.hidden = true; };
+  }
+  function printView(v, fmt = 'A4', ori = 'landscape') {
+    const [pw, ph] = PAPER[fmt]; const wmm = (ori === 'landscape' ? pw : ph) - 20;
+    let st = $('#print-page'); if (!st) { st = document.createElement('style'); st.id = 'print-page'; document.head.appendChild(st); }
+    st.textContent = `@media print { @page { size: ${fmt} ${ori}; margin: 10mm; } }`;
+    const pagePx = Math.floor(wmm * 96 / 25.4);
+    if (v === 'avanco' || v === 'simulacao') drawGrid(v === 'simulacao', pagePx - 80);
     const opened = [];
     if (v === 'painel') $$('#detail details.disc').forEach(d => { if (!d.open) { d.open = true; opened.push(d); } });
         document.body.dataset.print = v;
-    const [a, b] = trecho(); const old = document.title; document.title = `PR-990 – ${({ painel: 'Painel', insumos: 'Insumos', medicao: 'Medição', avanco: 'Retigráfico', simulacao: 'Simulação de materiais', planejamento: 'Planejamento' })[v] || v} – ${estStr(a)} a ${estStr(b)}`;
+    const [a, b] = trecho(); const old = document.title; document.title = `PR-990 – ${({ painel: 'Painel', insumos: 'Insumos', medicao: 'Medição', avanco: 'Retigráfico', simulacao: 'Simulação de segmentos' })[v] || v} – ${estStr(a)} a ${estStr(b)}`;
     $('#print-head').textContent = `${document.title} · emitido em ${new Date().toLocaleDateString('pt-BR')}`;
-    const done = () => { opened.forEach(d => d.open = false); delete document.body.dataset.print; document.title = old; window.removeEventListener('afterprint', done); };
+    const done = () => { opened.forEach(d => d.open = false); delete document.body.dataset.print; document.title = old; window.removeEventListener('afterprint', done);
+      if (v === 'avanco') drawGrid(false); if (v === 'simulacao') drawGrid(true); };
     window.addEventListener('afterprint', done); setTimeout(() => window.print(), 50);
   }
 
@@ -676,7 +690,7 @@ export function initObra(X) {
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
     avInitEvents(); campoInit(); cmpInit(); searchInit();
-    $$('[data-print]').forEach(b => b.onclick = () => printView(b.dataset.print));
+    $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
   return { load, init, renderMed, renderAv, renderSim, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }

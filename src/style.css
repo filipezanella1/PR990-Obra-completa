@@ -544,7 +544,6 @@ details.disc > summary .v select { padding: 3px; border: 1px solid var(--line); 
 /* impressão / PDF: só a seção escolhida, sem barras e botões */
 .print-head { display: none; }
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
   body { background: #fff !important; color: #000; font-size: 10pt; }
   header.top, footer, nav.tabs, .update-bar, .ios-tip, .more-sheet, .srch, .lightbox, .btn, .chip, input[type=search], .filters, .det-tools input, .det-tools label, .av-more, .brushes, #a-tip, .presets, .med-src label, .here-act { display: none !important; }
   .print-head { display: block; font: 600 13pt var(--f-display); margin-bottom: 6mm; }
@@ -747,5 +746,17 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " �
   #v-simulacao .sim-brush, #v-simulacao .sim-prem .sim-par, #v-simulacao #s-tip { display: none !important; }
   .sim-hero, .sb-t i, .skpi, .bchip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .sim-kpis { grid-template-columns: repeat(6, 1fr); } .sim-row { grid-template-columns: 1fr 1fr; }
-  #v-simulacao .retig { page-break-before: always; }
 }
+
+/* PDF: faixas inteiras, sem cortar segmentos */
+@media print {
+  .blk { break-inside: avoid; page-break-inside: avoid; }
+  .retig, #v-avanco .panel, #v-simulacao .panel { overflow: visible !important; break-inside: auto; }
+  #v-simulacao .retig { break-before: auto !important; page-break-before: auto !important; }
+  #v-simulacao .sim-gridp { break-before: page; }
+  .sfill { display: none !important; }
+  .lock, #pdf-dlg { display: none !important; }
+  .sim-hero { break-inside: avoid; } .sim-kpis, .sim-row { break-inside: avoid; }
+  .av-cards { grid-template-columns: repeat(5, 1fr); }
+}
+#pdf-dlg .lbl { justify-content: space-between; } #pdf-dlg select { min-width: 60%; }
