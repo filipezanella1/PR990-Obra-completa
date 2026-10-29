@@ -1134,3 +1134,18 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .mm-pg { white-space: pre; overflow-x: auto; }
 button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 4px 10px; margin: 2px 4px 2px 0; } button.avchip.g-pr:hover { border-color: var(--accent); }
 .av-dados { margin-top: 12px; } .av-dados .ph { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 8px; } .av-dados h3 { margin: 0; }
+/* cronograma físico-financeiro (apresentação) */
+.cf-top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 4px 0 12px; }
+.cf-k { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.cf-k div { display: grid; } .cf-k b { font: 700 clamp(1.05rem, 2cqw, 1.5rem) var(--f-display); } .cf-k span { font-size: .78rem; color: var(--muted); } .cf-k .w b { color: var(--contr); }
+.cf-bars { display: flex; gap: 14px; align-items: flex-end; height: 120px; margin: 4px 0 12px; }
+.cf-b { flex: 1; max-width: 140px; display: grid; grid-template-rows: 1fr auto auto; height: 100%; text-align: center; gap: 2px; }
+.cf-b .abar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; width: 60%; margin: 0 auto; }
+.cf-b .abar i { display: block; width: 100%; } .cf-b .abar i.ot { background: #9aa4ad; } .cf-b .abar i.r { background: repeating-linear-gradient(45deg, #c9ced3 0 3px, transparent 3px 6px); }
+.cf-b b { font-size: .8rem; } .cf-b em { font-style: normal; font-size: .75rem; color: var(--muted); }
+.cf-t td small { display: block; color: var(--muted); font-size: .72rem; }
+.cf-t tr.cf-adj td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cf-t td small, .cf-t td:nth-child(2) small { font-weight: 400; }
+.cf-t tfoot td { border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.cf-t .cf-d { color: var(--contr); }
+.cf-t td:nth-child(2) { white-space: nowrap; }

@@ -542,7 +542,7 @@ async function openWith(key) {
   M.contrato = d.contrato; M.discrepancias = d.discrepancias;
   let prot = null;
   if (MST && MST.prot) try { prot = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(MST.prot.iv) }, key, b64u(MST.prot.ct)))); } catch { }
-  UNL = true; UKEY = key; OB.unlock(d.medicao, d.medref, prot); lockUI(); verUI();
+  UNL = true; UKEY = key; OB.unlock(d.medicao, d.medref, prot, d.cff || null); lockUI(); verUI();
 }
 async function unlock(pass, remember) {
   if (!window.crypto || !crypto.subtle) throw new Error('este navegador não permite abrir os dados protegidos aqui (abra pelo endereço https do app)');
@@ -698,7 +698,7 @@ function pwa() {
 // ---------------------------------------------------------------- módulos de obra
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
-  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajGi: r => REAJ && REAJ.row[r] !== undefined ? REAJ.row[r] : -1, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS, SHEETS5 });
 
 // ---------------------------------------------------------------- versão mestra: estado, aviso de atualização e publicação
