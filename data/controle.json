@@ -1,0 +1,1011 @@
+{
+ "fonte": "Memória Justificativa – Volume 3 (jan/2024), Tomos I e II; especificações de serviço DER/PR 2023; itens do contrato",
+ "grupos": [
+  {
+   "g": "Terraplenagem",
+   "s": [
+    {
+     "n": "Desmatamento, destocamento e limpeza",
+     "es": "DER/PR ES-TE 01/23",
+     "it": [
+      {
+       "p": "Espessura média da camada vegetal removida",
+       "c": "0,20 m (premissa de projeto)",
+       "t": "info",
+       "v": 0.2,
+       "u": "m",
+       "src": [
+        "t2",
+        52
+       ]
+      },
+      {
+       "p": "Largura além dos offsets de terraplenagem",
+       "c": "≤ 1,0 m",
+       "t": "max",
+       "v": 1.0,
+       "u": "m",
+       "src": [
+        "t2",
+        52
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Cortes em solo (1ª categoria)",
+     "es": "DER/PR ES-TE 02/23",
+     "it": [
+      {
+       "p": "Material para camada final (CFT)",
+       "c": "ISC ≥ ISp (5%) e expansão < 2%",
+       "t": "min",
+       "v": 5,
+       "u": "% ISC",
+       "src": [
+        "t2",
+        42
+       ]
+      },
+      {
+       "p": "Expansão do material para CFT",
+       "c": "< 2%",
+       "t": "max",
+       "v": 2,
+       "u": "%",
+       "src": [
+        "t2",
+        42
+       ]
+      },
+      {
+       "p": "Solo inadequado na plataforma",
+       "c": "rebaixar no mínimo 60 cm e recompor com material selecionado",
+       "t": "min",
+       "v": 60,
+       "u": "cm",
+       "src": [
+        "t2",
+        51
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Cortes em rocha (3ª categoria)",
+     "es": "DER/PR ES-TE 02/23 · ES-PA 02/23",
+     "it": [
+      {
+       "p": "Saliências em relação ao plano de corte",
+       "c": "≤ 0,10 m",
+       "t": "max",
+       "v": 0.1,
+       "u": "m",
+       "src": [
+        "t2",
+        52
+       ]
+      },
+      {
+       "p": "Depressões em relação ao plano de corte",
+       "c": "≤ 0,30 m (preencher com material britado e drenar)",
+       "t": "max",
+       "v": 0.3,
+       "u": "m",
+       "src": [
+        "t2",
+        52
+       ]
+      },
+      {
+       "p": "Rebaixo para preenchimento",
+       "c": "espessura máxima recomendada de 30 cm",
+       "t": "max",
+       "v": 30,
+       "u": "cm",
+       "src": [
+        "t2",
+        42
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Corpo de aterro",
+     "es": "DER/PR ES-TE 06/23 · DNER-ES 282/97",
+     "it": [
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 95% do Proctor Normal (item 401950)",
+       "t": "min",
+       "v": 95,
+       "u": "% PN",
+       "src": [
+        "t2",
+        61
+       ]
+      },
+      {
+       "p": "ISC do material",
+       "c": "> 2%",
+       "t": "min",
+       "v": 2,
+       "u": "% ISC",
+       "src": [
+        "t2",
+        42
+       ]
+      },
+      {
+       "p": "Expansão do material",
+       "c": "< 4%",
+       "t": "max",
+       "v": 4,
+       "u": "%",
+       "src": [
+        "t2",
+        42
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Camada final de terraplenagem (60 cm)",
+     "es": "DER/PR ES-TE 06/23",
+     "it": [
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 100% do Proctor Normal",
+       "t": "min",
+       "v": 100,
+       "u": "% PN",
+       "src": [
+        "t2",
+        89
+       ]
+      },
+      {
+       "p": "Umidade de compactação",
+       "c": "hót −1% a +1%",
+       "t": "range",
+       "v": [
+        -1,
+        1
+       ],
+       "u": "% (h − hót)",
+       "src": [
+        "t2",
+        89
+       ]
+      },
+      {
+       "p": "ISC mínimo (ISp de projeto)",
+       "c": "≥ 5,0% em todo o trecho",
+       "t": "min",
+       "v": 5,
+       "u": "% ISC",
+       "src": [
+        "t2",
+        131
+       ]
+      },
+      {
+       "p": "Expansão",
+       "c": "< 2%",
+       "t": "max",
+       "v": 2,
+       "u": "%",
+       "src": [
+        "t2",
+        42
+       ]
+      },
+      {
+       "p": "Espessura das camadas",
+       "c": "2 camadas de 30 cm ou 3 de 20 cm",
+       "t": "max",
+       "v": 30,
+       "u": "cm por camada",
+       "src": [
+        "t2",
+        89
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "g": "Pavimentação",
+   "s": [
+    {
+     "n": "Regularização e compactação do subleito",
+     "es": "DER/PR ES-PA 01/23",
+     "it": [
+      {
+       "p": "Espessura",
+       "c": "camada única de 20 cm",
+       "t": "info",
+       "v": 20,
+       "u": "cm",
+       "src": [
+        "t2",
+        131
+       ]
+      },
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 100% da energia normal",
+       "t": "min",
+       "v": 100,
+       "u": "% PN",
+       "src": [
+        "t2",
+        131
+       ]
+      },
+      {
+       "p": "Deflexão máxima admissível",
+       "c": "≤ 150 × 10⁻² mm",
+       "t": "max",
+       "v": 150,
+       "u": "×10⁻² mm",
+       "src": [
+        "t2",
+        134
+       ]
+      },
+      {
+       "p": "Nota de serviço de pavimentação",
+       "c": "≥ 5 pontos por seção, seções a cada 20 m no máximo",
+       "t": "max",
+       "v": 20,
+       "u": "m entre seções",
+       "src": [
+        "t2",
+        131
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Reforço do subleito – bica corrida (2 × 15 cm)",
+     "es": "DER/PR ES-PA 06/23",
+     "it": [
+      {
+       "p": "Espessura total",
+       "c": "30 cm em 2 camadas de 15 cm",
+       "t": "info",
+       "v": 30,
+       "u": "cm",
+       "src": [
+        "t2",
+        129
+       ]
+      },
+      {
+       "p": "Espessura de cada camada",
+       "c": "≤ 20 cm",
+       "t": "max",
+       "v": 20,
+       "u": "cm",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 100% da energia intermediária",
+       "t": "min",
+       "v": 100,
+       "u": "% PI",
+       "src": [
+        "t2",
+        129
+       ]
+      },
+      {
+       "p": "Granulometria",
+       "c": "faixa 1 da ES-PA 06/23; diâmetro máximo < 2\"",
+       "t": "info",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "ISC",
+       "c": "≥ ISp",
+       "t": "min",
+       "v": 5,
+       "u": "% ISC",
+       "src": [
+        "t1",
+        253
+       ]
+      },
+      {
+       "p": "Expansão",
+       "c": "≤ 0,5%",
+       "t": "max",
+       "v": 0.5,
+       "u": "%",
+       "src": [
+        "t1",
+        253
+       ]
+      },
+      {
+       "p": "Deflexão máxima admissível",
+       "c": "≤ 105 × 10⁻² mm",
+       "t": "max",
+       "v": 105,
+       "u": "×10⁻² mm",
+       "src": [
+        "t2",
+        132
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Sub-base – bica corrida (20 cm)",
+     "es": "DER/PR ES-PA 06/23",
+     "it": [
+      {
+       "p": "Espessura",
+       "c": "20 cm",
+       "t": "info",
+       "v": 20,
+       "u": "cm",
+       "src": [
+        "t2",
+        129
+       ]
+      },
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 100% da energia intermediária",
+       "t": "min",
+       "v": 100,
+       "u": "% PI",
+       "src": [
+        "t2",
+        129
+       ]
+      },
+      {
+       "p": "CBR",
+       "c": "≥ 80%",
+       "t": "min",
+       "v": 80,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Expansão",
+       "c": "≤ 0,5%",
+       "t": "max",
+       "v": 0.5,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Diâmetro máximo",
+       "c": "2\"",
+       "t": "info",
+       "src": [
+        "t1",
+        253
+       ]
+      },
+      {
+       "p": "Deflexão máxima admissível",
+       "c": "≤ 85 × 10⁻² mm",
+       "t": "max",
+       "v": 85,
+       "u": "×10⁻² mm",
+       "src": [
+        "t2",
+        132
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Base – brita graduada simples (16 cm)",
+     "es": "DER/PR ES-PA 05/23",
+     "it": [
+      {
+       "p": "Espessura",
+       "c": "16 cm constante",
+       "t": "info",
+       "v": 16,
+       "u": "cm",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Grau de compactação",
+       "c": "≥ 100% da energia modificada",
+       "t": "min",
+       "v": 100,
+       "u": "% PM",
+       "src": [
+        "t2",
+        133
+       ]
+      },
+      {
+       "p": "CBR",
+       "c": "≥ 100% (mínimo de 80% na energia intermediária)",
+       "t": "min",
+       "v": 100,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Expansão",
+       "c": "≤ 0,5%",
+       "t": "max",
+       "v": 0.5,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Limite de liquidez",
+       "c": "≤ 25%",
+       "t": "max",
+       "v": 25,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Índice de plasticidade",
+       "c": "≤ 6%",
+       "t": "max",
+       "v": 6,
+       "u": "%",
+       "src": [
+        "t2",
+        91
+       ]
+      },
+      {
+       "p": "Abrasão Los Angeles",
+       "c": "≤ 55%",
+       "t": "max",
+       "v": 55,
+       "u": "%",
+       "src": [
+        "t1",
+        253
+       ]
+      },
+      {
+       "p": "Faixa granulométrica",
+       "c": "Faixa I, II ou III da ES-PA 05/23; sem areia na mistura",
+       "t": "info",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Passante na nº 40",
+       "c": "≥ 12%",
+       "t": "min",
+       "v": 12,
+       "u": "%",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Passante nº 4 − passante nº 40",
+       "c": "entre 20% e 30%",
+       "t": "range",
+       "v": [
+        20,
+        30
+       ],
+       "u": "%",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Passante nº 200 / passante nº 40",
+       "c": "≤ 2/3",
+       "t": "max",
+       "v": 0.667,
+       "u": "razão",
+       "src": [
+        "t2",
+        132
+       ]
+      },
+      {
+       "p": "Deflexão máxima admissível",
+       "c": "≤ 75 × 10⁻² mm",
+       "t": "max",
+       "v": 75,
+       "u": "×10⁻² mm",
+       "src": [
+        "t2",
+        133
+       ]
+      },
+      {
+       "p": "Espalhamento",
+       "c": "obrigatório distribuidor de agregados ou vibroacabadora",
+       "t": "info",
+       "src": [
+        "t2",
+        133
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Imprimação",
+     "es": "DER/PR ES-PA 17/23",
+     "it": [
+      {
+       "p": "Taxa de emulsão EAI",
+       "c": "1,2 L/m²",
+       "t": "info",
+       "v": 1.2,
+       "u": "L/m²",
+       "src": [
+        "t2",
+        133
+       ]
+      },
+      {
+       "p": "Prazo entre imprimação e CBUQ (sem pintura de ligação)",
+       "c": "≤ 7 dias corridos",
+       "t": "max",
+       "v": 7,
+       "u": "dias",
+       "src": [
+        "t2",
+        133
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Pintura de ligação",
+     "es": "DER/PR ES-PA 17/23",
+     "it": [
+      {
+       "p": "Taxa de emulsão RR-1C",
+       "c": "0,45 kg/m² (0,00045 t/m²)",
+       "t": "info",
+       "v": 0.45,
+       "u": "kg/m²",
+       "src": [
+        "t2",
+        134
+       ]
+      }
+     ]
+    },
+    {
+     "n": "CBUQ – Faixa C (5 cm)",
+     "es": "DER/PR ES-PA 21/23",
+     "it": [
+      {
+       "p": "Espessura",
+       "c": "5,0 cm",
+       "t": "info",
+       "v": 5,
+       "u": "cm",
+       "src": [
+        "t2",
+        129
+       ]
+      },
+      {
+       "p": "Faixa granulométrica",
+       "c": "Faixa C do DER/PR",
+       "t": "info",
+       "src": [
+        "t2",
+        133
+       ]
+      },
+      {
+       "p": "Teor de CAP 50/70",
+       "c": "≥ 5,7%",
+       "t": "min",
+       "v": 5.7,
+       "u": "%",
+       "src": [
+        "t2",
+        130
+       ]
+      },
+      {
+       "p": "Cal CH-I",
+       "c": "1,5%",
+       "t": "info",
+       "v": 1.5,
+       "u": "%",
+       "src": [
+        "t2",
+        134
+       ]
+      },
+      {
+       "p": "Deflexão máxima no topo do revestimento",
+       "c": "≤ 63 × 10⁻² mm",
+       "t": "max",
+       "v": 63,
+       "u": "×10⁻² mm",
+       "src": [
+        "t2",
+        134
+       ]
+      },
+      {
+       "p": "Pano experimental",
+       "c": "recomendado para todas as camadas, com a Fiscalização",
+       "t": "info",
+       "src": [
+        "t2",
+        134
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "g": "Drenagem",
+   "s": [
+    {
+     "n": "Sarjetas e valetas de concreto",
+     "es": "DER/PR ES-DR 01/23",
+     "it": [
+      {
+       "p": "Concreto",
+       "c": "fck ≥ 15 MPa (concreto dos itens 605300/650000 do contrato)",
+       "t": "min",
+       "v": 15,
+       "u": "MPa",
+       "src": null
+      },
+      {
+       "p": "Bordo livre",
+       "c": "20% da altura do dispositivo (exceções até 10%)",
+       "t": "min",
+       "v": 20,
+       "u": "%",
+       "src": [
+        "t2",
+        66
+       ]
+      },
+      {
+       "p": "Velocidade máxima – concreto / grama",
+       "c": "4,50 m/s / 1,80 m/s",
+       "t": "max",
+       "v": 4.5,
+       "u": "m/s",
+       "src": [
+        "t2",
+        66
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Drenos profundos e subsuperficiais",
+     "es": "DER/PR ES-DR 06/23 · ES-DR 07/23",
+     "it": [
+      {
+       "p": "DPS-6A (solo)",
+       "c": "0,50 m × 1,50 m, brita + PEAD DN 230 + geotêxtil",
+       "t": "info",
+       "src": [
+        "t2",
+        69
+       ]
+      },
+      {
+       "p": "DPR-02 (rocha)",
+       "c": "0,40 m × 0,50 m, brita + PEAD DN 230 + geotêxtil",
+       "t": "info",
+       "src": [
+        "t2",
+        69
+       ]
+      },
+      {
+       "p": "DSS-02 / DSS-04",
+       "c": "seção 0,40 × 0,40 m; DSS-04 com PEAD DN 100",
+       "t": "info",
+       "src": [
+        "t2",
+        69
+       ]
+      },
+      {
+       "p": "Posição do dreno profundo",
+       "c": "1,5 m do pé do talude, na camada final de terraplenagem",
+       "t": "info",
+       "src": [
+        "t2",
+        134
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Bueiros e galerias",
+     "es": "DER/PR ES-DR 09/23 · ES-DR 10/23",
+     "it": [
+      {
+       "p": "Concreto de bocas e galerias",
+       "c": "fck ≥ 20 MPa (itens 605500/742000)",
+       "t": "min",
+       "v": 20,
+       "u": "MPa",
+       "src": [
+        "t2",
+        170
+       ]
+      },
+      {
+       "p": "Tempo de recorrência – tubulares",
+       "c": "15 anos (canal) / 25 anos (orifício)",
+       "t": "info",
+       "src": [
+        "t2",
+        63
+       ]
+      },
+      {
+       "p": "Tempo de recorrência – celulares",
+       "c": "25 anos (canal) / 50 anos (orifício)",
+       "t": "info",
+       "src": [
+        "t2",
+        63
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "g": "Concreto e OAE",
+   "s": [
+    {
+     "n": "Ponte sobre o Rio do Salto – infra, meso e barreiras",
+     "es": "NBR 6118 · NBR 14931 · NBR 12655",
+     "it": [
+      {
+       "p": "Classe do concreto",
+       "c": "C25 (fck ≥ 25 MPa)",
+       "t": "min",
+       "v": 25,
+       "u": "MPa",
+       "src": [
+        "t2",
+        139
+       ]
+      },
+      {
+       "p": "Relação água/cimento",
+       "c": "≤ 0,60 (classe de agressividade II)",
+       "t": "max",
+       "v": 0.6,
+       "u": "a/c",
+       "src": [
+        "t2",
+        138
+       ]
+      },
+      {
+       "p": "Aço",
+       "c": "CA-50 (NBR 7480)",
+       "t": "info",
+       "src": [
+        "t2",
+        139
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Ponte – superestrutura (longarinas protendidas e laje)",
+     "es": "NBR 6118 · NBR 14931 · NBR 12655",
+     "it": [
+      {
+       "p": "Classe do concreto",
+       "c": "C40 (fck ≥ 40 MPa)",
+       "t": "min",
+       "v": 40,
+       "u": "MPa",
+       "src": [
+        "t2",
+        139
+       ]
+      },
+      {
+       "p": "Relação água/cimento (protendido)",
+       "c": "≤ 0,55",
+       "t": "max",
+       "v": 0.55,
+       "u": "a/c",
+       "src": [
+        "t2",
+        138
+       ]
+      },
+      {
+       "p": "Aço de protensão",
+       "c": "CP-190 RB 15,2 mm",
+       "t": "info",
+       "src": [
+        "t2",
+        139
+       ]
+      }
+     ]
+    },
+    {
+     "n": "Concreto projetado – tratamento de corte em rocha",
+     "es": "projeto de contenção",
+     "it": [
+      {
+       "p": "Resistência",
+       "c": "fck ≥ 20 MPa, via seca",
+       "t": "min",
+       "v": 20,
+       "u": "MPa",
+       "src": [
+        "t2",
+        61
+       ]
+      },
+      {
+       "p": "Tela eletrosoldada",
+       "c": "em 25% da área de concreto projetado",
+       "t": "info",
+       "src": [
+        "t2",
+        54
+       ]
+      },
+      {
+       "p": "Tirantes",
+       "c": "barra D = 22 mm, fy = 686 MPa, fu = 789 MPa, ancorada com resina",
+       "t": "info",
+       "src": [
+        "t2",
+        61
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "tracos": [
+  {
+   "id": "magro",
+   "n": "Concreto magro (lastro)",
+   "uso": "lastros, regularização",
+   "fck": 10,
+   "cim": 199.3,
+   "are": 0.71,
+   "bri": 0.74,
+   "ac": 0.8,
+   "adt": 0,
+   "slump": 60,
+   "cpu": "605000"
+  },
+  {
+   "id": "c15",
+   "n": "Concreto fck 15 MPa",
+   "uso": "sarjetas, valetas, descidas, dispositivos",
+   "fck": 15,
+   "cim": 333.6,
+   "are": 0.614,
+   "bri": 0.74,
+   "ac": 0.65,
+   "adt": 0,
+   "slump": 80,
+   "cpu": "605300 / 741500"
+  },
+  {
+   "id": "c20",
+   "n": "Concreto fck 20 MPa",
+   "uso": "bocas de bueiro, galerias, passa-fauna",
+   "fck": 20,
+   "cim": 371.9,
+   "are": 0.582,
+   "bri": 0.74,
+   "ac": 0.6,
+   "adt": 0,
+   "slump": 80,
+   "cpu": "605500 / 742000"
+  },
+  {
+   "id": "proj",
+   "n": "Concreto projetado fck 20 MPa",
+   "uso": "tratamento de taludes em rocha (inclui reflexão)",
+   "fck": 20,
+   "cim": 700.8,
+   "are": 1.1204,
+   "bri": 0.832,
+   "ac": 0.45,
+   "adt": 2.09,
+   "slump": 0,
+   "cpu": "792400"
+  },
+  {
+   "id": "c25",
+   "n": "Concreto C25 (ponte)",
+   "uso": "infra, meso e barreiras da ponte",
+   "fck": 25,
+   "cim": null,
+   "are": null,
+   "bri": null,
+   "ac": 0.6,
+   "adt": 0,
+   "slump": 100,
+   "cpu": "usinado – dosagem da concreteira"
+  },
+  {
+   "id": "c40",
+   "n": "Concreto C40 (ponte)",
+   "uso": "longarinas protendidas e laje",
+   "fck": 40,
+   "cim": null,
+   "are": null,
+   "bri": null,
+   "ac": 0.55,
+   "adt": 0,
+   "slump": 120,
+   "cpu": "usinado – dosagem da concreteira"
+  },
+  {
+   "id": "arg",
+   "n": "Argamassa 1:3",
+   "uso": "rejuntes, assentamentos",
+   "fck": null,
+   "cim": 433.1,
+   "are": 1.05,
+   "bri": null,
+   "ac": 0.6,
+   "adt": 0,
+   "slump": null,
+   "cpu": "745000"
+  }
+ ]
+}

@@ -16,7 +16,7 @@ const parseEst = s => { const m = /^(\d+)\+([\d.,]+)$/.exec(String(s).trim()); r
 // ---------------------------------------------------------------- versão mestra × versão individual
 // A versão mestra (data/mestre.json) é publicada pelo dono (com a senha e um token do GitHub). Cada aparelho lê a mestra
 // e guarda por cima as próprias alterações, por área; quando a mestra muda numa área alterada, o app pergunta o que fazer.
-const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britBase', 'britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] }, planejamento: { n: 'Planejamento', k: ['planPar'] } };
+const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britBase', 'britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] }, planejamento: { n: 'Planejamento', k: ['planPar'] }, controle: { n: 'Traços de concreto', k: ['tracos', 'tracoPar'] } };
 const K2A = {}; for (const [a, o] of Object.entries(MAREAS)) for (const k of o.k) K2A[k] = a;
 let MST = null;
 const rawGet = k => { try { return localStorage.getItem('pr990:' + k); } catch { return null; } };
@@ -53,9 +53,9 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem', 'reajuste'].map(f => get(f + '.json')));
+  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, controle] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem', 'reajuste', 'controle'].map(f => get(f + '.json')));
   const mestre = await fetch('data/mestre.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
-  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, mestre };
+  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, controle, mestre };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -513,7 +513,7 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'apresentacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'planejamento', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'apresentacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'planejamento', 'controle', 'memorias', 'sobre'];
 let current = 'painel';
 // ---------------------------------------------------------------- abas protegidas por senha (dados cifrados em data/protegido.json)
 const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base', 'planejamento'];
@@ -572,7 +572,7 @@ function show(v) {
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'sobre') offStatus(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'sobre') offStatus(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr(); if (v === 'controle') OB.renderCt(); if (v === 'memorias') OB.renderMem();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -759,7 +759,7 @@ function verInit() {
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
-  Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas, britagem: data.britagem });
+  Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas, britagem: data.britagem, controle: data.controle });
   mstLoad(data.mestre); RJO = store.get('reajR', {}); OB.reloadState();
   REAJ = data.reajuste; reajInit(); PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);

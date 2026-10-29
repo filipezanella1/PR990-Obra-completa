@@ -5,7 +5,7 @@ const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './src/style.css', './src/engine.js', './src/app.js', './src/obra.js', './src/medparse.js', './src/xlsx.js', './src/retig.js',
   './data/model.json', './data/insumos.json', './data/base.json', './data/painel.json',
-  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json', './data/midia.json',
+  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json', './data/midia.json', './data/controle.json', './data/memorias.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'
 ];
 const FONTS = 'pr990-fonts';
@@ -45,6 +45,12 @@ self.addEventListener('fetch', ev => {
   if (url.pathname.endsWith('/data/mestre.json')) {
     ev.respondWith(fetch(req, { cache: 'no-store' }).then(res => { if (res.ok) caches.open(VERSION).then(c => c.put('./data/mestre.json', res.clone())); return res.clone(); })
       .catch(() => caches.match('./data/mestre.json', { ignoreSearch: true }).then(r => r || new Response('null', { headers: { 'Content-Type': 'application/json' } }))));
+    return;
+  }
+  // memória justificativa (PDF): da rede na primeira vez e guarda no aparelho (abre sem internet depois)
+  if (/\/memorias\/[^/]+\.pdf$/.test(url.pathname)) {
+    ev.respondWith(caches.open(MIDIA).then(async c => { const hit = await c.match(req, { ignoreSearch: true }); if (hit) return hit;
+      const res = await fetch(req).catch(() => null); if (res && res.ok && res.status === 200) c.put(req, res.clone()); return res || new Response('PDF ainda não baixado neste aparelho. Abra uma vez com internet.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }));
     return;
   }
   // página: sai do cache desta versão (HTML, estilos e scripts sempre da mesma publicação);

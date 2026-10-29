@@ -1083,3 +1083,44 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .off-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 40; background: var(--asphalt); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: .82rem; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
 @media (max-width: 760px) { .off-bar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
 @media print { .off-bar, .off-p { display: none !important; } }
+
+/* ---------- Controle tecnológico e memória justificativa */
+#v-controle .chips, #v-memorias .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+#v-controle .chip, #v-memorias .chip { background: var(--surface); color: var(--fg); border: 1px solid var(--line); padding: 6px 12px; font: inherit; font-size: .88rem; min-height: 36px; }
+#v-controle .chip.on, #v-memorias .chip.on { background: var(--accent); border-color: var(--accent); color: #1d2226; font-weight: 600; }
+#v-memorias .chip small { opacity: .7; font-weight: 400; }
+.ct-g { font-family: var(--f-display); margin: 22px 0 8px; font-size: 1.15rem; }
+.ct-s { margin-bottom: 12px; }
+.ct-s .ph { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 8px; }
+.ct-s h4 { margin: 0; font-size: 1rem; }
+.ct-t td { vertical-align: top; }
+.ct-t td:first-child { width: 32%; }
+.ct-in, .tr-in, .tr-p { font: inherit; font-family: var(--f-mono); font-size: .88rem; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; width: 7.5ch; text-align: right; }
+.tr-in[size] { text-align: left; width: auto; font-family: inherit; }
+.tr-in.bad { border-color: #d64545; }
+.ct-src { white-space: nowrap; }
+.ct-trp { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 10px; }
+.ct-trp .sp { flex: 1; }
+.ct-tt th, .ct-tt td { white-space: nowrap; }
+.ct-tt td .note.warn { color: #d64545; font-size: .75rem; }
+.mm-sp { margin-top: 12px; }
+#mm-q { width: 100%; font: inherit; font-size: 1.05rem; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+#mm-q:focus { border-color: var(--accent); outline: none; }
+.mm-res { display: grid; gap: 8px; }
+.mm-r { display: grid; gap: 4px; text-align: left; font: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; color: var(--fg); cursor: pointer; }
+.mm-r:hover { border-color: var(--accent); }
+.mm-h { font-size: .85rem; color: var(--muted); } .mm-h b { color: var(--fg); }
+.mm-s { font-size: .92rem; line-height: 1.45; }
+#v-memorias mark { background: rgba(240,180,41,.45); color: inherit; border-radius: 2px; padding: 0 1px; }
+.mm-toc details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; margin-bottom: 10px; }
+.mm-toc summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.mm-toc ol { list-style: none; padding: 0; margin: 10px 0 0; }
+.mm-toc li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-top: 1px solid var(--line); }
+.mm-toc li.lv2 { padding-left: 16px; } .mm-toc li.lv3 { padding-left: 32px; font-size: .92rem; }
+.mm-toc li .lnk { text-align: left; }
+.mm-rd { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.mm-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.mm-bar .sp { flex: 1; }
+.mm-pg { margin: 0; padding: 16px; font-family: var(--f-mono); font-size: .8rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-width: 100%; overflow-x: auto; }
+@media (max-width: 760px) { .ct-t td:first-child { width: auto; } .mm-pg { font-size: .74rem; padding: 12px; } }
+.mm-foot { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }

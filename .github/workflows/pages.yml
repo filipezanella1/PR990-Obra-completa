@@ -41,7 +41,7 @@ jobs:
       - name: Montar o site
         run: |
           mkdir -p _site
-          cp -r index.html manifest.webmanifest sw.js icons drenagem pranchas src data dist .nojekyll _site/
+          cp -r index.html manifest.webmanifest sw.js icons drenagem pranchas memorias src data dist .nojekyll _site/
           sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" _site/sw.js _site/index.html _site/src/*.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

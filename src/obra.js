@@ -1133,6 +1133,99 @@ export function initObra(X) {
       download(`planejamento_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
   }
 
+  // ===================================================================== MEMÓRIA JUSTIFICATIVA (pesquisável)
+  const nrm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let MEMP = null; let MQ = '', MDOC = '', MPG = null;
+  function memLoad() {
+    if (MEMP) return MEMP;
+    MEMP = (window.__PR990__ && window.__PR990__.memorias ? Promise.resolve(window.__PR990__.memorias) : fetch('data/memorias.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }))
+      .then(m => { for (const d of m.docs) d.np = d.pages.map(nrm); D.mem = m; return m; }).catch(e => { MEMP = null; throw e; });
+    return MEMP;
+  }
+  const hl = (txt, terms) => { const ch = [...String(txt)]; const nm = []; let n = ''; ch.forEach((c, i) => { const x = nrm(c); for (let k = 0; k < x.length; k++) nm.push(i); n += x; });
+    const on = new Array(ch.length).fill(false); for (const t of terms.filter(t => t.length > 1)) { let k = n.indexOf(t); while (k >= 0) { for (let j = k; j < k + t.length; j++) on[nm[j]] = true; k = n.indexOf(t, k + t.length); } }
+    let h = '', open = false; ch.forEach((c, i) => { if (on[i] && !open) { h += '<mark>'; open = true; } else if (!on[i] && open) { h += '</mark>'; open = false; } h += esc(c); }); return h + (open ? '</mark>' : ''); };
+  function memSearch(q, docId) {
+    const m = D.mem; if (!m) return []; const terms = nrm(q).split(/\s+/).filter(t => t.length > 1); if (!terms.length) return [];
+    const out = [];
+    for (const d of m.docs) { if (docId && d.id !== docId) continue;
+      d.np.forEach((p, i) => { if (!terms.every(t => p.includes(t))) return; let sc = 0; for (const t of terms) sc += p.split(t).length - 1; const k = p.indexOf(terms[0]);
+        const raw = d.pages[i]; const a = Math.max(0, k - 90), b = Math.min(raw.length, k + 160); out.push({ d, i, sc, snip: (a ? '…' : '') + raw.slice(a, b).replace(/\s+/g, ' ') + (b < raw.length ? '…' : '') }); }); }
+    return out.sort((x, y) => y.sc - x.sc).slice(0, 80);
+  }
+  const secOf = (d, pg) => { let s = null; for (const t of d.toc) if (t.p <= pg) s = t; return s; };
+  async function renderMem() {
+    const host = $('#mm-body'); if (!host) return;
+    if (!D.mem) { host.innerHTML = '<p class="note">Carregando a memória justificativa…</p>'; try { await memLoad(); } catch (e) { host.innerHTML = `<p class="note warn">Não foi possível carregar a memória justificativa (${esc(e.message)}). Abra uma vez com internet.</p>`; return; } }
+    const m = D.mem;
+    $('#mm-docs').innerHTML = `<button type="button" class="chip${!MDOC ? ' on' : ''}" data-md="">Todos os tomos</button>` + m.docs.map(d => `<button type="button" class="chip${MDOC === d.id ? ' on' : ''}" data-md="${d.id}">${esc(d.n)} <small>${d.pages.length} p.</small></button>`).join('');
+    if (MPG) { const d = m.docs.find(x => x.id === MPG.d); const i = MPG.p - 1; const s = secOf(d, MPG.p); const terms = nrm(MQ).split(/\s+/).filter(Boolean);
+      host.innerHTML = `<div class="mm-rd"><div class="mm-bar"><button type="button" class="btn sm" data-mback>← ${MQ ? 'Resultados' : 'Sumário'}</button><b>${esc(d.n)}</b><span class="note">${s ? esc(s.s + ' ' + s.t) + ' · ' : ''}página ${MPG.p} de ${d.pages.length}</span><span class="sp"></span>
+        <button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>›</button>
+        <a class="btn sm" href="${window.__PR990__ ? 'https://filipezanella1.github.io/PR990-Obra-completa/' : ''}${d.file}#page=${MPG.p}" target="_blank" rel="noopener">Abrir no PDF</a></div>
+        <pre class="mm-pg">${hl(d.pages[i] || '(página sem texto)', terms)}</pre><div class="mm-foot"><button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹ Página ${MPG.p - 1}</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>Página ${MPG.p + 1} ›</button></div></div>`;
+      const mk = host.querySelector('mark'); if (mk) mk.scrollIntoView({ block: 'center' }); return; }
+    if (MQ.trim().length > 1) { const R = memSearch(MQ, MDOC); const terms = nrm(MQ).split(/\s+/).filter(Boolean);
+      host.innerHTML = `<p class="note">${R.length ? `${R.length}${R.length === 80 ? '+' : ''} página${R.length > 1 ? 's' : ''} encontrada${R.length > 1 ? 's' : ''}` : 'Nada encontrado. Tente outra palavra (a busca ignora acentos e exige todas as palavras na mesma página).'}</p>
+        <div class="mm-res">${R.map(r => { const s = secOf(r.d, r.i + 1); return `<button type="button" class="mm-r" data-mopen="${r.d.id}|${r.i + 1}"><span class="mm-h"><b>${esc(r.d.n)}</b> · p. ${r.i + 1}${s ? ' · ' + esc(s.s + ' ' + s.t) : ''}</span><span class="mm-s">${hl(r.snip, terms)}</span></button>`; }).join('')}</div>`; return; }
+    host.innerHTML = `<div class="mm-toc">${m.docs.filter(d => !MDOC || d.id === MDOC).map(d => `<details${MDOC ? ' open' : ''}><summary><b>${esc(d.n)}</b> <span class="note">${d.pages.length} páginas${d.ocr ? ` · ${d.ocr} digitalizadas (texto por OCR)` : ''}</span></summary><ol>${d.toc.map(t => `<li class="lv${Math.min(3, t.s.split('.').length)}"><button type="button" class="lnk" data-mopen="${d.id}|${t.p}">${esc(t.s)} ${esc(t.t)}</button><span class="note">p. ${t.p}</span></li>`).join('')}</ol></details>`).join('')}</div>`;
+  }
+  function memOpen(doc, page, q) { MPG = { d: doc, p: page }; if (q !== undefined) { MQ = q; const i = $('#mm-q'); if (i) i.value = q; } if (X.current() !== 'memorias') location.hash = '#memorias'; else renderMem(); }
+  function memInit() {
+    const v = $('#v-memorias'); if (!v) return;
+    let tm; $('#mm-q').addEventListener('input', ev => { clearTimeout(tm); tm = setTimeout(() => { MQ = ev.target.value; MPG = null; renderMem(); }, 180); });
+    v.addEventListener('click', ev => {
+      const o = ev.target.closest('[data-mopen]'); if (o) { const [d, p] = o.dataset.mopen.split('|'); MPG = { d, p: +p }; renderMem(); window.scrollTo({ top: v.offsetTop - 80 }); return; }
+      const g = ev.target.closest('[data-mpg]'); if (g) { MPG.p = +g.dataset.mpg; renderMem(); if (!MQ) $('#mm-body').scrollIntoView({ block: 'start' }); return; }
+      if (ev.target.closest('[data-mback]')) { MPG = null; renderMem(); return; }
+      const c = ev.target.closest('[data-md]'); if (c) { MDOC = c.dataset.md; MPG = null; renderMem(); }
+    });
+    if ('requestIdleCallback' in window) requestIdleCallback(() => memLoad().catch(() => { }), { timeout: 8000 }); else setTimeout(() => memLoad().catch(() => { }), 4000);
+  }
+
+  // ===================================================================== CONTROLE TECNOLÓGICO
+  let CTG = '', CTE = store.get('ctEns', {}), TRC = store.get('tracos', null), TRP = store.get('tracoPar', { ra: 1.50, rb: 1.45 });
+  const trc = () => TRC || JSON.parse(JSON.stringify(D.controle.tracos));
+  const srcLink = s => s ? `<button type="button" class="lnk ct-src" data-src="${s[0]}|${s[1]}">${s[0] === 't1' ? 'Tomo I' : s[0] === 't2' ? 'Tomo II' : 'Tomo III'}, p. ${s[1]}</button>` : '<span class="note">contrato</span>';
+  function ctCheck(it, val) {
+    if (val === '' || val === undefined || val === null) return '';
+    const x = parseFloat(String(val).replace(',', '.')); if (!Number.isFinite(x) || it.t === 'info') return '';
+    const ok = it.t === 'min' ? x >= it.v - 1e-9 : it.t === 'max' ? x <= it.v + 1e-9 : x >= it.v[0] - 1e-9 && x <= it.v[1] + 1e-9;
+    return ok ? '<span class="pill ok">atende</span>' : '<span class="pill bad">não atende</span>';
+  }
+  function renderCt() {
+    const C = D.controle; if (!C) return;
+    $('#ct-gr').innerHTML = `<button type="button" class="chip${!CTG ? ' on' : ''}" data-ctg="">Todos</button>` + C.grupos.map(g => `<button type="button" class="chip${CTG === g.g ? ' on' : ''}" data-ctg="${esc(g.g)}">${esc(g.g)}</button>`).join('');
+    $('#ct-par').innerHTML = C.grupos.filter(g => !CTG || g.g === CTG).map(g => `<h3 class="ct-g">${esc(g.g)}</h3>${g.s.map((s, si) => `<div class="panel ct-s"><div class="ph"><h4>${esc(s.n)}</h4><span class="note">${esc(s.es)}</span></div>
+      <table class="itbl ct-t"><thead><tr><th>Parâmetro</th><th>Exigência de projeto</th><th>Fonte</th><th class="n">Resultado de ensaio</th><th>Situação</th></tr></thead><tbody>
+      ${s.it.map((it, ii) => { const key = `${g.g}|${s.n}|${it.p}`; const val = CTE[key] ?? ''; return `<tr><td><b>${esc(it.p)}</b></td><td data-l="Exigência">${esc(it.c)}</td><td data-l="Fonte">${srcLink(it.src)}</td>
+        <td class="n" data-l="Ensaio">${it.t === 'info' ? '<span class="note">–</span>' : `<input class="ct-in" data-k="${esc(key)}" inputmode="decimal" value="${esc(String(val))}" placeholder="${esc(it.u || '')}">`}</td><td data-l="Situação" class="ct-st">${ctCheck(it, val)}</td></tr>`; }).join('')}</tbody></table></div>`).join('')}`).join('');
+    // traços
+    const T = trc(); const ra = +TRP.ra || 1.5, rb = +TRP.rb || 1.45; const N = (v, d = 2) => v === null || v === undefined || v === '' ? '' : NF[d].format(v);
+    const lim = { 25: 0.60, 40: 0.55 };
+    $('#ct-tr').innerHTML = `<div class="ct-trp"><label class="lbl">Massa unitária da areia <input class="tr-p" data-k="ra" inputmode="decimal" value="${N(ra)}"> t/m³</label><label class="lbl">Massa unitária da brita <input class="tr-p" data-k="rb" inputmode="decimal" value="${N(rb)}"> t/m³</label><span class="sp"></span><button type="button" class="btn sm" id="tr-add">+ Traço</button><button type="button" class="lnk" id="tr-rst">Voltar aos traços das CPUs</button></div>
+      <div class="tbl-wrap"><table class="itbl ct-tt"><thead><tr><th>Concreto</th><th class="n">fck (MPa)</th><th class="n">Cimento (kg/m³)</th><th class="n">Areia (m³/m³)</th><th class="n">Brita (m³/m³)</th><th class="n">a/c</th><th class="n">Água (L/m³)</th><th>Traço em massa<br>1 : areia : brita : água</th><th>Por saco de 50 kg</th><th class="n">Aditivo (kg/m³)</th><th class="n">Abatim. (mm)</th><th>Uso</th><th>Origem (CPU)</th><th></th></tr></thead><tbody>
+      ${T.map((t, i) => { const c = +t.cim || 0; const a = c && t.are ? t.are * ra * 1000 / c : null, p = c && t.bri ? t.bri * rb * 1000 / c : null; const agua = c && t.ac ? c * t.ac : null;
+        const amax = t.fck >= 40 ? 0.55 : t.fck >= 25 ? 0.60 : null; const acBad = amax && t.ac > amax + 1e-9;
+        const inp = (k, d = 2, w = '') => `<input class="tr-in${k === 'ac' && acBad ? ' bad' : ''}" data-i="${i}" data-k="${k}" ${k === 'n' || k === 'uso' || k === 'cpu' ? '' : 'inputmode="decimal"'} value="${esc(k === 'n' || k === 'uso' || k === 'cpu' ? (t[k] || '') : N(t[k], d))}"${w}>`;
+        return `<tr><td>${inp('n', 0, ' size="18"')}</td><td class="n">${inp('fck', 0)}</td><td class="n">${inp('cim', 1)}</td><td class="n">${inp('are', 3)}</td><td class="n">${inp('bri', 3)}</td><td class="n">${inp('ac', 2)}${acBad ? `<div class="note warn">máx. ${N(amax)}</div>` : ''}</td><td class="n">${agua ? NF[0].format(agua) : '–'}</td><td><b>${c ? `1 : ${a !== null ? N(a) : '–'} : ${p !== null ? N(p) : '–'} : ${t.ac ? N(t.ac) : '–'}` : '<span class="note">dosagem da concreteira</span>'}</b></td><td class="note">${c ? `areia ${a !== null ? NF[0].format(t.are * 1000 * 50 / c) : '–'} L · brita ${p !== null ? NF[0].format(t.bri * 1000 * 50 / c) : '–'} L · água ${t.ac ? NF[0].format(50 * t.ac) : '–'} L` : '–'}</td><td class="n">${inp('adt', 2)}</td><td class="n">${inp('slump', 0)}</td><td>${inp('uso', 0, ' size="18"')}</td><td>${inp('cpu', 0, ' size="12"')}</td><td><button type="button" class="lnk" data-trdel="${i}" title="Remover">✕</button></td></tr>`; }).join('')}</tbody></table></div>
+      <p class="note">Quantidades por m³ das CPUs do contrato (cimento, areia e brita); água pela relação a/c informada. Traço unitário em massa pelas massas unitárias acima. Relação a/c máxima de projeto: 0,60 para C25 e 0,55 para C40 (classe de agressividade II). Ajuste os traços conforme a dosagem experimental aprovada.</p>`;
+  }
+  function ctInit() {
+    const v = $('#v-controle'); if (!v) return;
+    v.addEventListener('click', ev => {
+      const g = ev.target.closest('[data-ctg]'); if (g) { CTG = g.dataset.ctg; renderCt(); return; }
+      const s = ev.target.closest('[data-src]'); if (s) { const [d, p] = s.dataset.src.split('|'); memOpen(d, +p, ''); return; }
+      if (ev.target.id === 'tr-add') { TRC = trc(); TRC.push({ id: 'u' + Date.now(), n: 'Novo traço', uso: '', fck: null, cim: null, are: null, bri: null, ac: null, adt: 0, slump: null, cpu: '' }); store.set('tracos', TRC); renderCt(); return; }
+      if (ev.target.id === 'tr-rst') { if (!confirm('Voltar todos os traços aos valores das CPUs do contrato?')) return; TRC = null; try { localStorage.removeItem('pr990:tracos'); } catch { } store.set('tracos', JSON.parse(JSON.stringify(D.controle.tracos))); TRC = null; renderCt(); return; }
+      const dl = ev.target.closest('[data-trdel]'); if (dl) { TRC = trc(); TRC.splice(+dl.dataset.trdel, 1); store.set('tracos', TRC); renderCt(); }
+    });
+    v.addEventListener('change', ev => { const t = ev.target; const num2 = s => { const x = parseFloat(String(s).replace(/\./g, '').replace(',', '.')); return Number.isFinite(x) ? x : null; };
+      if (t.classList.contains('ct-in')) { const k = t.dataset.k; if (t.value.trim() === '') delete CTE[k]; else CTE[k] = t.value.trim(); store.set('ctEns', CTE); renderCt(); return; }
+      if (t.classList.contains('tr-in')) { TRC = trc(); const r = TRC[+t.dataset.i]; const k = t.dataset.k; r[k] = ['n', 'uso', 'cpu'].includes(k) ? t.value : num2(t.value); store.set('tracos', TRC); renderCt(); return; }
+      if (t.classList.contains('tr-p')) { TRP = { ...TRP, [t.dataset.k]: num2(t.value) || TRP[t.dataset.k] }; store.set('tracoPar', TRP); renderCt(); } });
+  }
+
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
     const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), rad = Math.PI / 180;
@@ -1357,6 +1450,8 @@ export function initObra(X) {
     for (const p of D.pranchas || []) if (norm(p.id + ' ' + p.t + ' ' + DISC.find(d => d.id === p.d).n).includes(n)) add('Pranchas', `${p.id} · ${p.t}`, DISC.find(d => d.id === p.d).n, () => prOpenSheet(p.id));
     const seen = new Set(); for (const [c, rows] of Object.entries(INS().consumos)) for (const r of rows) { const k = r[0] + r[1]; if (!seen.has(k) && norm(r[1] + ' ' + r[2]).includes(n)) { seen.add(k); add('Insumos', `${r[2]}`, `${r[0]} · código ${r[1]}`, () => { location.hash = '#insumos'; $('#i-q2').value = r[2]; X.renderIns(); }); } }
     for (const l of (AV || { frentes: [] }).frentes) if (norm(l.n).includes(n)) add('Retigráfico', l.n, 'Frente do retigráfico', () => { location.hash = '#avanco'; });
+    if (D.mem) for (const r of memSearch(q, '').slice(0, 12)) { const s = secOf(r.d, r.i + 1); add('Memória justificativa', `${r.d.n} · p. ${r.i + 1}${s ? ' · ' + s.s + ' ' + s.t : ''}`, r.snip.slice(0, 160), () => memOpen(r.d.id, r.i + 1, q)); }
+    if (D.controle) for (const g of D.controle.grupos) for (const sv of g.s) for (const it of sv.it) if (norm(sv.n + ' ' + it.p + ' ' + sv.es).includes(n)) add('Controle tecnológico', `${sv.n} · ${it.p}`, it.c, () => { CTG = g.g; if (X.current() === 'controle') renderCt(); else location.hash = '#controle'; });
     return res;
   }
   function searchInit() {
@@ -1403,7 +1498,7 @@ export function initObra(X) {
     for (const k of Object.keys(SP)) delete SP[k]; Object.assign(SP, { dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
     SIM = store.get('simSel', {}); MESES = store.get('simMeses', null) || [ymNext(ymNow())]; MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
     BPO = store.get('britPar', {}); BBASE = store.get('britBase', null); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
-    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null); PP = ppLoad();
+    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null); PP = ppLoad(); TRC = store.get('tracos', null);
   }
   function avMaster() { if (!AV) avLoad(); const c = JSON.parse(JSON.stringify(AV)); c.ts = Date.now(); return c; }
   function avIsLocal() { const l = store.get(AVKEY, null); const m = D.mestre && D.mestre.retigrafico; return !!(l && (!m || (l.ts || 0) > (m.ts || 0))); }
@@ -1423,8 +1518,8 @@ export function initObra(X) {
     $('#m-file').onchange = e => { const f = e.target.files[0]; if (f) medUpload(f); e.target.value = ''; };
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
-    avInitEvents(); britInit(); aprInit(); planInit(); campoInit(); cmpInit(); searchInit();
+    avInitEvents(); britInit(); aprInit(); planInit(); memInit(); ctInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderPlan, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderPlan, renderMem, renderCt, memSearch, memOpen, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }
