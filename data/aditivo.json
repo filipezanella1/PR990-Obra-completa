@@ -1,0 +1,120 @@
+{
+ "fonte": "Estudo de aditivo e supressão – PR-990 (subsídios para o aditivo)",
+ "arquivo": "d027117e-Estudo_de_aditivo_e_supress_o_-_PR990.xlsx",
+ "grupos": [
+  {
+   "i": 1,
+   "n": "TERRAPLENAGEM",
+   "contrato": 15895347.46,
+   "acr": 1855125.94,
+   "sup": -2247091.85
+  },
+  {
+   "i": 2,
+   "n": "PAVIMENTAÇÃO",
+   "contrato": 27855986.38,
+   "acr": 0.0,
+   "sup": -1018170.06
+  },
+  {
+   "i": 3,
+   "n": "LIGANTES BETUMINOSOS",
+   "contrato": 7400006.84,
+   "acr": 97798.98,
+   "sup": -157473.01
+  },
+  {
+   "i": 4,
+   "n": "DRENAGEM E OBRAS ARTE CORRENTES",
+   "contrato": 16405944.79,
+   "acr": 1772967.03,
+   "sup": -1948820.48
+  },
+  {
+   "i": 5,
+   "n": "OBRAS DE ARTE ESPECIAIS - SOLO GRAMPEADO",
+   "contrato": 1573746.35,
+   "acr": 0.0,
+   "sup": -1573746.37
+  },
+  {
+   "i": 6,
+   "n": "OBRAS DE ARTE ESPECIAIS - PONTE",
+   "contrato": 2284530.76,
+   "acr": 0.0,
+   "sup": -61494.62
+  },
+  {
+   "i": 7,
+   "n": "CONTENÇÕES",
+   "contrato": 687970.09,
+   "acr": 0.0,
+   "sup": -687970.1
+  },
+  {
+   "i": 8,
+   "n": "GALERIAS CELULARES",
+   "contrato": 2322516.98,
+   "acr": 50914.3,
+   "sup": -50127.0
+  },
+  {
+   "i": 9,
+   "n": "PASSA FAUNA",
+   "contrato": 473654.73,
+   "acr": 0.0,
+   "sup": -473654.78
+  },
+  {
+   "i": 10,
+   "n": "SERVIÇOS COMPLEMENTARES",
+   "contrato": 4516749.39,
+   "acr": 453202.1,
+   "sup": -993486.94
+  },
+  {
+   "i": 11,
+   "n": "SINALIZAÇÃO",
+   "contrato": 4392206.49,
+   "acr": 89.6,
+   "sup": -29196.3
+  },
+  {
+   "i": 12,
+   "n": "SINALIZAÇÃO PROVISÓRIA",
+   "contrato": 242171.83,
+   "acr": 0.0,
+   "sup": -2788.96
+  },
+  {
+   "i": 13,
+   "n": "MELHORIAS AMBIENTAIS",
+   "contrato": 878971.33,
+   "acr": 0.0,
+   "sup": 0.0
+  },
+  {
+   "i": 14,
+   "n": "ILUMINAÇÃO",
+   "contrato": 269878.86,
+   "acr": 0.0,
+   "sup": 0.0
+  },
+  {
+   "i": 15,
+   "n": "INTERFERÊNCIAS",
+   "contrato": 826370.72,
+   "acr": 8029.91,
+   "sup": -573556.83
+  },
+  {
+   "i": 16,
+   "n": "MOBILIZAÇÃO E DESMOBILIZAÇÃO",
+   "contrato": 1273947.04,
+   "acr": 0.0,
+   "sup": 0.0
+  }
+ ],
+ "acr": 4238127.86,
+ "sup": -9817577.3
+}

@@ -690,38 +690,45 @@ export function initObra(X) {
   // ----- Cronograma físico-financeiro (CFF) da contratada: original e ajustado (pavimentação e ligantes pela simulação)
   const CFPAV = [1, 2];   // grupos do contrato calculados pela simulação: PAVIMENTAÇÃO e LIGANTES BETUMINOSOS
   let CFM = store.get('cffModo', 'aj');
-  const cffGet = () => { const c = [D.cffShip, D.prot && D.prot.cff, store.get('cffLocal', null)].filter(Boolean); return c.sort((a, b) => String(b.em || '').localeCompare(String(a.em || '')))[0] || null; };
+  const cffGet = () => { const c = [D.cff, store.get('cffLocal', null)].filter(Boolean); return c.sort((a, b) => String(b.em || '').localeCompare(String(a.em || '')))[0] || null; };
+  // saldo a executar de cada grupo pelo estudo de aditivo e supressão: saldo do CFF (contrato − medido) + acréscimos − supressões
+  // (os acréscimos entram porque o saldo do CFF já desconta o que foi medido acima do contrato). Meses: distribuição do CFF na mesma proporção.
+  function cffAdj(CF) {
+    const AD = D.aditivo; return CF.grupos.map((g, gi) => { const ad = AD && AD.grupos[gi] || { acr: 0, sup: 0 }; const exe = Math.max(0, g.saldo + ad.acr + ad.sup);
+      const base = g.v.reduce((x, y) => x + y, 0); const v = base > 0.005 ? g.v.map(x => x * exe / base) : g.v.map((x, j) => j === g.v.length - 1 ? exe : 0); return { acr: ad.acr, sup: ad.sup, exe, v }; });
+  }
   function cffData(A, CF, GR) {
     const sim = GR.map(() => ({})); MESES.forEach((ym, i) => A.val[i].it.forEach(it => { const g = X.reajGi ? X.reajGi(it.row) : -1; if (g >= 0) sim[g][ym] = (sim[g][ym] || 0) + it.v; }));
-    const cols = [...new Set([...CF.meses, ...MESES])].sort();
+    const cols = [...new Set([...CF.meses, ...MESES])].sort(); const AJ = cffAdj(CF);
     const rows = CF.grupos.map((g, gi) => { const o = Object.fromEntries(cols.map(ym => [ym, (g.v[CF.meses.indexOf(ym)] || 0)]));
-      const adj = CFPAV.includes(gi); const a = Object.fromEntries(cols.map(ym => [ym, adj && MESES.includes(ym) ? sim[gi][ym] || 0 : o[ym]]));
-      const v = CFM === 'aj' ? a : o; const tot = cols.reduce((s, ym) => s + v[ym], 0); return { i: g.i, n: (GR[gi] && GR[gi].n) || g.n, saldo: g.saldo, adj: adj && CFM === 'aj', v, tot, R: (GR[gi] || {}).R || 0 }; });
+      const pav = CFPAV.includes(gi), aj = AJ[gi]; const a = Object.fromEntries(cols.map(ym => [ym, pav && MESES.includes(ym) ? sim[gi][ym] || 0 : (aj.v[CF.meses.indexOf(ym)] || 0)]));
+      const v = CFM === 'aj' ? a : o; const tot = cols.reduce((s, ym) => s + v[ym], 0);
+      return { i: g.i, n: (GR[gi] && GR[gi].n) || g.n, saldo: g.saldo, pav: pav && CFM === 'aj', adj: CFM === 'aj' && (pav || Math.abs(aj.exe - g.saldo) > 1), acr: aj.acr, sup: aj.sup, exe: aj.exe, v, tot, R: (GR[gi] || {}).R || 0 }; });
     const mt = cols.map(ym => rows.reduce((s, r) => s + r.v[ym], 0)), mr = cols.map(ym => rows.reduce((s, r) => s + r.v[ym] * r.R, 0));
-    return { cols, rows, mt, mr, tot: mt.reduce((a, b) => a + b, 0), saldo: rows.reduce((s, r) => s + r.saldo, 0) };
+    return { cols, rows, mt, mr, tot: mt.reduce((a, b) => a + b, 0), saldo: rows.reduce((s, r) => s + r.saldo, 0), exe: rows.reduce((s, r) => s + r.exe, 0), sup: rows.reduce((s, r) => s + r.sup, 0), acr: rows.reduce((s, r) => s + r.acr, 0) };
   }
   function cffSlide(A, CF, GR, num0) {
-    const Q = cffData(A, CF, GR); let ac = 0; const pc = v => Q.tot ? NF[2].format(v / Q.tot * 100) + '%' : '–'; const cffN = s => s.replace(/ E OBRAS DE ARTE CORRENTES/, ' & OAC').replace(/OBRAS DE ARTE ESPECIAIS – /, 'OAE - ').replace('SERVIÇOS COMPLEMENTARES', 'OBRAS COMPLEMENTARES');
+    const Q = cffData(A, CF, GR); let ac = 0; const R0 = x => fR(x) === '–' ? 'R$ 0,00' : fR(x); const pc = v => Q.tot ? NF[2].format(v / Q.tot * 100) + '%' : '–'; const cffN = s => s.replace(/ E OBRAS DE ARTE CORRENTES/, ' & OAC').replace(/OBRAS DE ARTE ESPECIAIS – /, 'OAE - ').replace('SERVIÇOS COMPLEMENTARES', 'OBRAS COMPLEMENTARES');
     const pav = Q.rows.filter((r, gi) => CFPAV.includes(gi)); const pavT = pav.reduce((s, r) => s + r.tot, 0), pavS = pav.reduce((s, r) => s + r.saldo, 0);
     const mx = Math.max(1, ...Q.mt.map((v, j) => v + Q.mr[j]));
-    return `<div class="ap-h"><span class="ap-n">${num0}</span><h3>Cronograma físico-financeiro</h3><p>${esc(CF.arquivo || CF.fonte)} · saldo contratual a preço inicial (PI) por grupo. ${CFM === 'aj' ? `<b>Ajustado:</b> pavimentação e ligantes betuminosos nos meses da simulação (${MESES.map(mesNomeS).join(', ')}) conforme o plano da Simulação; demais grupos como no cronograma da contratada.` : '<b>Original</b> da contratada.'}</p></div>
+    return `<div class="ap-h"><span class="ap-n">${num0}</span><h3>Cronograma físico-financeiro</h3><p>${esc(CF.arquivo || CF.fonte)} · saldo contratual a preço inicial (PI) por grupo. ${CFM === 'aj' ? `<b>Ajustado:</b> sem os serviços suprimidos no estudo de aditivo e supressão (saldo + acréscimos − supressões, distribuído nos meses como no CFF) e com pavimentação e ligantes nos meses da simulação (${MESES.map(mesNomeS).join(', ')}) pelos volumes da Simulação.` : '<b>Original</b> da contratada.'}</p></div>
       <div class="cf-top"><span class="seg cf-seg"><button type="button" class="${CFM === 'aj' ? 'on' : ''}" data-cfm="aj">Ajustado pela simulação</button><button type="button" class="${CFM === 'orig' ? 'on' : ''}" data-cfm="orig">Original</button></span>
-        <div class="cf-k"><div><b>${mi$(Q.saldo)}</b><span>saldo contratual (PI)</span></div><div><b>${mi$(Q.tot)}</b><span>programado (PI)</span></div><div><b>${mi$(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b><span>programado (PI + R)</span></div>${CFM === 'aj' ? `<div class="${Math.abs(pavT - pavS) > 1 ? 'w' : ''}"><b>${mi$(pavT - pavS)}</b><span>pavimentação + ligantes: simulação − saldo</span></div>` : ''}</div></div>
+        <div class="cf-k"><div><b>${mi$(Q.saldo)}</b><span>saldo contratual (CFF)</span></div>${CFM === 'aj' && D.aditivo ? `<div class="w"><b>${mi$(Q.sup)}</b><span>supressões (estudo)</span></div><div><b>${mi$(Q.acr)}</b><span>acréscimos (estudo)</span></div>` : ''}<div><b>${mi$(Q.tot)}</b><span>programado (PI)</span></div><div><b>${mi$(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b><span>programado (PI + R)</span></div></div></div>
       <div class="cff-wrap"><table class="cff">
-        <thead><tr class="cff-h"><th colspan="4" class="cff-tt">CRONOGRAMA FÍSICO X FINANCEIRO${CFM === 'aj' ? '<small>ajustado pela simulação · pavimentação e ligantes</small>' : ''}</th><th colspan="${Q.cols.length}" class="cff-ob"><dl><dt>OBRA:</dt><dd>PR-364 - Cidade de Rebouças</dd><dt>CONTRATO:</dt><dd>CO 050/2024 DER/DT</dd><dt>EMPRESA:</dt><dd>TCE ENGENHARIA LTDA.</dd></dl></th></tr>
-        <tr class="cff-c"><th>ITEM</th><th>DISCRIMINAÇÃO</th><th>SALDO CONTRATUAL</th><th></th>${Q.cols.map(ym => `<th class="${MESES.includes(ym) ? 'sim' : ''}">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}</tr></thead>
-        ${Q.rows.map(r => `<tbody class="cff-g${r.adj ? ' adj' : ''}"><tr><td rowspan="2" class="it">${r.i}</td><td rowspan="2" class="ds">${esc(cffN(r.n))}${r.adj ? `<small>simulação${Math.abs(r.tot - r.saldo) > 1 ? ` · ${fR(r.tot - r.saldo)} p/ saldo` : ''}</small>` : ''}</td><td rowspan="2" class="sd">${fR(r.saldo) === '–' ? 'R$ 0,00' : fR(r.saldo)}</td><td class="u">R$</td>${Q.cols.map(ym => `<td class="v">${fR(r.v[ym]) === '–' ? 'R$ 0,00' : fR(r.v[ym])}</td>`).join('')}</tr>
+        <thead><tr class="cff-h"><th colspan="${CFM === 'aj' ? 6 : 4}" class="cff-tt">CRONOGRAMA FÍSICO X FINANCEIRO${CFM === 'aj' ? '<small>ajustado · supressões do estudo e pavimentação da simulação</small>' : ''}</th><th colspan="${Q.cols.length}" class="cff-ob"><dl><dt>OBRA:</dt><dd>PR-364 - Cidade de Rebouças</dd><dt>CONTRATO:</dt><dd>CO 050/2024 DER/DT</dd><dt>EMPRESA:</dt><dd>TCE ENGENHARIA LTDA.</dd></dl></th></tr>
+        <tr class="cff-c"><th>ITEM</th><th>DISCRIMINAÇÃO</th><th>SALDO CONTRATUAL</th>${CFM === 'aj' ? '<th>SUPRESSÕES / ACRÉSCIMOS</th><th>SALDO A EXECUTAR</th>' : ''}<th></th>${Q.cols.map(ym => `<th class="${MESES.includes(ym) ? 'sim' : ''}">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}</tr></thead>
+        ${Q.rows.map(r => `<tbody class="cff-g${r.pav ? ' adj' : r.adj ? ' adj2' : ''}"><tr><td rowspan="2" class="it">${r.i}</td><td rowspan="2" class="ds">${esc(cffN(r.n))}${r.pav ? `<small>volumes da simulação${Math.abs(r.tot - r.exe) > 1 ? ` · ${fR(r.tot - r.exe)} p/ saldo a executar` : ''}</small>` : ''}</td><td rowspan="2" class="sd">${R0(r.saldo)}</td>${CFM === 'aj' ? `<td rowspan="2" class="sa">${r.sup ? `<span class="s">${fR(r.sup)}</span>` : ''}${r.acr ? `<span class="a">+${fR(r.acr)}</span>` : ''}${!r.sup && !r.acr ? '–' : ''}</td><td rowspan="2" class="sd ex">${R0(r.exe)}</td>` : ''}<td class="u">R$</td>${Q.cols.map(ym => `<td class="v">${R0(r.v[ym])}</td>`).join('')}</tr>
           <tr class="pc"><td class="u">%</td>${Q.cols.map(ym => { const x = r.tot ? r.v[ym] / r.tot : 0; return `<td class="${x > 0.00005 ? 'on' : ''}">${NF[2].format(x * 100)}%</td>`; }).join('')}</tr></tbody>`).join('')}
         <tfoot>${[['VALOR TOTAL DO MÊS PREVISTO', 'R$', Q.mt.map(v => fR(v))], ['PERCENTUAL DO MÊS PREVISTO', '%', Q.mt.map(v => pc(v))], ['VALOR TOTAL ACUMULADO PREVISTO', 'R$', Q.mt.map(v => { ac += v; return fR(ac); })], ['PERCENTUAL ACUMULADO PREVISTO', '%', (() => { let c = 0; return Q.mt.map(v => { c += v; return pc(c); }); })()], ['REAJUSTE ESTIMADO (R)', 'R$', Q.mr.map(v => fR(v)), 'r'], ['VALOR TOTAL DO MÊS PREVISTO (PI + R)', 'R$', Q.mt.map((v, j) => fR(v + Q.mr[j])), 'r']]
-          .map(([l, u, vs, c]) => `<tr class="${c || ''}"><td colspan="3" class="fl">${l}</td><td class="u">${u}</td>${vs.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tfoot></table></div>
-      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Valores a preço inicial (PI); reajuste pelo coeficiente R de cada grupo (25ª medição). Meses com quadrado colorido = meses da simulação.</span>
+          .map(([l, u, vs, c]) => `<tr class="${c || ''}"><td colspan="${CFM === 'aj' ? 5 : 3}" class="fl">${l}</td><td class="u">${u}</td>${vs.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tfoot></table></div>
+      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Valores a preço inicial (PI); reajuste pelo coeficiente R de cada grupo (25ª medição). Meses com quadrado colorido = meses da simulação.${CFM === 'aj' && D.aditivo ? ' Saldo a executar = saldo do CFF + acréscimos − supressões do estudo de aditivo (o saldo do CFF já desconta o que foi medido acima do contrato, por isso os acréscimos entram).' : ''}</span>
         <span><button type="button" class="btn sm" id="cf-ofin">Levar demais grupos para a produção financeira</button> <label class="btn sm file">Importar CFF (PDF)<input type="file" id="cf-pdf" accept="application/pdf,.pdf" hidden></label></span></div><p class="note" id="cf-msg" role="status"></p>`;
   }
   // demais grupos do CFF → lançamento manual da produção financeira (mês sem simulação vai para o primeiro mês seguinte da simulação: faturamento)
   function cffToOfin(CF, auto) {
     const o = {}; let fora = 0;
-    CF.grupos.forEach((g, gi) => { if (CFPAV.includes(gi)) return; CF.meses.forEach((ym, j) => { const v = g.v[j] || 0; if (!v) return; const t = MESES.includes(ym) ? ym : MESES.find(m => m > ym); if (!t) { fora += v; return; } (o[gi] = o[gi] || {})[t] = (o[gi][t] || 0) + v; }); });
-    OFIN = o; store.set('aprFin', OFIN); if (!auto) store.set('cffOfin', CF.em || 'x'); return fora;
+    const AJ = cffAdj(CF); CF.grupos.forEach((g, gi) => { if (CFPAV.includes(gi)) return; CF.meses.forEach((ym, j) => { const v = AJ[gi].v[j] || 0; if (!v) return; const t = MESES.includes(ym) ? ym : MESES.find(m => m > ym); if (!t) { fora += v; return; } (o[gi] = o[gi] || {})[t] = (o[gi][t] || 0) + v; }); });
+    OFIN = o; store.set('aprFin', OFIN); if (!auto) store.set('cffOfin', (CF.em || 'x') + 'a'); return fora;
   }
   async function cffImport(file) {
     const L = await pjLoad(); const doc = await L.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
@@ -793,7 +800,7 @@ export function initObra(X) {
     const cb = A.sv.find(s => s.id === 'p7');
     const totPlan = A.sv.reduce((a, s) => Math.max(a, s.plan), 0);
     const GR = X.reajG ? X.reajG() : [];
-    { const CF0 = X.unlocked() ? cffGet() : null; if (CF0 && !Object.keys(OFIN).length && store.get('cffOfin', null) !== (CF0.em || 'x')) { cffToOfin(CF0, false); } }
+    { const CF0 = cffGet(); if (CF0 && (store.get('cffOfin', null) === (CF0.em || 'x') || (!Object.keys(OFIN).length && store.get('cffOfin', null) !== (CF0.em || 'x') + 'a'))) { cffToOfin(CF0, false); } }
     const oth = MESES.map(ym => { let pi = 0, r = 0; GR.forEach((g, gi) => { const v = +((OFIN[gi] || {})[ym]) || 0; pi += v; r += v * g.R; }); return { pi, r }; });
     const vt = A.val.reduce((a, v) => a + v.pi + v.r, 0) + oth.reduce((a, o) => a + o.pi + o.r, 0), vpi = A.val.reduce((a, v) => a + v.pi, 0) + oth.reduce((a, o) => a + o.pi, 0);
     const temO = oth.some(o => o.pi > 0);
@@ -856,8 +863,8 @@ export function initObra(X) {
         <div class="ap-tbl"><table><thead><tr><th>Grupo</th><th class="n">R</th>${MESES.map((ym, i) => `<th class="n"><i class="msq" style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</th>`).join('')}</tr></thead><tbody>
         ${GR.map((g, gi) => `<tr><td>${esc(g.n)}</td><td class="n">${NF[4].format(g.R)}</td>${MESES.map(ym => `<td class="n"><input class="ap-fi" data-g="${gi}" data-ym="${ym}" inputmode="decimal" value="${fin(+((OFIN[gi] || {})[ym]) || 0)}" placeholder="0,00" aria-label="${esc(g.n)} ${mesNomeS(ym)}"></td>`).join('')}</tr>`).join('')}
         <tr class="tot"><td colspan="2">Total demais serviços (PI)</td>${oth.map(o => `<td class="n">${fR(o.pi)}</td>`).join('')}</tr></tbody></table></div>
-        ${X.unlocked() && cffGet() ? '<button type="button" class="btn sm" id="ap-fin-cff">Trazer do cronograma físico-financeiro</button> ' : ''}<button type="button" class="lnk" id="ap-fin-clr">Limpar lançamentos</button></div>` : ''}` });
-    const CF = X.unlocked() ? cffGet() : null; let nx = 6;
+        ${cffGet() ? '<button type="button" class="btn sm" id="ap-fin-cff">Trazer do cronograma físico-financeiro</button> ' : ''}<button type="button" class="lnk" id="ap-fin-clr">Limpar lançamentos</button></div>` : ''}` });
+    const CF = cffGet(); let nx = 6;
     if (CF) SL.push({ t: 'Cronograma físico-financeiro', h: cffSlide(A, CF, GR, String(nx++).padStart(2, '0')) });
     // 7 · atenção
     if (X.unlocked() && MED) SL.push({ t: 'Curva S', h: `<div class="ap-h"><span class="ap-n">${String(nx++).padStart(2, '0')}</span><h3>Curva S financeira</h3><p>Medido acumulado até a ${MED.n}ª medição e previsão até o fim do plano, a preço inicial do contrato.</p></div><div class="ap-cv">${curvaHTML(false)}</div>` });
@@ -883,7 +890,7 @@ export function initObra(X) {
       if (ev.target.closest('#ap-fin-clr')) { if (confirm('Apagar todos os valores lançados à mão?')) { OFIN = {}; store.set('aprFin', OFIN); renderApr(); } return; }
       if (ev.target.closest('#ap-play')) { if (APLAY) { aprStop(); renderApr(); return; } AM = 0; renderApr(); APLAY = setInterval(() => { if (X.current() !== 'apresentacao' || AM >= MESES.length - 1) { aprStop(); renderApr(); return; } AM++; renderApr(); }, 1300); renderApr(); }
     });
-    $('#ap-deck').addEventListener('change', async ev => { if (ev.target.id === 'cf-pdf') { const f = ev.target.files[0]; ev.target.value = ''; if (!f) return; const msg = $('#cf-msg'); try { if (msg) msg.textContent = 'Lendo o PDF…'; const c = await cffImport(f); store.set('cffLocal', c); renderApr(); const m2 = $('#cf-msg'); if (m2) m2.textContent = `Cronograma importado: ${c.grupos.length} grupos, ${c.meses.map(mesNomeS).join(', ')}. Para levar a todos, publique a versão mestra. Use "Levar demais grupos…" para atualizar a produção financeira.`; } catch (e) { if (msg) msg.textContent = 'Não foi possível importar: ' + e.message; } return; }
+    $('#ap-deck').addEventListener('change', async ev => { if (ev.target.id === 'cf-pdf') { const f = ev.target.files[0]; ev.target.value = ''; if (!f) return; const msg = $('#cf-msg'); try { if (msg) msg.textContent = 'Lendo o PDF…'; const c = await cffImport(f); store.set('cffLocal', c); renderApr(); const m2 = $('#cf-msg'); if (m2) m2.textContent = `Cronograma importado: ${c.grupos.length} grupos, ${c.meses.map(mesNomeS).join(', ')}. Para levar a todos, publique a versão mestra (Mestra → Publicar). Use "Levar demais grupos…" para atualizar a produção financeira.`; } catch (e) { if (msg) msg.textContent = 'Não foi possível importar: ' + e.message; } return; }
       const t = ev.target.closest('.ap-fi'); if (!t) return; const v = parseFloat(String(t.value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')); const g = t.dataset.g;
       OFIN[g] = { ...(OFIN[g] || {}) }; if (Number.isFinite(v) && v > 0) OFIN[g][t.dataset.ym] = v; else delete OFIN[g][t.dataset.ym]; store.set('aprFin', OFIN); renderApr(); });
     $('#ap-full').onclick = () => { const el = $('#v-apresentacao'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => { }); };
@@ -1008,7 +1015,7 @@ export function initObra(X) {
   function renderMedCurva() { const h = $('#m-curva'); if (!h || !MED) return; const op = h.querySelector('details.cv-ed')?.open; h.innerHTML = curvaHTML(true); if (op) h.querySelector('details.cv-ed').open = true; }
   // dados restritos que vão (criptografados) na versão mestra
   function protPayload() { const ship = D.medShip || D.medicao; const p = D.prot || {};
-    const cf = cffGet(); return { medicao: MED && MED !== ship && (MED.n || 0) >= (ship.n || 0) ? MED : p.medicao || null, curvaHist: cvH(), curvaGap: cvG(), cff: cf && cf !== D.cffShip ? cf : null }; }
+    return { medicao: MED && MED !== ship && (MED.n || 0) >= (ship.n || 0) ? MED : p.medicao || null, curvaHist: cvH(), curvaGap: cvG() }; }
 
   // ===================================================================== PLANEJAMENTO DO CONTRATO (oculto, com a senha)
   // Saldo de cada item do contrato (contrato − medido) ÷ produção da equipe na CPU do contrato = horas de equipe.
@@ -1617,8 +1624,8 @@ export function initObra(X) {
     const [medicao, medref, avanco, eixo, pranchas] = await Promise.all(['medicao.json', 'medref.json', 'avanco.json', 'eixo.json', 'pranchas.json'].map(f => get(f)));
     Object.assign(D, { medicao, medref, avanco, eixo, pranchas });
   }
-  function unlock(medicao, medref, prot, cff) {
-    D.cffShip = cff || null; D.medShip = medicao; D.prot = prot || null; if (prot && prot.medicao && (prot.medicao.n || 0) >= (medicao.n || 0)) medicao = prot.medicao;
+  function unlock(medicao, medref, prot) {
+    D.medShip = medicao; D.prot = prot || null; if (prot && prot.medicao && (prot.medicao.n || 0) >= (medicao.n || 0)) medicao = prot.medicao;
     Object.assign(D, { medicao, medref }); medInit(); MCELL = null; AV = null; LK = null;
     if (X.current() === 'avanco') renderAv(); if (X.current() === 'campo') renderCampo(); if (X.current() === 'apresentacao') renderApr();
   }

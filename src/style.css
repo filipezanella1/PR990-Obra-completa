@@ -1151,8 +1151,8 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
 .cf-t td:nth-child(2) { white-space: nowrap; }
 /* CFF no formato da contratada */
 .cff-wrap { overflow-x: auto; border: 1px solid #2b3238; border-radius: 6px; background: #fff; color: #1d2226; }
-.cff { width: 100%; border-collapse: collapse; font: 500 clamp(.68rem, 1.05cqw, .86rem)/1.25 var(--f-body, system-ui); font-variant-numeric: tabular-nums; min-width: 760px; }
-.cff th, .cff td { border: 1px solid #c7ccd1; padding: 4px 8px; text-align: center; white-space: nowrap; }
+.cff { width: 100%; border-collapse: collapse; font: 500 clamp(.62rem, .92cqw, .82rem)/1.25 var(--f-body, system-ui); font-variant-numeric: tabular-nums; min-width: 760px; }
+.cff th, .cff td { border: 1px solid #c7ccd1; padding: 3px 6px; text-align: center; white-space: nowrap; }
 .cff .cff-h th { border-color: #2b3238; background: #fff; padding: 8px 10px; }
 .cff .cff-tt { font: 700 .95em var(--f-display); letter-spacing: .04em; vertical-align: middle; }
 .cff .cff-tt small { display: block; font: 600 .78em var(--f-body, system-ui); color: #b06d00; letter-spacing: 0; text-transform: none; margin-top: 2px; }
@@ -1176,3 +1176,6 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
 .cff tfoot td.fl { text-align: center; letter-spacing: .03em; font-size: .92em; }
 .cff tfoot tr.r td { background: #f4f6f7; font-weight: 600; color: #3a434b; }
 .cff tfoot tr.r:last-child td { background: #dfe4e8; color: #1d2226; font-weight: 700; border-bottom: 2px solid #2b3238; }
+.cff tbody td.sa { font-size: .9em; } .cff tbody td.sa span { display: block; } .cff td.sa .s { color: #b3261e; font-weight: 600; } .cff td.sa .a { color: #1f7a45; }
+.cff tbody td.ex { background: #f1f7fc; }
+.cff tbody.adj2 td.ds, .cff tbody.adj2 td.it { background: #f6f8f9; }

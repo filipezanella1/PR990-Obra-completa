@@ -1,0 +1,173 @@
+{
+ "fonte": "CRONOGRAMA FÍSICO - FINANCEIRO CO 050/2024 DER/DT",
+ "arquivo": "CFF CI 050/2024 – Rebouças – Atualização Outubro 26",
+ "meses": [
+  "2026-10",
+  "2026-11",
+  "2026-12"
+ ],
+ "grupos": [
+  {
+   "i": 1,
+   "n": "TERRAPLENAGEM",
+   "saldo": 1016456.11,
+   "v": [
+    713113.94,
+    303342.17,
+    0.0
+   ]
+  },
+  {
+   "i": 2,
+   "n": "PAVIMENTAÇÃO",
+   "saldo": 8174846.08,
+   "v": [
+    1432474.74,
+    5149727.71,
+    1592643.63
+   ]
+  },
+  {
+   "i": 3,
+   "n": "LIGANTES BETUMINOSOS",
+   "saldo": 3439488.99,
+   "v": [
+    616973.73,
+    1181411.36,
+    1641103.91
+   ]
+  },
+  {
+   "i": 4,
+   "n": "DRENAGEM & OAC",
+   "saldo": 10130893.26,
+   "v": [
+    612808.48,
+    1185988.4,
+    8332096.38
+   ]
+  },
+  {
+   "i": 5,
+   "n": "OAE - SOLO GRAMPEADO",
+   "saldo": 1573746.35,
+   "v": [
+    0.0,
+    0.0,
+    1573746.37
+   ]
+  },
+  {
+   "i": 6,
+   "n": "OAE - PONTE",
+   "saldo": -13537.79,
+   "v": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "i": 7,
+   "n": "CONTENÇÕES",
+   "saldo": 687970.09,
+   "v": [
+    0.0,
+    0.0,
+    687970.09
+   ]
+  },
+  {
+   "i": 8,
+   "n": "GALERIAS CELULARES",
+   "saldo": 169641.0,
+   "v": [
+    93563.43,
+    76077.57,
+    0.0
+   ]
+  },
+  {
+   "i": 9,
+   "n": "PASSA FAUNA",
+   "saldo": 473654.73,
+   "v": [
+    0.0,
+    0.0,
+    473654.73
+   ]
+  },
+  {
+   "i": 10,
+   "n": "OBRAS COMPLEMENTARES",
+   "saldo": 4325998.19,
+   "v": [
+    41247.63,
+    20024.35,
+    4264726.21
+   ]
+  },
+  {
+   "i": 11,
+   "n": "SINALIZAÇÃO",
+   "saldo": 4382153.75,
+   "v": [
+    0.0,
+    97445.85,
+    4284707.9
+   ]
+  },
+  {
+   "i": 12,
+   "n": "SINALIZAÇÃO PROVISÓRIA",
+   "saldo": 81523.97,
+   "v": [
+    0.0,
+    0.0,
+    81523.97
+   ]
+  },
+  {
+   "i": 13,
+   "n": "MELHORIAS AMBIENTAIS",
+   "saldo": 0.0,
+   "v": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "i": 14,
+   "n": "ILUMINAÇÃO",
+   "saldo": 269878.95,
+   "v": [
+    0.0,
+    0.0,
+    269878.95
+   ]
+  },
+  {
+   "i": 15,
+   "n": "INTERFERENCIAS",
+   "saldo": 565407.29,
+   "v": [
+    0.0,
+    0.0,
+    565407.29
+   ]
+  },
+  {
+   "i": 16,
+   "n": "MOBILIZAÇÃO E DESMOBILIZAÇÃO",
+   "saldo": 382184.11,
+   "v": [
+    0.0,
+    0.0,
+    382184.11
+   ]
+  }
+ ],
+ "nota": "Devido à impossibilidade de realizar medição no mês de outubro, considera-se o faturamento no mês de novembro",
+ "em": "2026-10-29T12:00:00Z"
+}
