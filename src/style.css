@@ -1124,3 +1124,11 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .mm-pg { margin: 0; padding: 16px; font-family: var(--f-mono); font-size: .8rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-width: 100%; overflow-x: auto; }
 @media (max-width: 760px) { .ct-t td:first-child { width: auto; } .mm-pg { font-size: .74rem; padding: 12px; } }
 .mm-foot { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.mm-cv { background: #fff; overflow-x: auto; min-height: 200px; }
+.mm-in { position: relative; }
+.mm-z { display: inline-flex; align-items: center; gap: 4px; }
+.mm-cv canvas { display: block; }
+.mm-cv .mm-ld { padding: 40px 16px; color: #5f6870; text-align: center; }
+.mm-mk { position: absolute; background: rgba(240,180,41,.38); mix-blend-mode: multiply; border-radius: 2px; pointer-events: none; }
+.mm-off { padding: 8px 12px 0; margin: 0; }
+.mm-pg { white-space: pre; overflow-x: auto; }

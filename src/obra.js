@@ -1154,17 +1154,53 @@ export function initObra(X) {
     return out.sort((x, y) => y.sc - x.sc).slice(0, 80);
   }
   const secOf = (d, pg) => { let s = null; for (const t of d.toc) if (t.p <= pg) s = t; return s; };
+  // página original: PDF.js (vendor/pdfjs) lê só as partes necessárias do PDF; se o PDF estiver guardado no aparelho, lê de lá
+  let MVIEW = store.get('memView', 'pdf'), MZ = 1; const MZS = [1, 1.5, 2, 3]; const PJ = 'vendor/pdfjs-3.11.174/'; let PJL = null; const PDOC = {}; let PTOK = 0;
+  const pjLoad = () => PJL || (PJL = new Promise((ok, no) => { if (window.pdfjsLib) return ok(window.pdfjsLib); const sc = document.createElement('script'); sc.src = PJ + 'pdf.js';
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PJ + 'pdf.worker.js'; ok(window.pdfjsLib); }; sc.onerror = () => { PJL = null; no(new Error('leitor de PDF indisponível')); }; document.head.appendChild(sc); }));
+  const pdfCached = async f => { try { return 'caches' in window ? await (await caches.open('pr990-midia')).match(f, { ignoreSearch: true }) : null; } catch { return null; } };
+  function pdfDoc(d) {
+    if (PDOC[d.id]) return PDOC[d.id];
+    return PDOC[d.id] = pjLoad().then(async L => { const hit = await pdfCached(d.file); const opt = { standardFontDataUrl: PJ + 'standard_fonts/', isEvalSupported: false };
+      return L.getDocument(hit ? { ...opt, data: new Uint8Array(await hit.arrayBuffer()) } : { ...opt, url: d.file, rangeChunkSize: 262144, disableAutoFetch: true, disableStream: true }).promise; })
+      .catch(e => { delete PDOC[d.id]; throw e; });
+  }
+  async function pdfPage(d, pg, terms) {
+    const tok = ++PTOK; const box = $('#mm-cv'); if (!box) return;
+    pdfCached(d.file).then(h => { const o = $('#mm-off'); if (o && tok === PTOK) o.innerHTML = h ? `${esc(d.n)} guardado neste aparelho: abre sem internet. <button type="button" class="lnk" data-mdrop="${d.id}">Apagar do aparelho</button>` : `Para ver as páginas originais sem internet: <button type="button" class="lnk" data-msave="${d.id}">guardar ${esc(d.n)} neste aparelho</button> (${({ t1: 34, t2: 11, t3: 40, t4: 46 })[d.id] || ''} MB).`; });
+    try {
+      const doc = await pdfDoc(d); const page = await doc.getPage(pg); if (tok !== PTOK) return;
+      const w = Math.max(280, box.clientWidth) * MZ; const v1 = page.getViewport({ scale: 1 }); const sc = w / v1.width; const vp = page.getViewport({ scale: sc });
+      const dpr = Math.min(2.5, window.devicePixelRatio || 1); const cv = document.createElement('canvas'); cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise; if (tok !== PTOK) return;
+      box.innerHTML = ''; const inner = document.createElement('div'); inner.className = 'mm-in'; inner.style.width = vp.width + 'px'; inner.style.height = vp.height + 'px'; inner.appendChild(cv); box.appendChild(inner);
+      const tt = terms.filter(t => t.length > 1); let first = null;
+      if (tt.length) { const tc = await page.getTextContent(); for (const it of tc.items) { const n = nrm(it.str); if (!n.trim() || !tt.some(t => n.includes(t))) continue;
+        const [a, b, , , e, f] = it.transform; const hgt = it.height || Math.hypot(a, b); const L = n.length || 1;
+        for (const t of tt) { let k = n.indexOf(t); while (k >= 0) { const x0 = e + it.width * k / L, x1 = e + it.width * (k + t.length) / L; const r = vp.convertToViewportRectangle([x0, f - hgt * 0.25, x1, f + hgt * 0.95]);
+          const el = document.createElement('i'); el.className = 'mm-mk'; el.style.cssText = `left:${Math.min(r[0], r[2]) - 1}px;top:${Math.min(r[1], r[3])}px;width:${Math.abs(r[2] - r[0]) + 2}px;height:${Math.abs(r[3] - r[1])}px`; inner.appendChild(el); first = first || el; k = n.indexOf(t, k + t.length); } } } }
+      if (first) first.scrollIntoView({ block: 'center' });
+    } catch (e) { if (tok !== PTOK) return; box.style.height = ''; box.innerHTML = `<p class="note warn">Não foi possível abrir a página original (${esc(e.message || 'sem conexão')}). Mostrando o texto extraído.</p><pre class="mm-pg">${hl(d.pages[pg - 1] || '', terms)}</pre>`; }
+  }
+  async function pdfSave(id, btn) { const d = D.mem.docs.find(x => x.id === id); try { btn.textContent = 'baixando…'; btn.disabled = true; const r = await fetch(d.file, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
+      await (await caches.open('pr990-midia')).put(d.file, r); delete PDOC[id]; renderMem(); } catch (e) { btn.textContent = 'falhou – tente de novo com internet'; btn.disabled = false; } }
+  async function pdfDrop(id) { const d = D.mem.docs.find(x => x.id === id); try { await (await caches.open('pr990-midia')).delete(d.file, { ignoreSearch: true }); } catch { } delete PDOC[id]; renderMem(); }
   async function renderMem() {
     const host = $('#mm-body'); if (!host) return;
     if (!D.mem) { host.innerHTML = '<p class="note">Carregando a memória justificativa…</p>'; try { await memLoad(); } catch (e) { host.innerHTML = `<p class="note warn">Não foi possível carregar a memória justificativa (${esc(e.message)}). Abra uma vez com internet.</p>`; return; } }
     const m = D.mem;
     $('#mm-docs').innerHTML = `<button type="button" class="chip${!MDOC ? ' on' : ''}" data-md="">Todos</button>` + m.docs.map(d => `<button type="button" class="chip${MDOC === d.id ? ' on' : ''}" data-md="${d.id}">${esc(d.n)} <small>${d.pages.length} p.</small></button>`).join('');
     if (MPG) { const d = m.docs.find(x => x.id === MPG.d); const i = MPG.p - 1; const s = secOf(d, MPG.p); const terms = nrm(MQ).split(/\s+/).filter(Boolean);
+      const orig = MVIEW === 'pdf' && !window.__PR990__;
       host.innerHTML = `<div class="mm-rd"><div class="mm-bar"><button type="button" class="btn sm" data-mback>← ${MQ ? 'Resultados' : 'Sumário'}</button><b>${esc(d.n)}</b><span class="note">${s ? esc(s.s + ' ' + s.t) + ' · ' : ''}página ${MPG.p} de ${d.pages.length}</span><span class="sp"></span>
-        <button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>›</button>
+        <button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''} aria-label="Página anterior">‹</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''} aria-label="Próxima página">›</button>
+        ${window.__PR990__ ? '' : `<span class="seg mm-vw"><button type="button" class="${orig ? 'on' : ''}" data-mview="pdf">Página original</button><button type="button" class="${orig ? '' : 'on'}" data-mview="txt">Só o texto</button></span>`}
+        ${orig ? `<span class="mm-z"><button type="button" class="btn sm" data-mz="-1" aria-label="Diminuir"${MZ <= 1 ? ' disabled' : ''}>−</button><span class="note">${Math.round(MZ * 100)}%</span><button type="button" class="btn sm" data-mz="1" aria-label="Ampliar"${MZ >= 3 ? ' disabled' : ''}>+</button></span>` : ''}
         <a class="btn sm" href="${window.__PR990__ ? 'https://filipezanella1.github.io/PR990-Obra-completa/' : ''}${d.file}#page=${MPG.p}" target="_blank" rel="noopener">Abrir no PDF</a></div>
-        <pre class="mm-pg">${hl(d.pages[i] || '(página sem texto)', terms)}</pre><div class="mm-foot"><button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹ Página ${MPG.p - 1}</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>Página ${MPG.p + 1} ›</button></div></div>`;
-      const mk = host.querySelector('mark'); if (mk) mk.scrollIntoView({ block: 'center' }); return; }
+        ${orig ? `<div class="mm-cv" id="mm-cv"><p class="note mm-ld">Carregando a página original…</p></div><p class="note mm-off" id="mm-off"></p>` : `<pre class="mm-pg">${hl(d.pages[i] || '(página sem texto)', terms)}</pre>`}
+        <div class="mm-foot"><button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹ Página ${MPG.p - 1}</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>Página ${MPG.p + 1} ›</button></div></div>`;
+      if (orig) pdfPage(d, MPG.p, terms); else { const mk = host.querySelector('mark'); if (mk) mk.scrollIntoView({ block: 'center' }); }
+      return; }
     if (MQ.trim().length > 1) { const R = memSearch(MQ, MDOC); const terms = nrm(MQ).split(/\s+/).filter(Boolean);
       host.innerHTML = `<p class="note">${R.length ? `${R.length}${R.length === 80 ? '+' : ''} página${R.length > 1 ? 's' : ''} encontrada${R.length > 1 ? 's' : ''}` : 'Nada encontrado. Tente outra palavra (a busca ignora acentos e exige todas as palavras na mesma página).'}</p>
         <div class="mm-res">${R.map(r => { const s = secOf(r.d, r.i + 1); return `<button type="button" class="mm-r" data-mopen="${r.d.id}|${r.i + 1}"><span class="mm-h"><b>${esc(r.d.n)}</b> · p. ${r.i + 1}${s ? ' · ' + esc(s.s + ' ' + s.t) : ''}</span><span class="mm-s">${hl(r.snip, terms)}</span></button>`; }).join('')}</div>`; return; }
@@ -1178,6 +1214,10 @@ export function initObra(X) {
       const o = ev.target.closest('[data-mopen]'); if (o) { const [d, p] = o.dataset.mopen.split('|'); MPG = { d, p: +p }; renderMem(); window.scrollTo({ top: v.offsetTop - 80 }); return; }
       const g = ev.target.closest('[data-mpg]'); if (g) { MPG.p = +g.dataset.mpg; renderMem(); if (!MQ) $('#mm-body').scrollIntoView({ block: 'start' }); return; }
       if (ev.target.closest('[data-mback]')) { MPG = null; renderMem(); return; }
+      const zm = ev.target.closest('[data-mz]'); if (zm) { MZ = MZS[Math.max(0, Math.min(MZS.length - 1, MZS.indexOf(MZ) + +zm.dataset.mz))]; renderMem(); return; }
+      const vw = ev.target.closest('[data-mview]'); if (vw) { MVIEW = vw.dataset.mview; store.set('memView', MVIEW); renderMem(); return; }
+      const sv = ev.target.closest('[data-msave]'); if (sv) { pdfSave(sv.dataset.msave, sv); return; }
+      const dr = ev.target.closest('[data-mdrop]'); if (dr) { pdfDrop(dr.dataset.mdrop); return; }
       const c = ev.target.closest('[data-md]'); if (c) { MDOC = c.dataset.md; MPG = null; renderMem(); }
     });
     if ('requestIdleCallback' in window) requestIdleCallback(() => memLoad().catch(() => { }), { timeout: 8000 }); else setTimeout(() => memLoad().catch(() => { }), 4000);

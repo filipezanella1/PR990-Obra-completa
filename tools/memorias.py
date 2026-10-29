@@ -7,8 +7,9 @@ DOCS = [('t1', 'Tomo I – Estudos', 'memorias/volume3-tomo1-estudos.pdf'), ('t2
 OFF = {'t4': 3}   # página do PDF = página impressa + deslocamento (1 nos tomos, 3 no anexo 3A)
 HEAD = re.compile(r'Projeto Executivo de Implanta[çc][ãa]o da PR-990( entre a)?\s*\n?\s*(entre a )?Rodovia PR-364 e a cidade de\s*\n?\s*Rebou[çc]as', re.I)
 def clean(s):
-    s = HEAD.sub('', s); s = re.sub(r'[ \t]{2,}', '  ', s); s = re.sub(r'\n\s*\n+', '\n', s)
-    return s.strip()
+    s = HEAD.sub('', s); s = '\n'.join(l.rstrip() for l in s.split('\n')); s = re.sub(r'\n{3,}', '\n\n', s)   # mantém o alinhamento das colunas (pdftotext -layout)
+    s = s.strip('\n'); ind = min((len(l) - len(l.lstrip()) for l in s.split('\n') if l.strip()), default=0)
+    return '\n'.join(l[ind:] for l in s.split('\n'))
 out = []
 for d, n, f in DOCS:
     txt = (src / f'{d}.txt').read_text(encoding='utf-8', errors='ignore').split('\f')[:-1]
