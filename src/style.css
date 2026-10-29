@@ -783,3 +783,48 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .stab th.n { white-space: nowrap; }
 .stab td .note { margin: 0; font-size: .74rem; }
 @media print { .msw, .blk.sim .cells i.c.sel, .sb-t i.si { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* britagem */
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ph h3 { margin: 0; }
+.sim-britp { display: grid; gap: 10px; } .sim-britp .note { margin: 0; }
+.sbk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.sbk div { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid #eb6834; border-radius: 8px; background: var(--surface); }
+.sbk span { font: 600 .74rem var(--f-display); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.sbk b { font: 600 1.5rem var(--f-display); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.sbk small { color: var(--muted); font-size: .76rem; }
+.warn { color: var(--neg); }
+.btab input.bvi { width: 7em; text-align: right; padding: 3px 6px; }
+.bsch { display: inline-flex; gap: 4px; align-items: center; flex-wrap: nowrap; white-space: nowrap; }
+.bsch input { padding: 3px 4px; font-size: .85rem; width: 8.6em; }
+.bprog td.bc { min-width: 118px; }
+.bprog td.bc b { display: block; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.bprog td.bc small { display: block; font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.bprog td.bc small.warn { color: var(--neg); font-weight: 600; }
+.bmtr { display: block; height: 6px; background: var(--surface-2); border-radius: 3px; margin: 3px 0 2px auto; width: 100%; overflow: hidden; }
+.bmtr i { display: block; height: 100%; background: var(--asphalt); border-radius: 3px; }
+:root[data-theme="dark"] .bmtr i { background: #c3c2b7; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bmtr i { background: #c3c2b7; } }
+.bmtr.full i { background: var(--neg); }
+.bch { display: flex; align-items: flex-end; gap: 10px; height: 250px; padding: 8px 4px 0; }
+.bcol { flex: 1; min-width: 34px; max-width: 90px; display: flex; flex-direction: column; align-items: stretch; height: 100%; }
+.bcol .bv { font: .74rem var(--f-mono); text-align: center; color: var(--muted); white-space: nowrap; }
+.bstk { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; border-bottom: 1px solid var(--muted); }
+.bstk i { display: block; border-radius: 3px 3px 0 0; min-height: 2px; }
+.bstk i + i { border-radius: 0; }
+.bstk i.bdef, .sw.bdef { background: repeating-linear-gradient(135deg, transparent 0 3px, var(--neg) 3px 5px); border: 1px dashed var(--neg); }
+.bcol .bm { font-size: .78rem; text-align: center; padding-top: 4px; }
+.bch + .legend { margin-top: 8px; }
+.bpar { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
+.bpar fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; display: grid; gap: 6px; margin: 0; }
+.bpar legend { font: 600 .78rem var(--f-display); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 0 4px; }
+.bpar .lbl { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: .86rem; }
+.bpar .lbl input { width: 6.5em; text-align: right; padding: 3px 6px; margin-left: auto; }
+.bpar .lbl.chg input { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+@media (max-width: 760px) { .sbk { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sbk b { font-size: 1.2rem; } .bch { height: 180px; gap: 6px; } }
+@media print {
+  #v-britagem .sim-brush .sb-row, #v-britagem #b-par { display: none !important; }
+  .bstk i, .bmtr i, .sbk div, .dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #v-britagem .panel, .sim-britp { break-inside: avoid; }
+}
+@media (max-width: 760px) { table.itbl td.emp { display: none; } .bprog td.bc { min-width: 0; } }

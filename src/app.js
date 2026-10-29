@@ -35,8 +35,8 @@ const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
-  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas'].map(f => get(f + '.json')));
-  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas };
+  const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem'].map(f => get(f + '.json')));
+  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -468,7 +468,7 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 // ---------------------------------------------------------------- abas protegidas por senha (dados cifrados em data/protegido.json)
 const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base'];
@@ -525,7 +525,7 @@ function show(v) {
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -594,7 +594,7 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
-  Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas });
+  Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas, britagem: data.britagem });
   PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
