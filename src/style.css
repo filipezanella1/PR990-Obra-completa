@@ -1048,7 +1048,7 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 @media (max-width: 760px) { .cv-sc { overflow-x: auto; } .cv-sc .cv-svg { min-width: 720px; } .cv-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cv-k b { font-size: 1.2rem; } }
 
 /* planejamento (oculto) */
-html:not(.unl) a.nl.oc, html:not(.unl) .ms-in a[href="#planejamento"], html:not(.unl) #tab-list li[data-v="planejamento"] { display: none !important; }
+a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { display: none !important; }
 #v-planejamento { display: grid; gap: 14px; } #v-planejamento[hidden] { display: none; }
 #pl-hero b.late, .pl-b em.late { color: #ff8a7a; } .pl-b em.late { color: var(--neg); }
 .cv-k.bad b { color: var(--neg); } .cv-k.ok b { color: var(--real); }

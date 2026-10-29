@@ -1056,7 +1056,7 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 @media (max-width: 760px) { .cv-sc { overflow-x: auto; } .cv-sc .cv-svg { min-width: 720px; } .cv-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cv-k b { font-size: 1.2rem; } }
 
 /* planejamento (oculto) */
-html:not(.unl) a.nl.oc, html:not(.unl) .ms-in a[href="#planejamento"], html:not(.unl) #tab-list li[data-v="planejamento"] { display: none !important; }
+a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { display: none !important; }
 #v-planejamento { display: grid; gap: 14px; } #v-planejamento[hidden] { display: none; }
 #pl-hero b.late, .pl-b em.late { color: #ff8a7a; } .pl-b em.late { color: var(--neg); }
 .cv-k.bad b { color: var(--neg); } .cv-k.ok b { color: var(--real); }
@@ -4190,6 +4190,7 @@ function verDlg() {
     ${UNL ? '<p class="note">Você entrou com a senha: o que você altera neste aparelho é o rascunho da versão mestra. Publique para que todos recebam.</p>' : '<p class="note">Você pode alterar à vontade: suas alterações ficam só neste aparelho e por cima da versão mestra. O que você não alterar continua acompanhando a mestra.</p>'}
     <table class="itbl"><tbody>${Object.entries(MAREAS).map(([a, o]) => `<tr><td>${esc(o.n)}</td><td>${areaLocal(a) ? `<span class="pill c">${UNL ? 'alterada (rascunho)' : 'sua versão'}</span>` : '<span class="pill p">mestra</span>'}</td><td>${areaLocal(a) ? `<button type="button" class="lnk" data-reset="${a}">voltar à mestra</button>` : ''}</td></tr>`).join('')}
     ${UNL ? `<tr><td>Retigráfico</td><td><span class="pill ${OB.avIsLocal() ? 'c' : 'p'}">${OB.avIsLocal() ? 'alterado (rascunho)' : 'mestra'}</span></td><td></td></tr>` : ''}</tbody></table>
+    ${UNL ? '<p><a href="#planejamento" id="ver-plan">Abrir o Planejamento do contrato (aba oculta) →</a></p>' : ''}
     ${UNL ? `<div class="ver-pub"><h3>Publicar versão mestra</h3>
       <p class="note">Grava retigráfico, simulação, britagem (inclusive estudo importado), reajuste, lançamentos da apresentação e — criptografados com a senha — a medição carregada e os valores da curva S deste aparelho como a nova versão mestra. Todos recebem em 1 a 2 minutos.</p>
       <label class="lbl">Token do GitHub <input id="ver-tok" type="password" autocomplete="off" placeholder="${rawGet('ghtok') ? 'cadastrado – cole outro para trocar' : 'github_pat_…'}"></label>
@@ -4200,6 +4201,7 @@ function verDlg() {
 function verInit() {
   $('#ver-btn').onclick = verDlg; $('#ver-x').onclick = () => { $('#ver-dlg').hidden = true; };
   $('#ver-dlg').addEventListener('click', async ev => {
+    if (ev.target.id === 'ver-plan') { $('#ver-dlg').hidden = true; return; }
     const r = ev.target.closest('[data-reset]'); if (r) { if (!confirm(`Descartar suas alterações em ${MAREAS[r.dataset.reset].n} e voltar à versão mestra?`)) return; areaReset(r.dataset.reset); location.reload(); return; }
     if (ev.target.id === 'ver-pub') { const msg = $('#ver-msg'); const b = ev.target; b.disabled = true;
       try { const t = $('#ver-tok').value.trim(); if (t) { await tokSave(t); $('#ver-tok').value = ''; }
