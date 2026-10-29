@@ -558,7 +558,7 @@ details.disc > summary .v select { padding: 3px; border: 1px solid var(--line); 
 .print-head { display: none; }
 @media print {
   body { background: #fff !important; color: #000; font-size: 10pt; }
-  header.top, footer, nav.tabs, .update-bar, .ios-tip, .more-sheet, .srch, .lightbox, .btn, .chip, input[type=search], .filters, .det-tools input, .det-tools label, .av-more, .brushes, #a-tip, .presets, .med-src label, .here-act { display: none !important; }
+  header.top, footer, nav.tabs, .update-bar, .ios-tip, .more-sheet, .srch, .lightbox, .btn, .chip, input[type=search], .filters, .det-tools input, .det-tools label, .av-more, .brushes, #a-tip, .presets, .med-src label, .here-act, .av-dados { display: none !important; }
   .print-head { display: block; font: 600 13pt var(--f-display); margin-bottom: 6mm; }
   main { padding: 0 !important; }
   .panel, .kpi { border-color: #bbb; break-inside: avoid; }
@@ -1146,6 +1146,7 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .mm-off { padding: 8px 12px 0; margin: 0; }
 .mm-pg { white-space: pre; overflow-x: auto; }
 button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 4px 10px; margin: 2px 4px 2px 0; } button.avchip.g-pr:hover { border-color: var(--accent); }
+.av-dados { margin-top: 12px; } .av-dados .ph { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 8px; } .av-dados h3 { margin: 0; }
 
 </style>
 </head>
@@ -1352,10 +1353,6 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
         <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o medido na medição</span></label>
         <span class="sp"></span>
         <button class="btn" type="button" data-print="avanco">PDF</button>
-        <button class="btn" type="button" id="a-csv">CSV</button>
-        <button class="btn" type="button" id="a-exp">Exportar</button>
-        <label class="btn primary file" title="Lê a planilha RETIGRAFICO OBRA 515 (.xlsx) e mostra o que muda antes de aplicar">Atualizar pela planilha (.xlsx)<input type="file" id="a-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
-        <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
       </div>
       <p class="note">Toque numa célula ou num bueiro para ver a situação. Em <b>Editar</b>, toque ou arraste sobre a linha <i>atacado</i> ou <i>concluído</i> de cada frente para marcar ou desmarcar, e toque no ícone de um bueiro para trocar a situação.</p>
       <details class="av-more"><summary>Marcar por intervalo de estacas, frentes e ajustes</summary>
@@ -1371,6 +1368,12 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
 
     <p class="note tip" id="a-tip" role="status"></p>
     <div class="panel"><div class="legend av-legend" id="a-legend"></div><div class="retig" id="a-grid"></div></div>
+    <div class="panel av-dados"><div class="ph"><h3>Dados do retigráfico</h3><span class="note">exportar, atualizar pela planilha ou importar</span></div><div class="filters">
+        <button class="btn" type="button" id="a-csv">CSV</button>
+        <button class="btn" type="button" id="a-exp">Exportar</button>
+        <label class="btn primary file" title="Lê a planilha RETIGRAFICO OBRA 515 (.xlsx) e mostra o que muda antes de aplicar">Atualizar pela planilha (.xlsx)<input type="file" id="a-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
+        <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
+      </div></div>
   </section>
 
   <!-- =============================== APRESENTAÇÃO -->

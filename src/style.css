@@ -545,7 +545,7 @@ details.disc > summary .v select { padding: 3px; border: 1px solid var(--line); 
 .print-head { display: none; }
 @media print {
   body { background: #fff !important; color: #000; font-size: 10pt; }
-  header.top, footer, nav.tabs, .update-bar, .ios-tip, .more-sheet, .srch, .lightbox, .btn, .chip, input[type=search], .filters, .det-tools input, .det-tools label, .av-more, .brushes, #a-tip, .presets, .med-src label, .here-act { display: none !important; }
+  header.top, footer, nav.tabs, .update-bar, .ios-tip, .more-sheet, .srch, .lightbox, .btn, .chip, input[type=search], .filters, .det-tools input, .det-tools label, .av-more, .brushes, #a-tip, .presets, .med-src label, .here-act, .av-dados { display: none !important; }
   .print-head { display: block; font: 600 13pt var(--f-display); margin-bottom: 6mm; }
   main { padding: 0 !important; }
   .panel, .kpi { border-color: #bbb; break-inside: avoid; }
@@ -1133,3 +1133,4 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .mm-off { padding: 8px 12px 0; margin: 0; }
 .mm-pg { white-space: pre; overflow-x: auto; }
 button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 4px 10px; margin: 2px 4px 2px 0; } button.avchip.g-pr:hover { border-color: var(--accent); }
+.av-dados { margin-top: 12px; } .av-dados .ph { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 8px; } .av-dados h3 { margin: 0; }

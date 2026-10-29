@@ -222,10 +222,6 @@
         <label class="chk"><input type="checkbox" id="a-hl"> <i class="sw m"></i><span id="a-hln">Destacar o medido na medição</span></label>
         <span class="sp"></span>
         <button class="btn" type="button" data-print="avanco">PDF</button>
-        <button class="btn" type="button" id="a-csv">CSV</button>
-        <button class="btn" type="button" id="a-exp">Exportar</button>
-        <label class="btn primary file" title="Lê a planilha RETIGRAFICO OBRA 515 (.xlsx) e mostra o que muda antes de aplicar">Atualizar pela planilha (.xlsx)<input type="file" id="a-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
-        <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
       </div>
       <p class="note">Toque numa célula ou num bueiro para ver a situação. Em <b>Editar</b>, toque ou arraste sobre a linha <i>atacado</i> ou <i>concluído</i> de cada frente para marcar ou desmarcar, e toque no ícone de um bueiro para trocar a situação.</p>
       <details class="av-more"><summary>Marcar por intervalo de estacas, frentes e ajustes</summary>
@@ -241,6 +237,12 @@
 
     <p class="note tip" id="a-tip" role="status"></p>
     <div class="panel"><div class="legend av-legend" id="a-legend"></div><div class="retig" id="a-grid"></div></div>
+    <div class="panel av-dados"><div class="ph"><h3>Dados do retigráfico</h3><span class="note">exportar, atualizar pela planilha ou importar</span></div><div class="filters">
+        <button class="btn" type="button" id="a-csv">CSV</button>
+        <button class="btn" type="button" id="a-exp">Exportar</button>
+        <label class="btn primary file" title="Lê a planilha RETIGRAFICO OBRA 515 (.xlsx) e mostra o que muda antes de aplicar">Atualizar pela planilha (.xlsx)<input type="file" id="a-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
+        <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
+      </div></div>
   </section>
 
   <!-- =============================== APRESENTAÇÃO -->
