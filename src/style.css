@@ -1020,3 +1020,29 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .tab-list .tn { font-weight: 600; }
 .ms-org { grid-column: 1 / -1; background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 10px; color: var(--muted); font: inherit; cursor: pointer; }
 @media (max-width: 760px) { nav.tabs .tab-org { display: none; } }
+
+/* importar planilhas */
+.imp-in { max-width: 760px; } .imp-act { display: flex; justify-content: flex-end; gap: 8px; }
+.imp-in b.up { color: var(--real); } .imp-in b.dn { color: var(--neg); } .imp-in .warn { color: var(--neg); font-weight: 600; }
+.b-imp { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+/* curva S */
+.cv-p { display: grid; gap: 12px; } .cv-p h2 { margin: 0; }
+.cv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.cv-k { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.cv-k span { font: 600 .74rem var(--f-display); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cv-k b { font: 600 1.6rem var(--f-display); font-variant-numeric: tabular-nums; line-height: 1.1; } .cv-k small { color: var(--muted); font-size: .78rem; }
+.cv-svg { width: 100%; height: auto; display: block; }
+.cv-svg .gr { stroke: var(--line); } .cv-svg .yt { font: 11px var(--f-mono); fill: var(--muted); text-anchor: end; } .cv-svg .xt { font: 10.5px var(--f-mono); fill: var(--muted); }
+.cv-svg .b.r { fill: #9aa4ad; } .cv-svg .b.g { fill: none; stroke: #9aa4ad; stroke-dasharray: 3 2; }
+.cv-svg .ct { stroke: var(--fg); stroke-dasharray: 6 4; stroke-width: 1.2; } .cv-svg .cl { font: 600 11.5px var(--f-body); fill: var(--fg); }
+.cv-svg .lr { fill: none; stroke: var(--fg); stroke-width: 2.6; stroke-linejoin: round; } .cv-svg .lp { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-dasharray: 7 4; }
+.cv-svg .cr { fill: var(--fg); } .cv-svg .cp { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.cv-svg .vl { font: 600 13px var(--f-display); fill: var(--fg); } .cv-svg .vl.vp { fill: var(--accent-ink); }
+.cv-svg .hj { stroke: var(--muted); stroke-dasharray: 2 3; } .cv-svg .hjt { font: 10px var(--f-mono); fill: var(--muted); }
+.cv-leg i.lr { height: 3px; background: var(--fg); } .cv-leg i.lp { height: 0; border-top: 3px dashed var(--accent); } .cv-leg i.br { background: #9aa4ad; } .cv-leg i.bg { border: 1px dashed #9aa4ad; } .cv-leg i.ct { height: 0; border-top: 2px dashed var(--fg); }
+.cv-ed summary { cursor: pointer; font-weight: 600; } .cv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 10px 0; }
+.cv-grid .lbl { display: grid; gap: 2px; font-size: .82rem; } .cv-grid small { color: var(--muted); } .cv-grid small.inf { color: var(--real); font-weight: 600; }
+.cv-grid input { text-align: right; font-variant-numeric: tabular-nums; }
+.ap-cv { display: grid; gap: 12px; }
+@media print { .cv-ed { display: none; } .cv-svg * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+@media (max-width: 760px) { .cv-sc { overflow-x: auto; } .cv-sc .cv-svg { min-width: 720px; } .cv-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cv-k b { font-size: 1.2rem; } }

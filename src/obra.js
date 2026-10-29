@@ -1,6 +1,7 @@
 // Módulos de obra: medição, retigráfico de avanço, campo (GPS), planejamento, pranchas, busca global e comparação de trechos.
 // Recebe o contexto do app (X) para usar o motor de cálculo, a base e os utilitários sem duplicá-los.
 import { parseMedicao } from './medparse.js?v=__BUILD__';
+import { parseRetigrafico, parseBritagem } from './retig.js?v=__BUILD__';
 
 export function initObra(X) {
   const { $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C } = X;
@@ -62,7 +63,7 @@ export function initObra(X) {
   }
   let medFilt = store.get('medFilt', ''), medOpen = null;
   function renderMed() {
-    if (!MED) return;
+    if (!MED) return; renderMedCurva();
     const rows = medRows(); const [a, b] = trecho();
     $('#m-trecho').textContent = `${estStr(a)} → ${estStr(b)}`;
     const sel = $('#m-sel'); const all = medAll();
@@ -471,6 +472,10 @@ export function initObra(X) {
     $('#a-exp').onclick = () => download(`retigrafico_PR-990_${today()}.json`, JSON.stringify(AV), 'application/json');
     $('#a-csv').onclick = () => { const L = [['Estaca inicial', 'Estaca final', ...AV.frentes.map(f => f.n)]]; for (let k = 0; k < NC; k++) L.push([k, Math.min(k + 1, 642.79085), ...AV.frentes.map(f => stName(f.c[k]))]); L.push([], ['OAC', 'Estaca', 'Comprimento (m)', 'Situação']); for (const o of AV.oac) L.push([o.t, estStr(o.e), o.L || '', oacName(o.st)]); download(`retigrafico_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
     $('#a-imp').onclick = ev => { if (!X.unlocked()) { ev.preventDefault(); X.ask(X.current(), 'Importar um retigráfico é restrito. Digite a senha.'); } };
+    $('#a-xlsx').onclick = ev => { if (!X.unlocked()) { ev.preventDefault(); X.ask(X.current(), 'Atualizar o retigráfico é restrito. Digite a senha.'); } };
+    $('#a-xlsx').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) impRetig(f); };
+    $('#b-xlsx').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) impBrit(f); };
+    if ($('#m-curva')) curvaBind($('#m-curva'));
     $('#a-imp').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!j.frentes) throw new Error('arquivo de outro modelo de retigráfico'); AV = { ...avDefault(), ...j, v: 2 }; LK = null; avSave(); renderAv(); $('#a-tip').textContent = 'Retigráfico importado.'; } catch (e) { $('#a-tip').textContent = 'Arquivo inválido: ' + e.message; } ev.target.value = ''; };
     let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (X.current() === 'avanco') drawGrid(false); if (X.current() === 'simulacao') drawGrid(true); }, 200); });
   }
@@ -496,10 +501,11 @@ export function initObra(X) {
     { id: 'conc', n: 'Concreto (fck diversos)', mat: 'conc', d0: 0, d1: 2, xo: true },
   ];
   const MATN = { bica: 'bica corrida', bgs: 'BGS', dreno: 'brita p/ dreno', conc: 'concreto' };
-  let BPO = store.get('britPar', {});
-  const bpDef = path => path.split('.').reduce((o, k) => o == null ? o : o[k], D.britagem);
+  let BPO = store.get('britPar', {}); let BBASE = store.get('britBase', null);
+  const BB = () => BBASE || D.britagem;
+  const bpDef = path => path.split('.').reduce((o, k) => o == null ? o : o[k], BB());
   const bp = path => { const v = BPO[path]; return v !== undefined && v !== null ? v : bpDef(path); };
-  const bComp = mat => { const c = { ...(D.britagem.comp[mat] || {}) }; for (const p of PRD) { const o = BPO[`comp.${mat}.${p.id}`]; if (o !== undefined && o !== null) c[p.id] = o; } if (mat === 'bgs' && BPO['comp.bgs.bica'] != null) c.po = Math.max(0, 1 - c.bica); return c; };
+  const bComp = mat => { const c = { ...(BB().comp[mat] || {}) }; for (const p of PRD) { const o = BPO[`comp.${mat}.${p.id}`]; if (o !== undefined && o !== null) c[p.id] = o; } if (mat === 'bgs' && BPO['comp.bgs.bica'] != null) c.po = Math.max(0, 1 - c.bica); return c; };
   const bDens = mat => bp(`dens.${mat}`);
   const bCap = p => p.pri ? bp('rate.' + p.id) * bp('pri.h') * bp('pri.t') * bp('pri.d') * bp('rend') : bp('rate.' + p.id) * bp('reb.h') * bp('reb.t') * bp('reb.d') * bp('rend');
   function bSplit(mat, vol) { const t = vol * bDens(mat); const c = bComp(mat); const o = { t }; for (const p of PRD) o[p.id] = t * (c[p.id] || 0); return o; }
@@ -561,7 +567,7 @@ export function initObra(X) {
   const bT = v => Math.abs(v) < 0.5 ? '–' : NF[0].format(v);
   function renderBrit() {
     if (!AV) avLoad();
-    const P = bPlan(); const B = D.britagem; const lim = bLim();
+    const P = bPlan(); const B = BB(); const lim = bLim();
     $('#b-fonte').textContent = `${B.fonte} · demanda de Rebouças pelo retigráfico de ${AV.data.split('-').reverse().join('/')}${AV.atualizado !== AV.data ? ' (com alterações feitas no app)' : ''}, até a estaca ${lim}`;
     $$('#b-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === bMode()));
     $('#b-ini').value = P.S0; if (document.activeElement !== $('#b-lim')) $('#b-lim').value = String(lim).replace('.', ',');
@@ -796,7 +802,8 @@ export function initObra(X) {
         <tr class="tot"><td colspan="2">Total demais serviços (PI)</td>${oth.map(o => `<td class="n">${fR(o.pi)}</td>`).join('')}</tr></tbody></table></div>
         <button type="button" class="lnk" id="ap-fin-clr">Limpar lançamentos</button></div>` : ''}` });
     // 7 · atenção
-    SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">06</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
+    if (X.unlocked() && MED) SL.push({ t: 'Curva S', h: `<div class="ap-h"><span class="ap-n">06</span><h3>Curva S financeira</h3><p>Medido acumulado até a ${MED.n}ª medição e previsão até o fim do plano, a preço inicial do contrato.</p></div><div class="ap-cv">${curvaHTML(false)}</div>` });
+    SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">${X.unlocked() && MED ? '07' : '06'}</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
       <div class="ap-att">${A.att.map(a => `<div class="ap-a ${a.k}"><span class="ic">${a.k === 'ok' ? '✓' : a.k === 'warn' ? '!' : 'i'}</span><div><b>${esc(a.t)}</b><p>${esc(a.d)}</p></div></div>`).join('')}</div>` });
     if (AS >= SL.length) AS = SL.length - 1;
     $('#ap-deck').innerHTML = SL.map((s, i) => `<section class="ap-slide${i === 0 ? ' cover' : ''}${i === AS ? ' on' : ''}" data-s="${i}" aria-label="${esc(s.t)}"${i === AS ? '' : ' aria-hidden="true"'}>${s.h}<span class="ap-pg">${i + 1} / ${SL.length}</span></section>`).join('');
@@ -825,6 +832,122 @@ export function initObra(X) {
     let tx = null; $('#ap-deck').addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
     $('#ap-deck').addEventListener('touchend', e => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 60 && !e.target.closest('.ap-mes, .ap-tbl, .ap-dg')) aprGo(AS + (dx < 0 ? 1 : -1)); }, { passive: true });
   }
+
+  // ===================================================================== IMPORTAR PLANILHAS (retigráfico, estudo de britagem)
+  function impShow(title, html, onApply, label = 'Aplicar') {
+    const d = $('#imp-dlg'); $('#imp-tit').textContent = title; $('#imp-body').innerHTML = html; $('#imp-go').textContent = label; d.hidden = false;
+    $('#imp-go').onclick = () => { d.hidden = true; onApply(); }; $('#imp-x').onclick = () => { d.hidden = true; };
+  }
+  const km2 = m => NF[2].format(m / 1000) + ' km';
+  const dlt = (a, b, f) => { const d = b - a; return Math.abs(d) < 1e-9 ? '<span class="note">=</span>' : `<b class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : '−'}${f(Math.abs(d))}</b>`; };
+  async function impRetig(file) {
+    if (!AV) avLoad(); $('#a-tip').textContent = 'Lendo ' + file.name + '…';
+    try {
+      const N = await parseRetigrafico(await file.arrayBuffer(), { drenagem: BASE().sheets['Drenagem pontual'] || [], travas: AV.travas || [], oacFix: D.avanco.oacFix || [], oae: AV.oae || D.avanco.oae || [] });
+      const extra = AV.frentes.filter(f => !N.frentes.some(x => x.id === f.id));
+      const rows = N.frentes.map(f => { const o = AV.frentes.find(x => x.id === f.id); const a = o ? avStats(o.c) : { 2: 0, 1: 0 }, b = avStats(f.c); return `<tr><td>${esc(f.n)}</td><td class="n">${km2(a['2'])}</td><td class="n">${km2(b['2'])}</td><td class="n">${dlt(a['2'], b['2'], km2)}</td><td class="n">${f.a ? km2(b['1']) : '–'}</td></tr>`; }).join('');
+      const och = N.oac.map(o => ({ o, p: AV.oac.find(x => Math.abs(x.e - o.e) < 0.6) })).filter(x => !x.p || x.p.st !== x.o.st);
+      const sumi = AV.oac.filter(p => !N.oac.some(o => Math.abs(o.e - p.e) < 0.6));
+      const old = N.data < AV.data;
+      impShow('Atualizar o retigráfico', `<p><b>${esc(file.name)}</b> · atualização de <b>${N.data.split('-').reverse().join('/')}</b> (hoje no app: ${AV.data.split('-').reverse().join('/')})</p>
+        ${old ? '<p class="warn">Atenção: esta planilha é mais antiga que o retigráfico atual.</p>' : ''}
+        <div class="tbl-wrap"><table class="itbl"><thead><tr><th>Frente</th><th class="n">Concluído antes</th><th class="n">Agora</th><th class="n">Diferença</th><th class="n">Em execução</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p><b>OAC:</b> ${N.oac.length} na planilha · ${och.length ? och.map(x => `${esc(x.o.t)} (est. ${estStr(x.o.e)}): ${x.p ? oacName(x.p.st) + ' → ' : 'novo, '}${oacName(x.o.st)}`).join(' · ') : 'sem mudança de situação'}${sumi.length ? ` · não aparecem mais: ${sumi.map(p => esc(p.t) + ' (est. ' + estStr(p.e) + ')').join(', ')}` : ''}</p>
+        <p class="note">Travas e correções de OAC continuam valendo${extra.length ? `; as frentes criadas no app (${extra.map(f => esc(f.n)).join(', ')}) são mantidas` : ''}. Depois de aplicar, publique a versão mestra para todos receberem.</p>`,
+        () => { AV = { ...N, frentes: [...N.frentes, ...extra], v: 2, atualizado: today(), ts: Date.now(), fixRev: D.avanco.fixRev || 0 }; LK = null; avSave(); renderAv(); $('#a-tip').textContent = `Retigráfico de ${N.data.split('-').reverse().join('/')} aplicado. Publique a versão mestra (botão Mestra no topo) para todos receberem.`; });
+      $('#a-tip').textContent = '';
+    } catch (e) { $('#a-tip').textContent = 'Não foi possível ler a planilha: ' + e.message; }
+  }
+  async function impBrit(file) {
+    const tip = $('#b-imp-msg'); tip.textContent = 'Lendo ' + file.name + '…';
+    try {
+      const N = await parseBritagem(await file.arrayBuffer(), file.name); const O = BB();
+      const L = [['Densidade bica (t/m³)', 'dens.bica', 2], ['Densidade BGS (t/m³)', 'dens.bgs', 2], ['Densidade brita p/ dreno', 'dens.dreno', 2], ['Densidade concreto', 'dens.conc', 2],
+        ['Bica corrida (t/h)', 'rate.bica', 0], ['Brita 01 (t/h)', 'rate.b1', 0], ['Pedrisco (t/h)', 'rate.ped', 0], ['Pó (t/h)', 'rate.po', 0], ['Rebritagem: turnos', 'reb.t', 0], ['Rebritagem: dias/mês', 'reb.d', 0], ['Rendimento', 'rend', 2],
+        ['Capacidade de furação (m/mês)', 'rocha.furCap', 0], ['Furos em estoque', 'rocha.furos', 0], ['Saldo de dreno (m³)', 'reb515.dreno', 1], ['Saldo de concreto (m³)', 'reb515.conc', 1]];
+      const g = (o, p) => p.split('.').reduce((a, k) => a == null ? a : a[k], o);
+      const ch = L.filter(([, p]) => Math.abs((+g(N, p) || 0) - (+g(O, p) || 0)) > 1e-9);
+      const ov = Object.keys(BPO).filter(k => BPO[k] !== null && BPO[k] !== undefined).length;
+      impShow('Atualizar o estudo de britagem', `<p><b>${esc(file.name)}</b>${N.data ? ` · início da britagem ${N.data.split('-').reverse().join('/')}` : ''}</p>
+        ${ch.length ? `<div class="tbl-wrap"><table class="itbl"><thead><tr><th>Parâmetro</th><th class="n">Antes</th><th class="n">Novo</th></tr></thead><tbody>${ch.map(([n, p, d]) => `<tr><td>${esc(n)}</td><td class="n">${NF[d].format(+g(O, p) || 0)}</td><td class="n"><b>${NF[d].format(+g(N, p) || 0)}</b></td></tr>`).join('')}</tbody></table></div>` : '<p>Nenhum parâmetro principal mudou.</p>'}
+        ${ov ? `<label class="chk"><input type="checkbox" id="imp-clr" checked> Descartar os ${ov} ajuste${ov > 1 ? 's' : ''} manual${ov > 1 ? 'is' : ''} feitos no app (para valer o estudo novo)</label>` : ''}`,
+        () => { if ($('#imp-clr') && $('#imp-clr').checked) { BPO = {}; store.set('britPar', BPO); } BBASE = N; store.set('britBase', N); renderBrit(); tip.textContent = 'Estudo aplicado.' + (X.unlocked() ? ' Publique a versão mestra para todos receberem.' : ''); });
+      tip.textContent = '';
+    } catch (e) { tip.textContent = 'Não foi possível ler a planilha: ' + e.message; }
+  }
+
+  // ===================================================================== CURVA S FINANCEIRA (área restrita)
+  // Realizado: valor medido (PI) por medição – a última pela própria medição, as anteriores distribuídas pelas memórias de
+  // cálculo (aproximação) ou informadas à mão. Projeção: meses ainda sem medição (informados) + plano da Simulação + demais serviços.
+  let CVH = store.get('curvaHist', null), CVG = store.get('curvaGap', null);
+  const cvH = () => CVH || (D.prot && D.prot.curvaHist) || {}, cvG = () => CVG || (D.prot && D.prot.curvaGap) || {};
+  const MESX = { janeiro: 1, fevereiro: 2, 'março': 3, marco: 3, abril: 4, maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12 };
+  function medMes(m) {
+    const o = m.oficial && /(\d{2})\/(\d{2})\/(\d{4}) a/.exec(m.oficial.periodo || ''); if (o) return `${o[3]}-${o[2]}`;
+    const t = (m.arquivo || m.nome || '').toLowerCase(); const mm = /(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\W{0,4}(\d{4})/.exec(t);
+    return mm ? `${mm[2]}-${String(MESX[mm[1]]).padStart(2, '0')}` : null;
+  }
+  function curvaData() {
+    if (!MED) return null; const m = MED, N = m.n || 1;
+    const tot = m.itens.reduce((s, i) => s + i.q * i.p, 0), acum = m.itens.reduce((s, i) => s + i.acum * i.p, 0), liq = m.itens.reduce((s, i) => s + i.liq * i.p, 0), ant = acum - liq;
+    const mem = {}; for (const it of m.itens) for (const r of it.r) if (r[4] >= 1 && r[4] < N) mem[r[4]] = (mem[r[4]] || 0) + Math.max(0, r[3] * it.p);
+    const H = cvH(); const known = Object.entries(H).filter(([n]) => +n < N).reduce((s, [, v]) => s + v, 0); const rem = Math.max(0, ant - known);
+    const apx = []; for (let n = 1; n < N; n++) if (H[n] === undefined) apx.push(n); const memA = apx.reduce((s, n) => s + (mem[n] || 0), 0);
+    const mN = medMes(m) || ymNow(); const ym0 = ymAdd(mN, -(N - 1));
+    const hist = []; for (let n = 1; n <= N; n++) { const inf = H[n] !== undefined; const v = n === N ? (inf ? H[n] : liq) : inf ? H[n] : (memA ? (mem[n] || 0) / memA * rem : rem / Math.max(1, apx.length)); hist.push({ n, ym: ymAdd(ym0, n - 1), v, src: inf ? 'informado' : n === N ? 'medição' : 'aproximado' }); }
+    const G = cvG(); const gap = []; const p0 = MESES[0]; for (let y = ymNext(mN); ymCmp(y, p0) < 0 && gap.length < 24; y = ymNext(y)) gap.push({ ym: y, v: +G[y] || 0 });
+    const A = aprData(); const GR = X.reajG ? X.reajG() : [];
+    const plan = MESES.map((ym, i) => { let o = 0; GR.forEach((g, gi) => { o += +((OFIN[gi] || {})[ym]) || 0; }); return { ym, i, pav: A.val[i].pi, out: o, v: A.val[i].pi + o }; });
+    const real = hist.reduce((s, h) => s + h.v, 0);
+    return { m, N, tot, acum: real, liq, reaj: m.oficial && m.oficial.reajAcum, hist, gap, plan, mN, apx: apx.length };
+  }
+  function curvaSVG(Cd, big) {
+    const pts = [...Cd.hist.map(h => ({ ym: h.ym, v: h.v, k: 'r' })), ...Cd.gap.map(g => ({ ym: g.ym, v: g.v, k: 'g' })), ...Cd.plan.map(p => ({ ym: p.ym, v: p.v, k: 'p', i: p.i }))];
+    let c = 0; pts.forEach(p => { c += p.v; p.c = c; });
+    const W = 960, H = big ? 360 : 320, pl = 64, pr = 150, pt = 18, pb = 34; const n = pts.length; const bw = (W - pl - pr) / n;
+    const ymax = Math.max(Cd.tot, c) * 1.06, mmax = Math.max(1, ...pts.map(p => p.v));
+    const xs = i => pl + (i + .5) * bw, ys = v => pt + (1 - v / ymax) * (H - pt - pb), yb = v => (v / mmax) * (H - pt - pb) * .32;
+    const lastR = pts.filter(p => p.k === 'r').length - 1;
+    const tick = Math.max(1, Math.ceil(n / 14));
+    let g = '';
+    for (let k = 0; k <= 4; k++) { const v = ymax / 1.06 * k / 4; g += `<line x1="${pl}" x2="${W - pr}" y1="${ys(v)}" y2="${ys(v)}" class="gr"/><text x="${pl - 6}" y="${ys(v) + 4}" class="yt">${NF[0].format(v / 1e6)}</text>`; }
+    g += `<text x="${pl - 6}" y="${pt - 6}" class="yt">R$ mi</text>`;
+    pts.forEach((p, i) => { const h = yb(p.v); g += `<rect x="${xs(i) - bw * .32}" y="${H - pb - h}" width="${bw * .64}" height="${h}" class="b ${p.k}"${p.k === 'p' ? ` fill="${MCOL[p.i]}"` : ''}><title>${mesNomeS(p.ym)}: ${fR(p.v)}</title></rect>`;
+      if (i % tick === 0 || p.k === 'p') g += `<text x="${xs(i)}" y="${H - 12}" class="xt" text-anchor="middle">${mesNomeS(p.ym)}</text>`; });
+    g += `<line x1="${pl}" x2="${W - pr}" y1="${ys(Cd.tot)}" y2="${ys(Cd.tot)}" class="ct"/><text x="${W - pr + 6}" y="${ys(Cd.tot) + 4}" class="cl">Contrato ${mi$(Cd.tot)}</text>`;
+    const pr_ = pts.slice(0, lastR + 1).map((p, i) => `${xs(i).toFixed(1)},${ys(p.c).toFixed(1)}`).join(' ');
+    const pp = pts.slice(lastR).map((p, j) => `${xs(lastR + j).toFixed(1)},${ys(p.c).toFixed(1)}`).join(' ');
+    g += `<polyline points="${pr_}" class="lr"/>${n > lastR + 1 ? `<polyline points="${pp}" class="lp"/>` : ''}`;
+    pts.forEach((p, i) => { g += `<circle cx="${xs(i)}" cy="${ys(p.c)}" r="${p.k === 'r' ? 2.5 : 3.5}" class="${p.k === 'r' ? 'cr' : 'cp'}"><title>${mesNomeS(p.ym)} – acumulado ${fR(p.c)} (${fPc(p.c / Cd.tot)})</title></circle>`; });
+    const lr = pts[lastR]; g += `<text x="${xs(lastR) - 6}" y="${ys(lr.c) - 10}" class="vl" text-anchor="end">${mi$(lr.c)} · ${fPc(lr.c / Cd.tot)}</text>`;
+    if (n > lastR + 1) { const le = pts[n - 1]; g += `<text x="${xs(n - 1) + 8}" y="${ys(le.c) + 4}" class="vl vp">${mi$(le.c)} · ${fPc(le.c / Cd.tot)}</text>`; }
+    const iNow = pts.findIndex(p => p.ym === ymNow()); if (iNow >= 0) g += `<line x1="${xs(iNow)}" x2="${xs(iNow)}" y1="${pt}" y2="${H - pb}" class="hj"/><text x="${xs(iNow) + 4}" y="${pt + 10}" class="hjt">hoje</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}" class="cv-svg" role="img" aria-label="Curva S financeira: medido acumulado e projeção">${g}</svg>`;
+  }
+  function curvaHTML(edit) {
+    const Cd = curvaData(); if (!Cd) return '<p class="note">Sem medição carregada.</p>';
+    const fim = Cd.acum + Cd.gap.reduce((s, g) => s + g.v, 0) + Cd.plan.reduce((s, p) => s + p.v, 0);
+    const k = (l, v, s) => `<div class="cv-k"><span>${l}</span><b>${v}</b><small>${s}</small></div>`;
+    let h = `<div class="cv-kpis">${k('Medido acumulado (PI)', mi$(Cd.acum), `${fPc(Cd.acum / Cd.tot)} do contrato · até a ${Cd.N}ª medição (${mesNomeS(Cd.mN)})`)}${Cd.reaj ? k('Reajuste acumulado', mi$(Cd.reaj), `PI + R: ${mi$(Cd.acum + Cd.reaj)}`) : ''}${k(`Previsto até ${mesNomeS(MESES[MESES.length - 1])}`, mi$(fim), `${fPc(fim / Cd.tot)} do contrato`)}${k('Saldo após o plano', mi$(Cd.tot - fim), `de ${mi$(Cd.tot)} do contrato (PI)`)}</div>
+      <div class="cv-sc">${curvaSVG(Cd, !edit)}</div>
+      <div class="ap-leg cv-leg"><span><i class="lr"></i>medido acumulado</span><span><i class="lp"></i>previsto acumulado</span><span><i class="br"></i>medido no mês</span>${Cd.gap.length ? '<span><i class="bg"></i>meses ainda sem medição (informados)</span>' : ''}<span><i style="background:${MCOL[0]}"></i>plano da Simulação + demais serviços</span><span><i class="ct"></i>valor do contrato</span></div>
+      <p class="note">${Cd.apx ? `Valores das medições anteriores à ${Cd.N}ª: ${Cd.apx} aproximados pela distribuição das memórias de cálculo, ajustados ao acumulado oficial. ` : ''}Projeção a preço inicial (PI): pavimentação pela Simulação e demais serviços lançados na Apresentação${Cd.gap.length ? '; meses sem medição conforme informado abaixo' : ''}.</p>`;
+    if (edit) h += `<details class="cv-ed"><summary>Editar valores por medição e meses sem medição</summary><div class="cv-grid">
+        ${Cd.hist.map(x => `<label class="lbl"><span>${x.n}ª · ${mesNomeS(x.ym)} <small class="${x.src === 'informado' ? 'inf' : ''}">${x.src}</small></span><input class="cv-in" data-n="${x.n}" inputmode="decimal" value="${NF[2].format(x.v)}"></label>`).join('')}
+        ${Cd.gap.map(x => `<label class="lbl"><span>${mesNomeS(x.ym)} <small>previsto</small></span><input class="cv-gap" data-ym="${x.ym}" inputmode="decimal" value="${x.v ? NF[2].format(x.v) : ''}" placeholder="0,00"></label>`).join('')}
+      </div><button type="button" class="lnk" id="cv-reset">Voltar aos valores aproximados</button></details>`;
+    return h;
+  }
+  function curvaBind(host) {
+    host.addEventListener('change', ev => { const t = ev.target; const v = parseFloat(String(t.value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.'));
+      if (t.classList.contains('cv-in')) { CVH = { ...cvH() }; if (Number.isFinite(v) && v >= 0) CVH[t.dataset.n] = v; else delete CVH[t.dataset.n]; store.set('curvaHist', CVH); renderMedCurva(); }
+      if (t.classList.contains('cv-gap')) { CVG = { ...cvG() }; if (Number.isFinite(v) && v > 0) CVG[t.dataset.ym] = v; else delete CVG[t.dataset.ym]; store.set('curvaGap', CVG); renderMedCurva(); } });
+    host.addEventListener('click', ev => { if (ev.target.id === 'cv-reset') { CVH = {}; store.set('curvaHist', CVH); renderMedCurva(); } });
+  }
+  function renderMedCurva() { const h = $('#m-curva'); if (!h || !MED) return; const op = h.querySelector('details.cv-ed')?.open; h.innerHTML = curvaHTML(true); if (op) h.querySelector('details.cv-ed').open = true; }
+  // dados restritos que vão (criptografados) na versão mestra
+  function protPayload() { const ship = D.medShip || D.medicao; const p = D.prot || {};
+    return { medicao: MED && MED !== ship && (MED.n || 0) >= (ship.n || 0) ? MED : p.medicao || null, curvaHist: cvH(), curvaGap: cvG() }; }
 
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
@@ -1095,7 +1218,8 @@ export function initObra(X) {
   function reloadState() {   // relê o que vem da versão mestra (ou das alterações deste aparelho) depois que a mestra carrega
     for (const k of Object.keys(SP)) delete SP[k]; Object.assign(SP, { dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
     SIM = store.get('simSel', {}); MESES = store.get('simMeses', null) || [ymNext(ymNow())]; MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
-    BPO = store.get('britPar', {}); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
+    BPO = store.get('britPar', {}); BBASE = store.get('britBase', null); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
+    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null);
   }
   function avMaster() { if (!AV) avLoad(); const c = JSON.parse(JSON.stringify(AV)); c.ts = Date.now(); return c; }
   function avIsLocal() { const l = store.get(AVKEY, null); const m = D.mestre && D.mestre.retigrafico; return !!(l && (!m || (l.ts || 0) > (m.ts || 0))); }
@@ -1105,7 +1229,8 @@ export function initObra(X) {
     const [medicao, medref, avanco, eixo, pranchas] = await Promise.all(['medicao.json', 'medref.json', 'avanco.json', 'eixo.json', 'pranchas.json'].map(f => get(f)));
     Object.assign(D, { medicao, medref, avanco, eixo, pranchas });
   }
-  function unlock(medicao, medref) {
+  function unlock(medicao, medref, prot) {
+    D.medShip = medicao; D.prot = prot || null; if (prot && prot.medicao && (prot.medicao.n || 0) >= (medicao.n || 0)) medicao = prot.medicao;
     Object.assign(D, { medicao, medref }); medInit(); MCELL = null; AV = null; LK = null;
     if (X.current() === 'avanco') renderAv(); if (X.current() === 'campo') renderCampo();
   }
@@ -1117,5 +1242,5 @@ export function initObra(X) {
     avInitEvents(); britInit(); aprInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, reloadState, avMaster, avIsLocal, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }

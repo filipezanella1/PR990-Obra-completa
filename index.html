@@ -57,6 +57,7 @@
   <button class="btn" id="ios-tip-x" type="button">Entendi</button>
 </div>
 <div class="update-bar mst-bar" id="mst-bar" hidden><span id="mst-txt"></span><span class="mst-act"><button class="btn primary" id="mst-go" type="button">Usar a versão mestra</button><button class="btn" id="mst-keep" type="button">Manter a minha</button></span></div>
+<div class="lock" id="imp-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="imp-tit"><div class="lock-in ver-in imp-in"><div class="ph"><h2 id="imp-tit"></h2></div><div id="imp-body"></div><div class="imp-act"><button class="btn" type="button" id="imp-x">Cancelar</button><button class="btn primary" type="button" id="imp-go">Aplicar</button></div></div></div>
 <div class="lock" id="tab-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="tab-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="tab-tit">Organizar abas</h2><button class="btn" type="button" id="tab-x">Concluir</button></div><p class="note">Arraste pela alça ⋮⋮ ou use as setas. A ordem fica salva neste aparelho.</p><ol class="tab-list" id="tab-list"></ol><button type="button" class="lnk" id="tab-reset">Voltar à ordem padrão</button></div></div>
 <div class="lock" id="ver-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="ver-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="ver-tit">Versão do app</h2><button class="btn" type="button" id="ver-x">Fechar</button></div><div id="ver-body"></div></div></div>
 <div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
@@ -200,6 +201,7 @@
       <div class="note" id="m-count"></div>
       <div class="tbl-wrap"><table class="cmp medt"><thead><tr><th>Código</th><th>Serviço</th><th>Un</th><th class="n">Contrato</th><th class="n">Medido acum.</th><th class="n">Nesta medição</th><th class="n">Saldo contrato</th><th class="n">Previsto projeto</th><th>Situação</th><th class="n">Previsto no trecho</th><th class="n">Medido no trecho</th><th class="n">A executar no trecho</th></tr></thead><tbody id="m-body"></tbody></table></div>
     </div>
+    <div class="panel cv-p"><h2>Curva S financeira</h2><div id="m-curva"></div></div>
   </section>
 
   <!-- =============================== RETIGRÁFICO -->
@@ -218,6 +220,7 @@
         <button class="btn" type="button" data-print="avanco">PDF</button>
         <button class="btn" type="button" id="a-csv">CSV</button>
         <button class="btn" type="button" id="a-exp">Exportar</button>
+        <label class="btn primary file" title="Lê a planilha RETIGRAFICO OBRA 515 (.xlsx) e mostra o que muda antes de aplicar">Atualizar pela planilha (.xlsx)<input type="file" id="a-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
         <label class="btn file">Importar<input type="file" id="a-imp" accept=".json,application/json" hidden></label>
       </div>
       <p class="note">Toque numa célula ou num bueiro para ver a situação. Em <b>Editar</b>, toque ou arraste sobre a linha <i>atacado</i> ou <i>concluído</i> de cada frente para marcar ou desmarcar, e toque no ícone de um bueiro para trocar a situação.</p>
@@ -272,7 +275,7 @@
       <div class="panel"><h3>Desmonte e furação</h3><div class="tbl-wrap" id="b-fur"></div></div>
     </div>
     <div class="panel"><h3>Programa de britagem por produto</h3><p class="note">Em cada mês: toneladas a produzir, uso da capacidade e saldo. Quando a demanda de um mês passa da capacidade, a britagem adianta a produção nos meses anteriores (estoque); o que não couber vira falta e passa para o mês seguinte.</p><div class="tbl-wrap" id="b-prog"></div></div>
-    <details class="panel sim-prem"><summary><b>Parâmetros da britagem</b> <span class="note" id="b-prem-sum"></span></summary><div id="b-par"></div></details>
+    <details class="panel sim-prem"><summary><b>Parâmetros da britagem</b> <span class="note" id="b-prem-sum"></span></summary><div class="b-imp"><label class="btn file">Atualizar pelo estudo de britagem (.xlsx)<input type="file" id="b-xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><span class="note" id="b-imp-msg" role="status"></span></div><div id="b-par"></div></details>
   </section>
 
   <!-- =============================== SIMULAÇÃO -->

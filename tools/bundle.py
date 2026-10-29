@@ -5,7 +5,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 html = (root / 'index.html').read_text(encoding='utf-8')
 css = (root / 'src/style.css').read_text(encoding='utf-8')
 eng = (root / 'src/engine.js').read_text(encoding='utf-8')
-mods = [(root / f'src/{f}.js').read_text(encoding='utf-8') for f in ('xlsx', 'medparse', 'obra', 'app')]
+mods = [(root / f'src/{f}.js').read_text(encoding='utf-8') for f in ('xlsx', 'retig', 'medparse', 'obra', 'app')]
 eng = re.sub(r'^export \{[^}]*\};?\s*$', '', eng, flags=re.M).replace('export class ', 'class ')
 strip = lambda t: re.sub(r'^export (async function|function|class|const|let) ', r'\1 ', re.sub(r"^import .*?;\s*$", '', t, flags=re.M), flags=re.M)
 app = '\n'.join(strip(t) for t in mods)

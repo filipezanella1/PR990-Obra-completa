@@ -47,6 +47,15 @@ export async function readXlsx(buf) {
   }
   const ssx = await readEntry(z, 'xl/sharedStrings.xml') || '';
   const ss = [...ssx.matchAll(/<si>([\s\S]*?)<\/si>/g)].map(m => unesc([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x => x[1]).join('')));
+  // estilos: preenchimento e formato numérico de cada estilo de célula (para cores do retigráfico e datas)
+  const stx = await readEntry(z, 'xl/styles.xml') || '';
+  const fillsX = (/<fills\b[^>]*>([\s\S]*?)<\/fills>/.exec(stx) || [, ''])[1];
+  const fills = [...fillsX.matchAll(/<fill>([\s\S]*?)<\/fill>|<fill\/>/g)].map(m => { const b = m[1] || ''; const pf = /<patternFill\b([^>]*)/.exec(b); const fg = /<fgColor\b([^>]*)\/?>/.exec(b);
+    return { type: pf ? attr(pf[1], 'patternType') : null, rgb: fg ? attr(fg[1], 'rgb') : null, theme: fg ? attr(fg[1], 'theme') : null }; });
+  const nfX = {}; for (const m of stx.matchAll(/<numFmt\b[^>]*>/g)) nfX[attr(m[0], 'numFmtId')] = attr(m[0], 'formatCode');
+  const xfsX = (/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/.exec(stx) || [, ''])[1];
+  const xfs = [...xfsX.matchAll(/<xf\b([^>]*?)(?:\/>|>)/g)].map(m => ({ fill: +(attr(m[1], 'fillId') || 0), nf: attr(m[1], 'numFmtId') || '0' }));
+  const isDateNf = id => { const n = +id; if ((n >= 14 && n <= 22) || (n >= 45 && n <= 47)) return true; const f = nfX[id]; return !!f && /[dmy]/i.test(f.replace(/"[^"]*"|\[[^\]]*\]/g, '')) && !/^[#0.,%\s]+$/.test(f); };
   const cache = new Map();
   async function sheet(name) {
     const s = sheets.find(x => x.name === name); if (!s) return null;
@@ -64,14 +73,20 @@ export async function readXlsx(buf) {
       else if (t === 'b') v = v === '1';
       else if (t === 'str' || t === 'e') { /* texto */ }
       else if (v !== null) v = +v;
-      const cell = { v }; if (fm) cell.f = '=' + unesc(fm[1]);
+      const cell = { v }; if (fm) cell.f = '=' + unesc(fm[1]); const si = attr(a, 's'); if (si) cell.s = +si;
       cells.set(ref, cell);
       const rc = xlSplitRef(ref); if (rc) { maxRow = Math.max(maxRow, rc[0]); maxCol = Math.max(maxCol, rc[1]); }
     }
-    const o = { name, cells, maxRow, maxCol, get: (r, c) => cells.get(xlColName(c) + r)?.v ?? null, cell: (r, c) => cells.get(xlColName(c) + r) || null };
+    const hidden = new Set(); for (const m of x.matchAll(/<row\b[^>]*>/g)) if (/\bhidden="(1|true)"/.test(m[0])) hidden.add(+attr(m[0], 'r'));
+    const srels = await readEntry(z, s.path.replace(/([^/]+)$/, '_rels/$1.rels')) || '';
+    const dm = /<drawing\b[^>]*r:id="([^"]+)"/.exec(x); let drawing = null;
+    if (dm) { const rm = new RegExp('<Relationship\\b[^>]*Id="' + dm[1] + '"[^>]*>').exec(srels); if (rm) drawing = 'xl/' + attr(rm[0], 'Target').replace(/^\.\.\//, '').replace(/^\/?xl\//, ''); }
+    const fillOf = c => { const xf = c && c.s !== undefined ? xfs[c.s] : null; return xf ? fills[xf.fill] || null : null; };
+    const o = { name, cells, maxRow, maxCol, hidden, drawing, get: (r, c) => cells.get(xlColName(c) + r)?.v ?? null, cell: (r, c) => cells.get(xlColName(c) + r) || null,
+      fill: (r, c) => fillOf(cells.get(xlColName(c) + r)), isDate: (r, c) => { const cl = cells.get(xlColName(c) + r); const xf = cl && cl.s !== undefined ? xfs[cl.s] : null; return !!(xf && typeof cl.v === 'number' && isDateNf(xf.nf)); } };
     cache.set(name, o); return o;
   }
-  return { names: sheets.map(s => s.name), sheet };
+  return { names: sheets.map(s => s.name), sheet, raw: name => readEntry(z, name), files: [...z.files.keys()] };
 }
 export function xlColName(c) { let s = ''; while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = (c - m - 1) / 26; } return s; }
 function xlSplitRef(ref) { const m = /^([A-Z]+)(\d+)$/.exec(ref); if (!m) return null; let c = 0; for (const ch of m[1]) c = c * 26 + ch.charCodeAt(0) - 64; return [+m[2], c]; }

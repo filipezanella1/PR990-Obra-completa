@@ -16,7 +16,7 @@ const parseEst = s => { const m = /^(\d+)\+([\d.,]+)$/.exec(String(s).trim()); r
 // ---------------------------------------------------------------- versão mestra × versão individual
 // A versão mestra (data/mestre.json) é publicada pelo dono (com a senha e um token do GitHub). Cada aparelho lê a mestra
 // e guarda por cima as próprias alterações, por área; quando a mestra muda numa área alterada, o app pergunta o que fazer.
-const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] } };
+const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britBase', 'britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] } };
 const K2A = {}; for (const [a, o] of Object.entries(MAREAS)) for (const k of o.k) K2A[k] = a;
 let MST = null;
 const rawGet = k => { try { return localStorage.getItem('pr990:' + k); } catch { return null; } };
@@ -527,7 +527,9 @@ async function openWith(key) {
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(PROT.iv) }, key, b64u(PROT.ct));
   const d = JSON.parse(new TextDecoder().decode(plain));
   M.contrato = d.contrato; M.discrepancias = d.discrepancias;
-  UNL = true; UKEY = key; OB.unlock(d.medicao, d.medref); lockUI(); verUI();
+  let prot = null;
+  if (MST && MST.prot) try { prot = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(MST.prot.iv) }, key, b64u(MST.prot.ct)))); } catch { }
+  UNL = true; UKEY = key; OB.unlock(d.medicao, d.medref, prot); lockUI(); verUI();
 }
 async function unlock(pass, remember) {
   if (!window.crypto || !crypto.subtle) throw new Error('este navegador não permite abrir os dados protegidos aqui (abra pelo endereço https do app)');
@@ -665,6 +667,7 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
 
 // ---------------------------------------------------------------- versão mestra: estado, aviso de atualização e publicação
 let UKEY = null;
+const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode(...u8.subarray(i, i + 32768)); return btoa(s); };
 const REPO_API = 'https://api.github.com/repos/filipezanella1/PR990-Obra-completa/contents/data/mestre.json';
 function mstLoad(fetched) {
   let loc = null; try { loc = JSON.parse(rawGet('mestreLocal') || 'null'); } catch { }
@@ -687,6 +690,7 @@ async function mstPublish() {
   const tok = await tokGet(); if (!tok) throw new Error('cadastre o token do GitHub primeiro');
   const areas = {}; for (const [a, o] of Object.entries(MAREAS)) { areas[a] = {}; for (const k of o.k) { const v = store.get(k, undefined); if (v !== undefined) areas[a][k] = v; } }
   const body = { ver: (MST.ver || 0) + 1, em: new Date().toISOString(), areas, retigrafico: OB.avMaster() };
+  if (UKEY) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, UKEY, new TextEncoder().encode(JSON.stringify(OB.protPayload())))); body.prot = { iv: b64e(iv), ct: b64e(ct) }; }
   const h = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
   let sha; const g = await fetch(REPO_API + '?ref=main', { headers: h, cache: 'no-store' });
   if (g.ok) sha = (await g.json()).sha; else if (g.status === 401 || g.status === 403) throw new Error('token sem permissão (precisa de Contents: read and write neste repositório)'); else if (g.status !== 404) throw new Error('GitHub respondeu ' + g.status);
@@ -704,7 +708,7 @@ function verDlg() {
     <table class="itbl"><tbody>${Object.entries(MAREAS).map(([a, o]) => `<tr><td>${esc(o.n)}</td><td>${areaLocal(a) ? `<span class="pill c">${UNL ? 'alterada (rascunho)' : 'sua versão'}</span>` : '<span class="pill p">mestra</span>'}</td><td>${areaLocal(a) ? `<button type="button" class="lnk" data-reset="${a}">voltar à mestra</button>` : ''}</td></tr>`).join('')}
     ${UNL ? `<tr><td>Retigráfico</td><td><span class="pill ${OB.avIsLocal() ? 'c' : 'p'}">${OB.avIsLocal() ? 'alterado (rascunho)' : 'mestra'}</span></td><td></td></tr>` : ''}</tbody></table>
     ${UNL ? `<div class="ver-pub"><h3>Publicar versão mestra</h3>
-      <p class="note">Grava retigráfico, simulação, britagem, reajuste e lançamentos da apresentação deste aparelho como a nova versão mestra. Todos recebem em 1 a 2 minutos.</p>
+      <p class="note">Grava retigráfico, simulação, britagem (inclusive estudo importado), reajuste, lançamentos da apresentação e — criptografados com a senha — a medição carregada e os valores da curva S deste aparelho como a nova versão mestra. Todos recebem em 1 a 2 minutos.</p>
       <label class="lbl">Token do GitHub <input id="ver-tok" type="password" autocomplete="off" placeholder="${rawGet('ghtok') ? 'cadastrado – cole outro para trocar' : 'github_pat_…'}"></label>
       <p class="note">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para o repositório PR990-Obra-completa, com permissão <b>Contents: Read and write</b>. Fica guardado neste aparelho, criptografado com a sua senha.</p>
       <button class="btn primary" type="button" id="ver-pub">Publicar como versão mestra</button> <span class="note" id="ver-msg" role="status"></span></div>` : ''}`;

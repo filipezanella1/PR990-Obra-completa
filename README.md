@@ -24,6 +24,17 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 **Busca global** (botão Buscar ou tecla `/`): código, serviço, insumo, prancha ou estaca, em todas as abas.
 
+## Atualizar pelo próprio app
+
+- **Retigráfico**: aba Retigráfico → “Atualizar pela planilha (.xlsx)” (com a senha). O app lê a planilha RETIGRAFICO OBRA 515 no navegador (mesma lógica de `tools/retigrafico.py`, em `src/retig.js`), mostra frente a frente o que muda e as mudanças de OAC, e aplica. Travas e correções de OAC continuam valendo.
+- **Estudo de britagem**: aba Britagem → Parâmetros → “Atualizar pelo estudo de britagem (.xlsx)”. Mostra os parâmetros que mudam e pode descartar os ajustes manuais.
+- **Medição**: aba Medição → “Carregar nova medição (.xlsx)”, como antes.
+- Depois, “Publicar como versão mestra”: retigráfico e estudo vão para `data/mestre.json`; a medição carregada e os valores da curva S vão no mesmo arquivo, **criptografados com a senha** (só quem tem a senha abre).
+
+## Curva S financeira (área restrita)
+
+Aba Medição (e slide na Apresentação, com a senha): medido acumulado a preço inicial por medição até a última medição, reajuste acumulado, previsão mês a mês (meses ainda sem medição informados à mão + pavimentação da Simulação + demais serviços lançados na Apresentação) e a linha do valor do contrato. As medições anteriores à última são aproximadas pela distribuição das memórias de cálculo, ajustadas ao acumulado oficial, e podem ser substituídas pelos valores oficiais em “Editar valores por medição”.
+
 ## Ordem das abas
 
 Botão ☰ no fim da barra de abas (no celular: “Mais” → “Organizar abas…”): arraste pela alça ou use as setas. A ordem fica salva no aparelho; no celular as 4 primeiras vão para a barra inferior e o resto para “Mais”.
