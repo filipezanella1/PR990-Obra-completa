@@ -572,7 +572,7 @@ function show(v) {
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'sobre') offStatus(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -618,6 +618,29 @@ function theme() {
   apply(); $('#theme').addEventListener('click', () => { t = order[(order.indexOf(t) + 1) % 3]; store.set('theme', t); apply(); });
 }
 
+
+// ---------------------------------------------------------------- uso sem internet
+async function offStatus() {
+  const app = $('#off-app'), mid = $('#off-mid'); if (!app) return;
+  if (!('caches' in window) || window.__PR990__) { app.textContent = window.__PR990__ ? 'Arquivo único: já funciona sem internet.' : 'Este navegador não guarda o app para uso sem internet.'; $('#off-dl').hidden = true; return; }
+  const ks = await caches.keys(); const v = ks.find(k => /^pr990-(?!fonts|midia)/.test(k));
+  const ok = !!(v && navigator.serviceWorker && navigator.serviceWorker.controller);
+  app.innerHTML = ok ? '✅ App e dados salvos neste aparelho.' : '⏳ O app ainda está sendo salvo neste aparelho (abra de novo com internet).';
+  try { const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); let n = 0, t = 0;
+    for (const u of m.full) if (await c.match(u)) n++; for (const u of m.thumbs) if (await c.match(u)) t++;
+    mid.innerHTML = `${n === m.full.length ? '✅' : '⬜'} Pranchas e detalhes completos: ${n} de ${m.full.length} (${NF[0].format(m.mb)} MB) · miniaturas ${t} de ${m.thumbs.length}`;
+    $('#off-dl').textContent = n === m.full.length ? 'Pranchas já baixadas' : `Baixar pranchas e detalhes (${NF[0].format(m.mb)} MB)`; $('#off-dl').disabled = n === m.full.length; $('#off-rm').hidden = n === 0; } catch { mid.textContent = 'Lista de pranchas indisponível sem internet.'; }
+}
+function offInit() {
+  const bar = $('#off-bar'); const upd = () => { bar.hidden = navigator.onLine; }; addEventListener('online', upd); addEventListener('offline', upd); upd();
+  if (!$('#off-dl')) return;
+  $('#off-dl').onclick = async () => { const msg = $('#off-msg'), b = $('#off-dl'); b.disabled = true;
+    try { const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); const L = [...m.thumbs, ...m.full]; let i = 0, err = 0;
+      for (const u of L) { i++; if (!(await c.match(u))) { try { const r = await fetch(u, { cache: 'reload' }); if (r.ok) await c.put(u, r); else err++; } catch { err++; } } if (i % 5 === 0) msg.textContent = `Baixando ${i} de ${L.length}…`; }
+      msg.textContent = err ? `${err} arquivo(s) não baixaram – tente de novo com internet.` : 'Pronto: pranchas e detalhes disponíveis sem internet.'; } catch (e) { msg.textContent = 'Precisa de internet para baixar: ' + e.message; }
+    b.disabled = false; offStatus(); };
+  $('#off-rm').onclick = async () => { if (!confirm('Apagar as pranchas baixadas deste aparelho? (as miniaturas continuam)')) return; const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); for (const u of m.full) await c.delete(u); offStatus(); };
+}
 
 // ---------------------------------------------------------------- app instalável (PWA)
 function pwa() {
@@ -750,7 +773,7 @@ function verInit() {
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
-  lbInit(); OB.init(); navInit(); lockInit(); verInit();
+  lbInit(); OB.init(); navInit(); lockInit(); verInit(); offInit();
   await autoUnlock(); verUI();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));

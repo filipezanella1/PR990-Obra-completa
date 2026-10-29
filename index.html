@@ -61,6 +61,7 @@
 <div class="lock" id="imp-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="imp-tit"><div class="lock-in ver-in imp-in"><div class="ph"><h2 id="imp-tit"></h2></div><div id="imp-body"></div><div class="imp-act"><button class="btn" type="button" id="imp-x">Cancelar</button><button class="btn primary" type="button" id="imp-go">Aplicar</button></div></div></div>
 <div class="lock" id="tab-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="tab-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="tab-tit">Organizar abas</h2><button class="btn" type="button" id="tab-x">Concluir</button></div><p class="note">Arraste pela alça ⋮⋮ ou use as setas. A ordem fica salva neste aparelho.</p><ol class="tab-list" id="tab-list"></ol><button type="button" class="lnk" id="tab-reset">Voltar à ordem padrão</button></div></div>
 <div class="lock" id="ver-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="ver-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="ver-tit">Versão do app</h2><button class="btn" type="button" id="ver-x">Fechar</button></div><div id="ver-body"></div></div></div>
+<div class="off-bar" id="off-bar" hidden>Sem internet – usando a cópia salva no aparelho.</div>
 <div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
 <main class="wrap">
   <div class="print-head" id="print-head"></div>
@@ -408,6 +409,10 @@
 
   <!-- =============================== SOBRE -->
   <section class="view" id="v-sobre" hidden>
+    <div class="panel off-p" id="off-p"><h2>Uso sem internet</h2>
+      <ul class="off-l"><li id="off-app">Verificando…</li><li id="off-mid"></li></ul>
+      <div class="off-act"><button class="btn primary" type="button" id="off-dl">Baixar pranchas e detalhes</button><button class="btn" type="button" id="off-rm" hidden>Apagar pranchas baixadas</button><span class="note" id="off-msg" role="status"></span></div>
+      <p class="note">O app, as tabelas, o painel, a simulação, o retigráfico, a britagem e a apresentação funcionam sem internet depois de abertos uma vez (instale o app pela tela inicial para abrir direto). Suas alterações ficam no aparelho; publicar a versão mestra, atualizar e o GPS do Campo com mapa precisam de internet.</p></div>
     <div class="panel" style="display:grid;gap:10px;max-width:900px">
       <h2>Como o painel calcula</h2>
       <p>Cada serviço é apurado a partir das tabelas por estaca dos projetos (pavimentação, terraplenagem REV04, drenagem DR-3/4/5/9, sinalização, paisagismo, obras complementares, contenções CO-2, OAE, iluminação, interferências IT-2) e das memórias justificativas (Tomos II e III). Quantidades distribuídas entre duas estacas entram na proporção da parte do intervalo que cai no trecho; itens pontuais entram quando a estaca está no trecho (início incluído, fim excluído, exceto na estaca final da obra).</p>

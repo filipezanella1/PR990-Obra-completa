@@ -1090,6 +1090,13 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .pl-mx td.t, .pl-mx tr.tt td { font-weight: 700; background: none; } .pl-mx tr.tt th, .pl-mx tr.tt td { border-top: 1px solid var(--fg); }
 @media print { .pl-mx td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 
+/* uso sem internet */
+.off-p { display: grid; gap: 10px; max-width: 900px; } .off-p h2, .off-p p { margin: 0; }
+.off-l { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; } .off-act { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.off-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 40; background: var(--asphalt); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: .82rem; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+@media (max-width: 760px) { .off-bar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
+@media print { .off-bar, .off-p { display: none !important; } }
+
 </style>
 </head>
 <body>
@@ -1134,6 +1141,7 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 <div class="lock" id="imp-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="imp-tit"><div class="lock-in ver-in imp-in"><div class="ph"><h2 id="imp-tit"></h2></div><div id="imp-body"></div><div class="imp-act"><button class="btn" type="button" id="imp-x">Cancelar</button><button class="btn primary" type="button" id="imp-go">Aplicar</button></div></div></div>
 <div class="lock" id="tab-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="tab-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="tab-tit">Organizar abas</h2><button class="btn" type="button" id="tab-x">Concluir</button></div><p class="note">Arraste pela alça ⋮⋮ ou use as setas. A ordem fica salva neste aparelho.</p><ol class="tab-list" id="tab-list"></ol><button type="button" class="lnk" id="tab-reset">Voltar à ordem padrão</button></div></div>
 <div class="lock" id="ver-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="ver-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="ver-tit">Versão do app</h2><button class="btn" type="button" id="ver-x">Fechar</button></div><div id="ver-body"></div></div></div>
+<div class="off-bar" id="off-bar" hidden>Sem internet – usando a cópia salva no aparelho.</div>
 <div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
 <main class="wrap">
   <div class="print-head" id="print-head"></div>
@@ -1481,6 +1489,10 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 
   <!-- =============================== SOBRE -->
   <section class="view" id="v-sobre" hidden>
+    <div class="panel off-p" id="off-p"><h2>Uso sem internet</h2>
+      <ul class="off-l"><li id="off-app">Verificando…</li><li id="off-mid"></li></ul>
+      <div class="off-act"><button class="btn primary" type="button" id="off-dl">Baixar pranchas e detalhes</button><button class="btn" type="button" id="off-rm" hidden>Apagar pranchas baixadas</button><span class="note" id="off-msg" role="status"></span></div>
+      <p class="note">O app, as tabelas, o painel, a simulação, o retigráfico, a britagem e a apresentação funcionam sem internet depois de abertos uma vez (instale o app pela tela inicial para abrir direto). Suas alterações ficam no aparelho; publicar a versão mestra, atualizar e o GPS do Campo com mapa precisam de internet.</p></div>
     <div class="panel" style="display:grid;gap:10px;max-width:900px">
       <h2>Como o painel calcula</h2>
       <p>Cada serviço é apurado a partir das tabelas por estaca dos projetos (pavimentação, terraplenagem REV04, drenagem DR-3/4/5/9, sinalização, paisagismo, obras complementares, contenções CO-2, OAE, iluminação, interferências IT-2) e das memórias justificativas (Tomos II e III). Quantidades distribuídas entre duas estacas entram na proporção da parte do intervalo que cai no trecho; itens pontuais entram quando a estaca está no trecho (início incluído, fim excluído, exceto na estaca final da obra).</p>
@@ -4060,7 +4072,7 @@ function show(v) {
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'sobre') offStatus(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -4106,6 +4118,29 @@ function theme() {
   apply(); $('#theme').addEventListener('click', () => { t = order[(order.indexOf(t) + 1) % 3]; store.set('theme', t); apply(); });
 }
 
+
+// ---------------------------------------------------------------- uso sem internet
+async function offStatus() {
+  const app = $('#off-app'), mid = $('#off-mid'); if (!app) return;
+  if (!('caches' in window) || window.__PR990__) { app.textContent = window.__PR990__ ? 'Arquivo único: já funciona sem internet.' : 'Este navegador não guarda o app para uso sem internet.'; $('#off-dl').hidden = true; return; }
+  const ks = await caches.keys(); const v = ks.find(k => /^pr990-(?!fonts|midia)/.test(k));
+  const ok = !!(v && navigator.serviceWorker && navigator.serviceWorker.controller);
+  app.innerHTML = ok ? '✅ App e dados salvos neste aparelho.' : '⏳ O app ainda está sendo salvo neste aparelho (abra de novo com internet).';
+  try { const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); let n = 0, t = 0;
+    for (const u of m.full) if (await c.match(u)) n++; for (const u of m.thumbs) if (await c.match(u)) t++;
+    mid.innerHTML = `${n === m.full.length ? '✅' : '⬜'} Pranchas e detalhes completos: ${n} de ${m.full.length} (${NF[0].format(m.mb)} MB) · miniaturas ${t} de ${m.thumbs.length}`;
+    $('#off-dl').textContent = n === m.full.length ? 'Pranchas já baixadas' : `Baixar pranchas e detalhes (${NF[0].format(m.mb)} MB)`; $('#off-dl').disabled = n === m.full.length; $('#off-rm').hidden = n === 0; } catch { mid.textContent = 'Lista de pranchas indisponível sem internet.'; }
+}
+function offInit() {
+  const bar = $('#off-bar'); const upd = () => { bar.hidden = navigator.onLine; }; addEventListener('online', upd); addEventListener('offline', upd); upd();
+  if (!$('#off-dl')) return;
+  $('#off-dl').onclick = async () => { const msg = $('#off-msg'), b = $('#off-dl'); b.disabled = true;
+    try { const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); const L = [...m.thumbs, ...m.full]; let i = 0, err = 0;
+      for (const u of L) { i++; if (!(await c.match(u))) { try { const r = await fetch(u, { cache: 'reload' }); if (r.ok) await c.put(u, r); else err++; } catch { err++; } } if (i % 5 === 0) msg.textContent = `Baixando ${i} de ${L.length}…`; }
+      msg.textContent = err ? `${err} arquivo(s) não baixaram – tente de novo com internet.` : 'Pronto: pranchas e detalhes disponíveis sem internet.'; } catch (e) { msg.textContent = 'Precisa de internet para baixar: ' + e.message; }
+    b.disabled = false; offStatus(); };
+  $('#off-rm').onclick = async () => { if (!confirm('Apagar as pranchas baixadas deste aparelho? (as miniaturas continuam)')) return; const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); for (const u of m.full) await c.delete(u); offStatus(); };
+}
 
 // ---------------------------------------------------------------- app instalável (PWA)
 function pwa() {
@@ -4238,7 +4273,7 @@ function verInit() {
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
-  lbInit(); OB.init(); navInit(); lockInit(); verInit();
+  lbInit(); OB.init(); navInit(); lockInit(); verInit(); offInit();
   await autoUnlock(); verUI();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));

@@ -5,17 +5,24 @@ const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './src/style.css', './src/engine.js', './src/app.js', './src/obra.js', './src/medparse.js', './src/xlsx.js', './src/retig.js',
   './data/model.json', './data/insumos.json', './data/base.json', './data/painel.json',
-  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json',
+  './data/protegido.json', './data/avanco.json', './data/eixo.json', './data/pranchas.json', './data/britagem.json', './data/reajuste.json', './data/midia.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'
 ];
 const FONTS = 'pr990-fonts';
+const MIDIA = 'pr990-midia';   // pranchas e detalhes: guardados entre versões (baixados uma vez)
 
 self.addEventListener('install', ev => {
-  ev.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))));
+  ev.waitUntil(caches.open(VERSION).then(async c => {
+    await c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })));
+    try { const r = await fetch('./data/mestre.json', { cache: 'no-store' }); if (r.ok) await c.put('./data/mestre.json', r); } catch { }
+    // miniaturas das pranchas e dos detalhes (≈3 MB): já ficam para usar sem internet
+    try { const m = await (await fetch('./data/midia.json', { cache: 'reload' })).json(); const mc = await caches.open(MIDIA);
+      await Promise.all(m.thumbs.map(async u => { if (!(await mc.match(u))) { const r = await fetch(u); if (r.ok) await mc.put(u, r); } })); } catch { }
+  }));
 });
 
 self.addEventListener('activate', ev => {
-  ev.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== FONTS).map(k => caches.delete(k))))
+  ev.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== FONTS && k !== MIDIA).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -45,6 +52,12 @@ self.addEventListener('fetch', ev => {
   if (req.mode === 'navigate') {
     ev.respondWith(caches.open(VERSION).then(async c => (await c.match('./index.html', { ignoreSearch: true })) || fetch(req))
       .catch(() => caches.match('./index.html', { ignoreSearch: true })));
+    return;
+  }
+  // pranchas e detalhes: do aparelho se já baixados; senão da rede (e guarda)
+  if (/\/(pranchas|drenagem)\//.test(url.pathname)) {
+    ev.respondWith(caches.open(MIDIA).then(async c => { const hit = await c.match(req, { ignoreSearch: true }); if (hit) return hit;
+      const res = await fetch(req).catch(() => null); if (res && res.ok) c.put(req, res.clone()); return res || new Response('', { status: 503 }); }));
     return;
   }
   // arquivos do app e base: cache primeiro, atualiza em segundo plano

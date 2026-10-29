@@ -1076,3 +1076,10 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .pl-mx td { background: color-mix(in srgb, var(--accent) calc(var(--a, 0) * 100%), transparent); }
 .pl-mx td.t, .pl-mx tr.tt td { font-weight: 700; background: none; } .pl-mx tr.tt th, .pl-mx tr.tt td { border-top: 1px solid var(--fg); }
 @media print { .pl-mx td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* uso sem internet */
+.off-p { display: grid; gap: 10px; max-width: 900px; } .off-p h2, .off-p p { margin: 0; }
+.off-l { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; } .off-act { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.off-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 40; background: var(--asphalt); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: .82rem; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+@media (max-width: 760px) { .off-bar { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
+@media print { .off-bar, .off-p { display: none !important; } }

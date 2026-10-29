@@ -15,6 +15,11 @@ html = re.sub(r'<!--PWA-->.*?<!--/PWA-->', '', html, flags=re.S)
 html = re.sub(r'<!--CSS-->.*?<!--/CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)
 html = re.sub(r'<!--JS-->.*?<!--/JS-->', lambda m: '<script>window.__PR990__=' + payload + ';</script>\n<script type="module">\n' + eng + '\n' + app + '\n</script>', html, flags=re.S)
 out = root / 'dist'; out.mkdir(exist_ok=True)
+# lista de imagens para uso sem internet (miniaturas sempre; pranchas completas quando o usuário pede)
+mid = {'thumbs': sorted(f'./{p.relative_to(root).as_posix()}' for d in ('pranchas', 'drenagem') for p in (root / d / 'thumb').glob('*.webp')),
+       'full': sorted(f'./{p.relative_to(root).as_posix()}' for d in ('pranchas', 'drenagem') for p in (root / d).glob('*.webp'))}
+mid['mb'] = round(sum((root / u[2:]).stat().st_size for u in mid['full']) / 1e6, 1)
+(root / 'data' / 'midia.json').write_text(json.dumps(mid), encoding='utf-8')
 rel = lambda t: t.replace('`drenagem/', '`../drenagem/').replace('"drenagem/', '"../drenagem/').replace('`pranchas/', '`../pranchas/').replace('"pranchas/', '"../pranchas/')
 (out / 'painel-pr990.html').write_text(rel(html), encoding='utf-8')
 print('dist/painel-pr990.html', round(len(html.encode()) / 1e6, 2), 'MB')
