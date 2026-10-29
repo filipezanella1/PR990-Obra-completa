@@ -37,6 +37,7 @@
       <a class="nl x lk" href="#contrato"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/></svg><span class="lg">Contrato × projeto</span><span class="sm">Contrato</span></a>
       <a class="nl x lk" href="#discrepancias"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span class="lg">Discrepâncias</span><span class="sm">Discrep.</span></a>
       <a class="nl x lk" href="#base"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="lg">Base de dados</span><span class="sm">Base</span></a>
+      <a class="nl x lk oc" href="#planejamento"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M3 5v15h18V5M7 3v4M17 3v4M6 11h5M9 15h7M13 11h5"/></svg><span class="lg">Planejamento</span><span class="sm">Planej.</span></a>
       <a class="nl x" href="#sobre"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7.5v.5"/></svg><span class="lg">Sobre</span><span class="sm">Sobre</span></a>
       <a class="more" id="nav-more" href="#mais"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span class="sm">Mais</span></a>
     <button class="tab-org" id="tab-org" type="button" title="Organizar abas" aria-label="Organizar abas"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
@@ -250,6 +251,21 @@
     </div>
     <div class="ap-deck" id="ap-deck"></div>
     <p class="note ap-hint">Use ← → (ou deslize) para trocar de slide. O conteúdo vem da aba Simulação: pinte os meses lá e a apresentação se atualiza.</p>
+  </section>
+
+  <!-- =============================== PLANEJAMENTO (oculto) -->
+  <section class="view" id="v-planejamento" hidden>
+    <div class="sim-hero">
+      <div class="sh-l"><span class="sh-k">PR-990 · Contrato 050/2024 · área restrita</span><h2>Planejamento do contrato</h2><p>Saldo do contrato × produção das CPUs, sequência executiva das especificações de serviço e calendário de dias trabalháveis.</p></div>
+      <div class="sh-r" id="pl-hero"></div>
+    </div>
+    <p class="note warn pl-warn" id="pl-warn" hidden>Confira as datas de início e término do contrato em Parâmetros (os valores atuais são provisórios).</p>
+    <div class="cv-kpis" id="pl-kpis"></div>
+    <div class="panel"><div class="ph"><h3>Cronograma</h3><span><button class="btn" type="button" data-print="planejamento">PDF</button> <button class="btn primary" type="button" id="pl-csv">Exportar (CSV)</button></span></div><div id="pl-gantt"></div></div>
+    <div class="panel"><h3>Produção financeira prevista por mês</h3><div id="pl-mes"></div></div>
+    <div class="panel"><h3>Pacotes de serviço</h3><p class="note">Altere equipes e operários por equipe: o cronograma e o caminho crítico se recalculam.</p><div class="tbl-wrap" id="pl-tab"></div></div>
+    <details class="panel sim-prem" open><summary><b>Parâmetros</b></summary><div id="pl-par"></div></details>
+    <div id="pl-body"></div>
   </section>
 
   <!-- =============================== BRITAGEM -->

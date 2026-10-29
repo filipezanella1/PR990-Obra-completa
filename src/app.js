@@ -16,7 +16,7 @@ const parseEst = s => { const m = /^(\d+)\+([\d.,]+)$/.exec(String(s).trim()); r
 // ---------------------------------------------------------------- versão mestra × versão individual
 // A versão mestra (data/mestre.json) é publicada pelo dono (com a senha e um token do GitHub). Cada aparelho lê a mestra
 // e guarda por cima as próprias alterações, por área; quando a mestra muda numa área alterada, o app pergunta o que fazer.
-const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britBase', 'britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] } };
+const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britBase', 'britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] }, planejamento: { n: 'Planejamento', k: ['planPar'] } };
 const K2A = {}; for (const [a, o] of Object.entries(MAREAS)) for (const k of o.k) K2A[k] = a;
 let MST = null;
 const rawGet = k => { try { return localStorage.getItem('pr990:' + k); } catch { return null; } };
@@ -513,10 +513,10 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'apresentacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'apresentacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'planejamento', 'sobre'];
 let current = 'painel';
 // ---------------------------------------------------------------- abas protegidas por senha (dados cifrados em data/protegido.json)
-const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base'];
+const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base', 'planejamento'];
 let UNL = false, PROT = null, lockTarget = null;
 const b64u = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 async function deriveKey(pass) {
@@ -568,11 +568,11 @@ function askPass(target, why) {
 window.__pr990ask = askPass;
 function show(v) {
   if (!VIEWS.includes(v)) v = 'painel';
-  if (LOCKED.includes(v) && !UNL) { askPass(v, 'A aba ' + ({ medicao: 'Medição', contrato: 'Contrato × projeto', discrepancias: 'Discrepâncias', base: 'Base de dados' })[v] + ' é restrita. Digite a senha para abrir.'); if (current === v || LOCKED.includes(current)) v = 'painel'; else { history.replaceState(null, '', '#' + current); return; } history.replaceState(null, '', '#' + v); }
+  if (LOCKED.includes(v) && !UNL) { askPass(v, 'A aba ' + ({ medicao: 'Medição', contrato: 'Contrato × projeto', discrepancias: 'Discrepâncias', base: 'Base de dados', planejamento: 'Planejamento' })[v] + ' é restrita. Digite a senha para abrir.'); if (current === v || LOCKED.includes(current)) v = 'painel'; else { history.replaceState(null, '', '#' + current); return; } history.replaceState(null, '', '#' + v); }
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !tabOrder().slice(0, 4).includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'planejamento') OB.renderPlan(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });

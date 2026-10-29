@@ -35,6 +35,10 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 Aba Medição (e slide na Apresentação, com a senha): medido acumulado a preço inicial por medição até a última medição, reajuste acumulado, previsão mês a mês (meses ainda sem medição informados à mão + pavimentação da Simulação + demais serviços lançados na Apresentação) e a linha do valor do contrato. As medições anteriores à última são aproximadas pela distribuição das memórias de cálculo, ajustadas ao acumulado oficial, e podem ser substituídas pelos valores oficiais em “Editar valores por medição”.
 
+## Planejamento do contrato (aba oculta, só com a senha)
+
+Simula o restante do contrato: saldo de cada item (contrato − medido; no pavimento, opcionalmente o restante pelo retigráfico) ÷ produção da equipe na CPU do contrato (nas CPUs sem produção definida, operários por equipe ÷ horas de mão de obra por unidade) = horas de equipe. Os itens formam pacotes (terraplenagem, OAC, drenos, regularização, reforço/sub-base, BGS, imprimação, CBUQ, drenagem superficial, sinalização…) ligados pela sequência executiva (camadas em sequência com liberação, cura da imprimação antes do CBUQ, sinalização definitiva após o CBUQ, acabamentos depois do revestimento), num calendário com domingos, feriados nacionais, sábado parcial e dias perdidos por chuva (e por frio no asfalto) mês a mês. Mostra cronograma (Gantt) com caminho crítico, término previsto × prazo contratual (datas de início e fim editáveis), o reforço de equipes necessário para cumprir o prazo e a produção financeira por mês (PI + R). Equipes, operários, esperas e clima são editáveis; CSV com o detalhamento por item.
+
 ## Ordem das abas
 
 Botão ☰ no fim da barra de abas (no celular: “Mais” → “Organizar abas…”): arraste pela alça ou use as setas. A ordem fica salva no aparelho; no celular as 4 primeiras vão para a barra inferior e o resto para “Mais”.

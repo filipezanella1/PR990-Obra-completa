@@ -949,6 +949,180 @@ export function initObra(X) {
   function protPayload() { const ship = D.medShip || D.medicao; const p = D.prot || {};
     return { medicao: MED && MED !== ship && (MED.n || 0) >= (ship.n || 0) ? MED : p.medicao || null, curvaHist: cvH(), curvaGap: cvG() }; }
 
+  // ===================================================================== PLANEJAMENTO DO CONTRATO (oculto, com a senha)
+  // Saldo de cada item do contrato (contrato − medido) ÷ produção da equipe na CPU do contrato = horas de equipe.
+  // Os itens formam pacotes de serviço com a sequência executiva das especificações de serviço (camadas uma após a outra,
+  // cura da imprimação antes do CBUQ, sinalização definitiva após o CBUQ…) e um calendário de dias trabalháveis
+  // (domingos, feriados nacionais, sábados, chuva e frio por mês). Resultado: cronograma, caminho crítico, término × prazo e valores por mês.
+  const PGL = [[17, 'TERRA'], [53, 'PAV'], [66, 'LIG'], [71, 'DREN'], [143, 'GRAMP'], [151, 'PONTE'], [183, 'CONT'], [192, 'GAL'], [201, 'PASSA'], [221, 'COMPL'], [259, 'SIN'], [280, 'SINPROV'], [291, 'AMB'], [300, 'ILUM'], [325, 'INTERF'], [338, 'MOB']];
+  const pgIdx = l => { let i = 0; PGL.forEach(([a], j) => { if (l >= a) i = j; }); return i; };
+  // pacotes: família (cor), sensível a chuva, asfalto (frio), operários por equipe, equipes, dependências [pacote, tipo, defasagem em dias (parâmetro)]
+  const PKG = [
+    { id: 'interf', n: 'Interferências', f: 'g', ch: 0, eq: 1, op: 6, dep: [] },
+    { id: 'terra', n: 'Terraplenagem', f: 't', ch: 1, eq: 2, op: 8, dep: [] },
+    { id: 'oac', n: 'Bueiros (OAC)', f: 'd', ch: .5, eq: 2, op: 8, dep: [['terra', 'SS', 'lagOac']] },
+    { id: 'gal', n: 'Galerias e passa-fauna', f: 'd', ch: .5, eq: 1, op: 10, dep: [['terra', 'SS', 'lagOac']] },
+    { id: 'dreno', n: 'Drenos', f: 'd', ch: .5, eq: 2, op: 8, dep: [['terra', 'SS', 'lagDreno']] },
+    { id: 'cont', n: 'Contenções e grampeamento', f: 'o', ch: .5, eq: 1, op: 8, dep: [] },
+    { id: 'ponte', n: 'OAE – ponte', f: 'o', ch: .5, eq: 1, op: 10, dep: [] },
+    { id: 'reg', n: 'Regularização do subleito', f: 'p', ch: 1, eq: 1, op: 6, dep: [['terra', 'SS', 'lagReg'], ['terra', 'FF', 'lagCam'], ['oac', 'FF', 'lagCam']] },
+    { id: 'bica', n: 'Reforço e sub-base', f: 'p', ch: 1, eq: 1, op: 8, dep: [['reg', 'SS', 'lagCam'], ['reg', 'FF', 'lagCam'], ['dreno', 'FF', 'lagCam']] },
+    { id: 'bgs', n: 'Base – BGS', f: 'p', ch: 1, eq: 1, op: 8, dep: [['bica', 'SS', 'lagCam'], ['bica', 'FF', 'lagCam']] },
+    { id: 'imp', n: 'Imprimação', f: 'a', ch: 1, as: 1, eq: 1, op: 4, dep: [['bgs', 'SS', 'lagCam'], ['bgs', 'FF', 'lagCam']] },
+    { id: 'cbuq', n: 'CBUQ e pintura de ligação', f: 'a', ch: 1, as: 1, eq: 1, op: 10, dep: [['imp', 'SS', 'lagCura'], ['imp', 'FF', 'lagCura']] },
+    { id: 'drensup', n: 'Drenagem superficial', f: 'd', ch: .5, eq: 3, op: 8, dep: [['terra', 'SS', 'lagSup'], ['cbuq', 'FF', 'lagFim']] },
+    { id: 'ilum', n: 'Iluminação', f: 'o', ch: .3, eq: 1, op: 6, dep: [['bgs', 'SS', 'lag0'], ['cbuq', 'FF', 'lagFim']] },
+    { id: 'sinal', n: 'Sinalização definitiva', f: 's', ch: .7, eq: 1, op: 6, dep: [['cbuq', 'SS', 'lagSin'], ['cbuq', 'FF', 'lagSin']] },
+    { id: 'compl', n: 'Serviços complementares', f: 'o', ch: .5, eq: 2, op: 8, dep: [['terra', 'SS', 'lag0'], ['cbuq', 'FF', 'lagFim']] },
+    { id: 'amb', n: 'Melhorias ambientais', f: 'o', ch: .3, eq: 1, op: 6, dep: [['terra', 'SS', 'lagAmb'], ['terra', 'FF', 'lagAmb']] },
+    { id: 'sinprov', n: 'Sinalização provisória', f: 's', span: 1, dep: [] },
+    { id: 'mob', n: 'Desmobilização', f: 'g', end: 1, dep: [] },
+  ];
+  const PCOL = { t: '#b8860b', d: '#2a78d6', p: '#7a6a4f', a: '#1d2226', s: '#e8a400', o: '#6250d6', g: '#8a949c' };
+  const PPD = { ini: '2024-08-01', fim: '2027-03-31', base: 'ret', hDia: 8.8, sab: 0.5, cura: 3, lagCam: 7, lagCura: 3, lagSin: 15, lagReg: 30, lagOac: 0, lagDreno: 15, lagSup: 30, lagAmb: 45, lagFim: 15, lag0: 0, desmob: 20, durSem: 60,
+    chuva: [35, 30, 25, 15, 15, 15, 10, 10, 20, 25, 25, 30], frio: [0, 0, 0, 0, 10, 20, 25, 15, 0, 0, 0, 0], eq: {}, op: {} };
+  let PP = Object.assign(JSON.parse(JSON.stringify(PPD)), store.get('planPar', {}));
+  const ppSave = () => store.set('planPar', PP);
+  const iso = d => d.toISOString().slice(0, 10), dOf = s => new Date(s + 'T12:00:00Z'), addD = (d, n) => new Date(d.getTime() + n * 864e5);
+  const fD = s => s ? s.split('-').reverse().join('/') : '–';
+  function feriados(y) {   // feriados nacionais (fixos + Carnaval, Sexta-feira Santa e Corpus Christi pela Páscoa)
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mes = Math.floor((h + l - 7 * m + 114) / 31), dia = ((h + l - 7 * m + 114) % 31) + 1; const P = new Date(Date.UTC(y, mes - 1, dia, 12));
+    return new Set([...['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'].map(x => `${y}-${x}`), ...[-48, -47, -2, 60].map(n => iso(addD(P, n)))]);
+  }
+  const FER = {}; const isFer = s => { const y = +s.slice(0, 4); return (FER[y] ||= feriados(y)).has(s); };
+  function dayF(d, pk) {   // fração trabalhável do dia para o pacote
+    const s = iso(d), wd = d.getUTCDay(); if (wd === 0 || isFer(s)) return 0; let f = wd === 6 ? +PP.sab : 1; const mo = d.getUTCMonth();
+    if (pk.ch) f *= 1 - pk.ch * (+PP.chuva[mo] || 0) / 100; if (pk.as) f *= 1 - (+PP.frio[mo] || 0) / 100; return Math.max(0, f);
+  }
+  function planItens() {   // itens do contrato com saldo, pacote e produção por equipe
+    const C = M().contrato || []; if (!C.length || !MED) return null;
+    const ac = {}; for (const it of MED.itens) ac[it.l] = (ac[it.l] || 0) + it.acum;
+    const I = INS() || {}; const PR = I.prod || {}, CO = I.consumos || {};
+    // pavimento pelo retigráfico (até a estaca final da britagem, fora das travas)
+    let rq = null;
+    if (PP.base === 'ret') { if (!AV) avLoad(); const R = bRest(); const Q = cellQ(); const lim = bLim(); const rem = (id, col) => { const f = AV.frentes.find(x => x.id === id); let q = 0; for (let k = 0; k < Math.min(NC, lim); k++) if (!isLk(k) && !(f && f.c[k] === '2')) q += Q[col][k]; return q; };
+      const imp = rem('p6', 'Imprimação EAI (m²)'), cb = rem('p7', 'CBUQ (t)'), rr = rem('p7', 'Pintura RR-1C (m²)');
+      rq = { '530200': R.ref1.vol + R.ref2.vol + R.sub.vol, '531100': R.base.vol, '560100': imp, '570400': cb, '561100': rr, '589000': cb * par('cap'), '589190': imp * par('eai') / 1000, '589420': rr * par('rr') / 1000 }; }
+    const GR = X.reajG ? X.reajG() : [];
+    return C.map(c => {
+      const g = PGL[pgIdx(c.linha)][1], cod = String(c.codigo), sv = c.servico || '';
+      let pk = { TERRA: 'terra', GRAMP: 'cont', CONT: 'cont', PONTE: 'ponte', GAL: 'gal', PASSA: 'gal', COMPL: 'compl', SIN: 'sinal', SINPROV: 'sinprov', AMB: 'amb', ILUM: 'ilum', INTERF: 'interf', MOB: 'mob' }[g];
+      if (g === 'PAV') pk = { '530200': 'bica', '531100': 'bgs', '560100': 'imp', '570400': 'cbuq', '561100': 'cbuq', '575000': 'cbuq' }[cod] || 'reg';
+      if (g === 'LIG') pk = cod === '589190' ? 'imp' : 'cbuq';
+      if (g === 'DREN') pk = /bueiro|BSTC|BDTC|BTTC|BSCC|corpo de|boca de b|escoramento|meia cana/i.test(sv) ? 'oac' : /dreno|talvegue|PEAD|geot[eê]xtil|brita para dreno|valas de drenagem/i.test(sv) ? 'dreno' : /gabi[aã]o/i.test(sv) ? 'cont' : 'drensup';
+      const pkg = PKG.find(p => p.id === pk);
+      const saldoC = Math.max(0, c.qtd - (ac[c.linha] || 0));
+      const saldo = rq && rq[cod] !== undefined && (g === 'PAV' || g === 'LIG') ? Math.max(0, rq[cod]) : saldoC;
+      const pr = +PR[cod] || 0; const mo = (CO[cod] || []).filter(r => r[0] === 'Mão de obra').reduce((s, r) => s + r[4], 0); const eqh = Math.max(0, ...(CO[cod] || []).filter(r => r[0] === 'Equipamento').map(r => r[4]));
+      const op = +(PP.op[pk] ?? pkg.op ?? 8);
+      const rate = pr > 1.0001 ? pr : mo > 0 ? op / mo : eqh > 0 ? 1 / eqh : 0;   // un/h por equipe
+      const gi = pgIdx(c.linha); const R = GR[gi] ? GR[gi].R : 0;
+      return { ...c, g, pk, saldo, saldoC, rate, h: rate ? saldo / rate : 0, v: saldo * c.preco, R, fonteRate: pr > 1.0001 ? 'produção da CPU' : mo > 0 ? `${op} operários ÷ ${NF[3].format(mo)} h/un` : eqh ? 'equipamento da CPU' : 'acompanha o pacote' };
+    });
+  }
+  function planRun(k = 1) {
+    const IT = planItens(); if (!IT) return null;
+    const st = dOf(PP.status || today()); const P = {};
+    for (const p of PKG) { const its = IT.filter(i => i.pk === p.id); P[p.id] = { ...p, its, W: its.reduce((s, i) => s + i.h, 0), v: its.reduce((s, i) => s + i.v, 0), vR: its.reduce((s, i) => s + i.v * i.R, 0), eqn: +(PP.eq[p.id] ?? p.eq ?? 1) * k,
+      tot: its.reduce((s, i) => s + i.qtd * i.preco, 0), done: its.reduce((s, i) => s + Math.max(0, i.qtd - i.saldoC) * i.preco, 0) }; }
+    const lagOf = key => +(PP[key] ?? 0);
+    const order = []; const seen = new Set(); const visit = id => { if (seen.has(id)) return; seen.add(id); for (const [d] of P[id].dep) visit(d); order.push(id); }; PKG.forEach(p => visit(p.id));
+    for (const id of order) { const p = P[id]; if (p.span || p.end) continue;
+      let S = st, why = 'data de status'; for (const [d, t, l] of p.dep) if (t === 'SS' && P[d].S) { const c = addD(P[d].S, lagOf(l)); if (c > S) { S = c; why = `${t} ${P[d].n} + ${lagOf(l)} d`; } }
+      let F = S, w = 0, guard = 0; const cap = PP.hDia * p.eqn;
+      if (p.W > 1e-9) { while (w < p.W && guard++ < 4000) { w += cap * dayF(F, p); F = addD(F, 1); } } 
+      let whyF = 'produção'; for (const [d, t, l] of p.dep) if (t === 'FF' && P[d].F) { const c = addD(P[d].F, lagOf(l)); if (c > F && p.W > 1e-9) { F = c; whyF = `${t} ${P[d].n} + ${lagOf(l)} d`; } }
+      if (p.W <= 1e-9 && p.v <= 0.5) { p.S = null; p.F = null; continue; }
+      if (p.W <= 1e-9) { F = addD(S, +PP.durSem); whyF = 'sem produção na CPU: duração padrão'; for (const [d, t, l] of p.dep) if (t === 'FF' && P[d].F) { const c = addD(P[d].F, lagOf(l)); if (c > F) { F = c; whyF = `${t} ${P[d].n} + ${lagOf(l)} d`; } } }
+      Object.assign(p, { S, F, why, whyF, dur: Math.round((F - S) / 864e5) });
+    }
+    const fins = Object.values(P).filter(p => p.F); let end = fins.length ? new Date(Math.max(...fins.map(p => p.F))) : st;
+    const mob = P.mob; if (mob.v > 0.5) { mob.S = end; mob.F = addD(end, +PP.desmob); end = mob.F; mob.why = 'fim dos serviços'; }
+    const sp = P.sinprov; if (sp.v > 0.5) { sp.S = st; sp.F = end; sp.why = 'todo o período'; }
+    // caminho crítico: volta pelas restrições que definiram término e início
+    const crit = new Set(); let cur = fins.sort((a, b) => b.F - a.F)[0]; let gd = 0;
+    while (cur && gd++ < 30) { crit.add(cur.id); const m = /^(SS|FF) (.+) \+/.exec(cur.whyF !== 'produção' ? cur.whyF : cur.why); cur = m ? Object.values(P).find(q => q.n === m[2]) : null; }
+    return { P, st, end, IT, crit };
+  }
+  function planMonths(R) {   // PI e R por mês, distribuídos pelos dias trabalháveis de cada pacote
+    const mm = {};
+    for (const p of Object.values(R.P)) { if (!p.S || p.v <= 0) continue; let tot = 0; const days = [];
+      for (let d = p.S; d <= p.F; d = addD(d, 1)) { const f = p.end || p.span ? 1 : dayF(d, p); if (f > 0) { days.push([d, f]); tot += f; } }
+      if (!tot) { const ym = iso(p.S).slice(0, 7); (mm[ym] ||= { pi: 0, r: 0, by: {} }); mm[ym].pi += p.v; mm[ym].r += p.vR; continue; }
+      for (const [d, f] of days) { const ym = iso(d).slice(0, 7); (mm[ym] ||= { pi: 0, r: 0, by: {} }); mm[ym].pi += p.v * f / tot; mm[ym].r += p.vR * f / tot; mm[ym].by[p.id] = (mm[ym].by[p.id] || 0) + p.v * f / tot; } }
+    return Object.keys(mm).sort().map(ym => ({ ym, ...mm[ym] }));
+  }
+  function planFactor() {   // multiplicador de equipes para terminar no prazo contratual
+    const lim = dOf(PP.fim); const e = k => planRun(k).end; if (e(1) <= lim) return { ok: true };
+    if (e(8) > lim) return { ok: false, imp: true }; let a = 1, b = 8; for (let i = 0; i < 14; i++) { const m = (a + b) / 2; if (e(m) <= lim) b = m; else a = m; } return { ok: false, k: b };
+  }
+  function renderPlan() {
+    const host = $('#pl-body'); if (!host) return;
+    if (!X.unlocked()) { host.innerHTML = '<p class="note">Aba restrita.</p>'; return; }
+    const R = planRun(); if (!R) { host.innerHTML = '<p class="note">Carregando contrato e medição…</p>'; return; }
+    const pf = planFactor(); const ini = dOf(PP.ini), fim = dOf(PP.fim);
+    const folga = Math.round((fim - R.end) / 864e5); const ps = Object.values(R.P).filter(p => p.S);
+    const saldo = ps.reduce((s, p) => s + p.v, 0), saldoR = ps.reduce((s, p) => s + p.vR, 0);
+    const tot = Object.values(R.P).reduce((s, p) => s + p.tot, 0), done = Object.values(R.P).reduce((s, p) => s + p.done, 0);
+    const prazoTot = Math.round((fim - ini) / 864e5), dec = Math.round((R.st - ini) / 864e5);
+    $('#pl-hero').innerHTML = `<div><span>Término previsto</span><b class="${folga < 0 ? 'late' : ''}">${fD(iso(R.end))}</b></div><div><span>Prazo contratual</span><b>${fD(PP.fim)}</b></div><div><span>${folga < 0 ? 'Atraso' : 'Folga'}</span><b class="${folga < 0 ? 'late' : ''}">${Math.abs(folga)} dias</b></div><div><span>Saldo a executar (PI)</span><b>${mi$(saldo)}</b></div>`;
+    const K = (l, v, s, c) => `<div class="cv-k${c ? ' ' + c : ''}"><span>${l}</span><b>${v}</b><small>${s}</small></div>`;
+    const months = planMonths(R); const pico = Math.max(0, ...months.map(m => m.pi));
+    $('#pl-kpis').innerHTML = [K('Prazo decorrido', fPc(dec / prazoTot), `${dec} de ${prazoTot} dias (${fD(PP.ini)} a ${fD(PP.fim)})`), K('Executado (medido, PI)', fPc(done / tot), `${mi$(done)} de ${mi$(tot)}`),
+      K('Para cumprir o prazo', pf.ok ? 'no prazo' : pf.imp ? 'inviável' : `${NF[1].format(pf.k)}× equipes`, pf.ok ? 'com as equipes informadas' : pf.imp ? 'nem com 8× as equipes: sequência e esperas das normas dominam' : 'reforço sobre todas as equipes', pf.ok ? 'ok' : 'bad'),
+      K('Pico mensal', mi$(pico), `média ${mi$(saldo / Math.max(1, months.length))}/mês em ${months.length} meses · R ${mi$(saldoR)}`)].join('');
+    // Gantt
+    const x0 = new Date(Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth(), 1, 12)), xEnd = new Date(Math.max(fim, R.end)); const x1 = new Date(Date.UTC(xEnd.getUTCFullYear(), xEnd.getUTCMonth() + 1, 1, 12));
+    const W = 1100, LW = 250, RW = 10, rh = 22, gap = 6, top = 30; const rows = PKG.filter(p => R.P[p.id].S || R.P[p.id].tot > 0.5);
+    const H = top + rows.length * (rh + gap) + 10; const sx = (W - LW - RW) / ((x1 - x0) / 864e5); const X_ = d => LW + (d - x0) / 864e5 * sx;
+    let g = `<rect x="${X_(ini)}" y="${top - 8}" width="${X_(fim) - X_(ini)}" height="${H - top}" class="cw"/>`;
+    for (let d = new Date(x0); d < x1; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 12))) { const m = d.getUTCMonth(); g += `<line x1="${X_(d)}" x2="${X_(d)}" y1="${top - 8}" y2="${H}" class="${m === 0 ? 'ya' : 'ma'}"/>`; if (m === 0 || m === 6 || (x1 - x0) / 864e5 < 500) g += `<text x="${X_(d) + 3}" y="${top - 14}" class="mt">${m === 0 ? d.getUTCFullYear() : mesNomeS(iso(d).slice(0, 7))}</text>`; }
+    rows.forEach((p0, j) => { const p = R.P[p0.id]; const y = top + j * (rh + gap); const pd = p.tot ? p.done / p.tot : 0;
+      g += `<text x="${LW - 8}" y="${y + rh / 2 + 4}" class="pn${R.crit.has(p.id) ? ' cr' : ''}" text-anchor="end">${esc(p.n)}</text>`;
+      if (pd > 0.001) g += `<rect x="${X_(ini)}" y="${y + rh * .35}" width="${Math.max(1, X_(R.st) - X_(ini))}" height="${rh * .3}" class="ex"><title>${esc(p.n)}: executado ${fPc(pd)} (medido)</title></rect><text x="${X_(R.st) - 4}" y="${y + rh * .35 - 2}" class="px" text-anchor="end">${NF[0].format(pd * 100)}%</text>`;
+      if (p.S) g += `<rect x="${X_(p.S)}" y="${y}" width="${Math.max(3, X_(p.F) - X_(p.S))}" height="${rh}" rx="3" fill="${PCOL[p.f]}" class="pb${R.crit.has(p.id) ? ' cr' : ''}"><title>${esc(p.n)}: ${fD(iso(p.S))} a ${fD(iso(p.F))} · início por ${esc(p.why)}${p.whyF && p.whyF !== 'produção' ? ' · término por ' + esc(p.whyF) : ''} · saldo ${fR(p.v)}</title></rect>`; });
+    g += `<line x1="${X_(R.st)}" x2="${X_(R.st)}" y1="${top - 8}" y2="${H}" class="hj"/><text x="${X_(R.st) + 3}" y="${H - 2}" class="hjt">status ${fD(iso(R.st))}</text>`;
+    g += `<line x1="${X_(fim)}" x2="${X_(fim)}" y1="${top - 8}" y2="${H}" class="pz"/><text x="${X_(fim) - 3}" y="${top - 1}" class="pzt" text-anchor="end">prazo ${fD(PP.fim)}</text>`;
+    if (R.end > fim) g += `<line x1="${X_(R.end)}" x2="${X_(R.end)}" y1="${top - 8}" y2="${H}" class="pz late"/>`;
+    $('#pl-gantt').innerHTML = `<div class="cv-sc"><svg viewBox="0 0 ${W} ${H}" class="pl-svg" role="img" aria-label="Cronograma do contrato">${g}</svg></div>
+      <div class="ap-leg">${Object.entries({ t: 'terraplenagem', d: 'drenagem e OAC', p: 'camadas granulares', a: 'revestimento asfáltico', s: 'sinalização', o: 'obras especiais e complementares', g: 'apoio' }).map(([k, n]) => `<span><i style="background:${PCOL[k]}"></i>${n}</span>`).join('')}<span><i class="cr"></i>caminho crítico</span><span><i class="ex"></i>executado (medido)</span></div>`;
+    // tabela de pacotes
+    $('#pl-tab').innerHTML = `<table class="itbl stab pl-t"><thead><tr><th>Pacote</th><th class="n">Saldo (PI)</th><th class="n">Horas de equipe</th><th class="n">Equipes</th><th class="n">Operários/equipe</th><th class="n">Início</th><th class="n">Término</th><th>Condicionante</th></tr></thead><tbody>
+      ${rows.map(p0 => { const p = R.P[p0.id]; return `<tr class="${R.crit.has(p.id) ? 'crit' : ''}"><td><i class="dot" style="background:${PCOL[p.f]}"></i> <b>${esc(p.n)}</b><div class="note">${p.its.length} itens${p.tot ? ' · executado ' + fPc(p.done / p.tot) : ''}</div></td><td class="n" data-l="Saldo">${fR(p.v)}</td><td class="n" data-l="Horas">${p.W ? NF[0].format(p.W) : '–'}</td>
+        <td class="n" data-l="Equipes">${p.span || p.end ? '–' : `<input class="pl-in" data-k="eq" data-p="${p.id}" inputmode="decimal" value="${NF[0].format(+(PP.eq[p.id] ?? p0.eq))}">`}</td><td class="n" data-l="Operários">${p.span || p.end ? '–' : `<input class="pl-in" data-k="op" data-p="${p.id}" inputmode="decimal" value="${NF[0].format(+(PP.op[p.id] ?? p0.op))}">`}</td>
+        <td class="n" data-l="Início">${p.S ? fD(iso(p.S)) : '–'}</td><td class="n" data-l="Término">${p.F ? fD(iso(p.F)) : '–'}</td><td data-l="Condicionante"><span class="note">${p.S ? esc(p.whyF && p.whyF !== 'produção' ? 'término: ' + p.whyF : 'início: ' + p.why) : 'sem saldo'}</span></td></tr>`; }).join('')}</tbody></table>`;
+    // meses
+    const mx = Math.max(1, ...months.map(m => m.pi + m.r)); let ac = 0;
+    $('#pl-mes').innerHTML = `<div class="pl-bars">${months.map(m => { ac += m.pi; return `<div class="pl-b" title="${mesNomeS(m.ym)}: PI ${fR(m.pi)} · R ${fR(m.r)} · acumulado ${fR(ac)}"><span class="v">${NF[1].format((m.pi + m.r) / 1e6)}</span><span class="c"><i style="height:${(m.pi + m.r) / mx * 100}%"></i></span><em class="${m.ym > PP.fim.slice(0, 7) ? 'late' : ''}">${mesNomeS(m.ym)}</em></div>`; }).join('')}</div>
+      <p class="note">R$ milhões por mês (PI + R), saldo a executar distribuído pelos dias trabalháveis de cada pacote. Meses em vermelho estão depois do prazo contratual.</p>`;
+    // parâmetros
+    const inp = (k, l, u, t = 'n') => `<label class="lbl">${l} <input class="pl-p" data-k="${k}" ${t === 'd' ? 'type="date"' : 'inputmode="decimal"'} value="${t === 'd' ? (PP[k] || '') : NF[1].format(+PP[k])}"> ${u}</label>`;
+    if (!$('#pl-par').dataset.ok) {
+      $('#pl-par').innerHTML = `<div class="bpar"><fieldset><legend>Contrato</legend>${inp('ini', 'Início do contrato', '', 'd')}${inp('fim', 'Término do contrato', '', 'd')}<label class="lbl">Data de status <input class="pl-p" data-k="status" type="date" value="${PP.status || today()}"></label>
+          <label class="lbl">Quantidades do pavimento <select class="pl-p" data-k="base"><option value="ret"${PP.base === 'ret' ? ' selected' : ''}>restante pelo retigráfico</option><option value="ctr"${PP.base === 'ctr' ? ' selected' : ''}>saldo do contrato</option></select></label></fieldset>
+        <fieldset><legend>Jornada</legend>${inp('hDia', 'Horas por dia', 'h')}${inp('sab', 'Sábado (fração do dia)', '')}${inp('desmob', 'Desmobilização', 'dias')}${inp('durSem', 'Pacote sem produção na CPU', 'dias')}</fieldset>
+        <fieldset><legend>Sequência executiva (dias)</legend>${inp('lagCam', 'Liberação de cada camada (controle tecnológico)', 'd')}${inp('lagCura', 'Cura da imprimação antes do CBUQ', 'd')}${inp('lagSin', 'Sinalização definitiva após o CBUQ', 'd')}${inp('lagReg', 'Regularização após início da terraplenagem', 'd')}${inp('lagDreno', 'Drenos após início da terraplenagem', 'd')}${inp('lagSup', 'Drenagem superficial após início da terraplenagem', 'd')}${inp('lagAmb', 'Revestimento vegetal após terraplenagem', 'd')}${inp('lagFim', 'Acabamentos após o CBUQ', 'd')}</fieldset>
+        <fieldset class="pl-cl"><legend>Dias perdidos por mês (%)</legend><div class="pl-mg"><span></span>${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].map(m => `<span>${m}</span>`).join('')}
+          <span>chuva</span>${PP.chuva.map((v, i) => `<input class="pl-c" data-k="chuva" data-i="${i}" inputmode="decimal" value="${v}">`).join('')}<span>frio (asfalto)</span>${PP.frio.map((v, i) => `<input class="pl-c" data-k="frio" data-i="${i}" inputmode="decimal" value="${v}">`).join('')}</div></fieldset></div>
+        <p class="note">Produção por equipe: produção horária da CPU do contrato; nas CPUs sem produção definida, operários por equipe ÷ horas de mão de obra por unidade da CPU. Fornecimentos (CAP, emulsões) acompanham o pacote. Domingos e feriados nacionais não contam; a chuva reduz os pacotes sensíveis e o frio reduz imprimação e CBUQ (não executar com temperatura abaixo de 10 °C nem com chuva, conforme as especificações de serviço). <button type="button" class="lnk" id="pl-reset">Voltar aos parâmetros padrão</button></p>`;
+      $('#pl-par').dataset.ok = '1'; }
+    $('#pl-warn').hidden = !!store.get('planPar', {}).fim;
+  }
+  function planInit() {
+    const v = $('#v-planejamento'); if (!v) return;
+    v.addEventListener('change', ev => { const t = ev.target; const num2 = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+      if (t.classList.contains('pl-p')) { const k = t.dataset.k; PP[k] = t.type === 'date' || t.tagName === 'SELECT' ? t.value : (Number.isFinite(num2(t.value)) ? num2(t.value) : PPD[k]); }
+      else if (t.classList.contains('pl-c')) { PP[t.dataset.k][+t.dataset.i] = Math.max(0, Math.min(100, num2(t.value) || 0)); }
+      else if (t.classList.contains('pl-in')) { const x = num2(t.value); if (Number.isFinite(x) && x > 0) PP[t.dataset.k][t.dataset.p] = x; else delete PP[t.dataset.k][t.dataset.p]; }
+      else return; ppSave(); renderPlan(); });
+    v.addEventListener('click', ev => { if (ev.target.id === 'pl-reset') { if (!confirm('Voltar todos os parâmetros do planejamento ao padrão?')) return; PP = JSON.parse(JSON.stringify(PPD)); ppSave(); $('#pl-par').dataset.ok = ''; renderPlan(); } });
+    $('#pl-csv').onclick = () => { const R = planRun(); if (!R) return; const L = [['Pacote', 'Item', 'Código', 'Serviço', 'Un', 'Saldo', 'Produção (un/h por equipe)', 'Origem da produção', 'Horas de equipe', 'Saldo PI (R$)', 'R', 'Início', 'Término']];
+      for (const p of Object.values(R.P)) for (const i of p.its) L.push([p.n, i.linha, i.codigo, i.servico, i.un, i.saldo, i.rate, i.fonteRate, i.h, i.v, i.R, p.S ? iso(p.S) : '', p.F ? iso(p.F) : '']);
+      L.push([], ['Mês', 'PI (R$)', 'R (R$)']); for (const m of planMonths(R)) L.push([m.ym, m.pi, m.r]);
+      download(`planejamento_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
+  }
+
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
     const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), rad = Math.PI / 180;
@@ -1219,7 +1393,7 @@ export function initObra(X) {
     for (const k of Object.keys(SP)) delete SP[k]; Object.assign(SP, { dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
     SIM = store.get('simSel', {}); MESES = store.get('simMeses', null) || [ymNext(ymNow())]; MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
     BPO = store.get('britPar', {}); BBASE = store.get('britBase', null); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
-    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null);
+    CVH = store.get('curvaHist', null); CVG = store.get('curvaGap', null); PP = Object.assign(JSON.parse(JSON.stringify(PPD)), store.get('planPar', {}));
   }
   function avMaster() { if (!AV) avLoad(); const c = JSON.parse(JSON.stringify(AV)); c.ts = Date.now(); return c; }
   function avIsLocal() { const l = store.get(AVKEY, null); const m = D.mestre && D.mestre.retigrafico; return !!(l && (!m || (l.ts || 0) > (m.ts || 0))); }
@@ -1239,8 +1413,8 @@ export function initObra(X) {
     $('#m-file').onchange = e => { const f = e.target.files[0]; if (f) medUpload(f); e.target.value = ''; };
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
-    avInitEvents(); britInit(); aprInit(); campoInit(); cmpInit(); searchInit();
+    avInitEvents(); britInit(); aprInit(); planInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, reloadState, avMaster, avIsLocal, protPayload, renderPlan, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }
