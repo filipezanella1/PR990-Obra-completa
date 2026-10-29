@@ -411,6 +411,14 @@ const SHEETS = {
   '0057': 'Galeria – seção transversal', '0058': 'Galeria – tabela de armadura', '0059': 'Bueiro 1 – lastro sob a calçada', '0060': 'Bueiro – armaduras',
   '0061': 'Bueiro – resumo de armaduras', '0062': 'Bueiro – detalhe complementar'
 };
+const SHEETS5 = {
+  'DR-5-0001': 'Canal Rio Arroio dos Cristianos – planta, perfil e seção (BTCC 160+7,44)', 'DR-5-0002': 'Canal Rio do Salto – planta, perfil e seção', 'DR-5-0003': 'Rio do Salto – seções batimétricas',
+  'DR-5-0004': 'Canal Rio do Salto – seções transversais', 'DR-5-0005': 'Canal longitudinal est. 312+6,30 a 323+5,00 – planta e perfil', 'DR-5-0006': 'Canal conector entre os bueiros 323+3,95 e 3003+5,01',
+  'DR-5-0007': 'Canais do Rio Poço Bonito – trechos 1 a 4 (BTCC 430+11,65)', 'DR-5-0008': 'Canal de captação do bueiro 568+14,28', 'DR-5-0009': 'Canais de captação e deságue do bueiro 623+11,00',
+  'DR-5-0010': 'Canal de captação do bueiro 623+11,00 – seções transversais', 'DR-5-0011': 'Detalhes executivos dos canais (colchão Reno, gabiões, geotêxtil)'
+};
+const shId = s => s.startsWith('DR-') ? s : 'DR-4-' + s, shT = s => s.startsWith('DR-') ? SHEETS5[s] || '' : SHEETS[s] || '';
+const CANQ = ['Gabião caixa h=0,50 (m³)', 'Gabião caixa h=1,00 (m³)', 'Colchão Reno (m²)', 'Lastro de rachão (m³)', 'Geotêxtil MacTex (m²)', 'Pedra argamassada e=0,20 (m³)', 'Enleivamento (m²)', 'Escavação dos canais (m³)'];
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i).padStart(4, '0'));
 const DRF = [
   { id: 'vpa', g: 'Superficial', n: 'Valetas de proteção de aterro (VPA)', re: /^VPA/, sh: ['0001'], ct: ['660100', '660300', '660500'] },
@@ -432,6 +440,7 @@ const DRF = [
   { id: 'bueiros', g: 'Bueiros e galerias', n: 'Bueiros tubulares de concreto (BSTC, BDTC, BTTC)', re: /^(BSTC|BDTC|BTTC) Ø [\d,]+$/, sh: ['0024', '0023', '0025', '0026', '0027', '0028', '0037', '0035'], ct: ['610500', '610700', '610900', '611100', '611300', '611500', '612000', '620100', '620200', '620300', '620400', '620500', '620900', '621300'] },
   { id: 'rede', g: 'Bueiros e galerias', n: 'Rede pluvial – coletores tubulares', re: /^Rede pluvial/, sh: ['0036', '0032'], ct: [] },
   { id: 'galerias', g: 'Bueiros e galerias', n: 'Galerias celulares de concreto (BSCC, BTCC)', re: /^(BSCC|BTCC)/, sh: range(39, 62), ct: ['798072', '798082', '798091'] },
+  { id: 'canais', g: 'Canais', n: 'Canais e retificações de rios (DR-5)', re: /^$^/, sh: Object.keys(SHEETS5), ct: [] },
   { id: 'remov', g: 'Remoções', n: 'Bueiros e pontilhão existentes a remover', re: /REMOVER/, sh: [], ct: ['630400', '630600'] },
   { id: 'outros', g: 'Dispositivos', n: 'Outros dispositivos', re: /^DR 13/, sh: [], ct: [] },
 ];
@@ -442,7 +451,9 @@ function drData() {
   const items = [];
   for (const r of tab('Drenagem linear')) if (r['Dispositivo']) items.push({ d: r['Dispositivo'], desc: r['Descrição'], lado: r['Lado'], ei: num(r['Est. inicial (dec.)']), ef: num(r['Est. final (dec.)']), L: num(r['L (m)']), q: num(r['L (m)']), un: 'm', lin: true, fonte: r['Fonte (nota de serviço)'] });
   for (const r of tab('Drenagem pontual')) if (r['Dispositivo']) items.push({ d: r['Dispositivo'], desc: r['Descrição'], lado: r['Lado'], ei: num(r['Estaca (dec.)']), ef: num(r['Estaca (dec.)']), L: num(r['L (m)']), q: num(r['Quantidade (un)']) || 1, un: 'un', lin: false, fonte: r['Fonte'] });
-  DRD = DRF.map(f => ({ ...f, items: items.filter(x => f.re.test(String(x.d).trim())) }));
+  const can = tab('Drenagem – canais DR-5').filter(r => r['Canal'] && Number.isFinite(num(r['Est. inicial (dec.)'])) && r['Est. inicial (dec.)'] !== null)
+    .map(r => ({ d: String(r['Canal']).trim(), desc: 'pranchas ' + String(r['Prancha'] || '').replace(/^DR-5-/, ''), lado: r['Lado'], ei: num(r['Est. inicial (dec.)']), ef: num(r['Est. final (dec.)']), L: num(r['Extensão (m)']), q: num(r['Extensão (m)']), un: 'm', lin: true, fonte: r['Prancha'], qm: Object.fromEntries(CANQ.map(k => [k, num(r[k])])) }));
+  DRD = DRF.map(f => ({ ...f, items: f.id === 'canais' ? can : items.filter(x => f.re.test(String(x.d).trim())) }));
   return DRD;
 }
 function drTrecho() { const a = S.ei + S.mi / 20, b = S.ef + S.mf / 20; return [a, b]; }
@@ -470,7 +481,7 @@ function renderDrenagem() {
     .map(f => ({ f, ty: drTypes(f, a, b) }))
     .filter(({ f, ty }) => (!q || (f.n + ' ' + ty.map(t => t.d).join(' ')).toLowerCase().includes(q)) && (!onlyT || ty.some(t => t.qt > 1e-9)));
   $('#dr-grid').innerHTML = cards.map(({ f, ty }) => {
-    const img = f.sh[0] ? `<img loading="lazy" src="drenagem/thumb/DR-4-${f.sh[0]}.webp" alt="Detalhe tipo – ${esc(f.n)}">` : '<div class="noimg">sem prancha de detalhe (remoção – pranchas DR-3)</div>';
+    const img = f.sh[0] ? `<img loading="lazy" src="drenagem/thumb/${shId(f.sh[0])}.webp" alt="Detalhe tipo – ${esc(f.n)}">` : '<div class="noimg">sem prancha de detalhe (remoção – pranchas DR-3)</div>';
     const chips = ty.slice(0, 8).map(t => `<span class="tchip"><b>${esc(t.d)}</b> ${fmtTot(t, false)}${Math.abs(t.qt - t.q) > 1e-6 ? ` <i>· trecho ${fmtTot(t, true)}</i>` : ''}</span>`).join('') + (ty.length > 8 ? `<span class="tchip">+${ty.length - 8} tipos</span>` : '');
     return `<article class="dr-card${drOpen === f.id ? ' sel' : ''}" data-id="${f.id}"><button type="button" class="dr-img" data-sh="${f.sh[0] || ''}" data-t="${esc(f.n)}">${img}</button>
       <div class="dr-body"><span class="label">${esc(f.g)}</span><h3>${esc(f.n)}</h3><div class="tchips">${chips || '<span class="note">não aparece nas notas de serviço do projeto</span>'}</div>
@@ -484,12 +495,14 @@ function renderDrDet() {
   const host = $('#dr-det'); const f = drOpen && drData().find(x => x.id === drOpen);
   if (!f) { host.hidden = true; return; }
   host.hidden = false; const [a, b] = drTrecho(); const ty = drTypes(f, a, b);
-  const sheets = f.sh.map(s => `<button type="button" class="sh" data-sh="${s}"><img loading="lazy" src="drenagem/thumb/DR-4-${s}.webp" alt=""><span><b>DR-4-${s}</b> ${esc(SHEETS[s] || '')}</span></button>`).join('');
+  const sheets = f.sh.map(s => `<button type="button" class="sh" data-sh="${s}"><img loading="lazy" src="drenagem/thumb/${shId(s)}.webp" alt=""><span><b>${shId(s)}</b> ${esc(shT(s))}</span></button>`).join('');
+  const cq = f.id === 'canais' ? CANQ.map(k => { let q = 0, qt = 0; for (const x of f.items) { const fr = drIn(x, a, b); q += x.qm[k] || 0; qt += (x.qm[k] || 0) * fr; } return { k, q, qt }; }).filter(o => o.q) : [];
   const ct = UNL ? f.ct.map(c => M.contrato.filter(x => x.codigo === c)).flat() : [];
   const onlyT = $('#dr-tr').checked;
   const locs = f.items.map(x => ({ x, fr: drIn(x, a, b) })).filter(o => !onlyT || o.fr > 0).sort((p, q) => p.x.ei - q.x.ei);
   host.innerHTML = `<div class="ins-head"><h2>${esc(f.n)}</h2><button type="button" class="btn" id="dr-close">Fechar</button></div>
-    ${sheets ? `<h3>Pranchas de detalhe (toque para abrir)</h3><div class="sheets">${sheets}</div>` : '<p class="note">Sem prancha de detalhe tipo: os bueiros a remover estão nas pranchas DR-3.</p>'}
+    ${cq.length ? `<h3>Quantidades dos canais</h3><div class="tbl-wrap"><table class="itbl"><thead><tr><th>Serviço</th><th class="n">Obra inteira</th><th class="n">No trecho</th></tr></thead><tbody>${cq.map(o => { const [n, u] = o.k.match(/^(.*) \((.*)\)$/).slice(1); return `<tr><td><b>${esc(n)}</b></td><td class="n" data-l="Obra">${fQ(o.q)} ${esc(u)}</td><td class="n" data-l="No trecho"><b>${fQ(o.qt)} ${esc(u)}</b></td></tr>`; }).join('')}</tbody></table></div><p class="note">Quantidades da planilha de canais (extensão × consumo por metro de cada seção tipo). O Rio do Salto está distribuído sob a ponte; o Poço Bonito junto ao BTCC 3,00×4,00 da est. 430+11,65.</p>` : ''}
+    ${sheets ? `<h3>${f.id === 'canais' ? 'Pranchas dos canais' : 'Pranchas de detalhe'} (toque para abrir)</h3><div class="sheets">${sheets}</div>` : '<p class="note">Sem prancha de detalhe tipo: os bueiros a remover estão nas pranchas DR-3.</p>'}
     <h3>Tipos no projeto</h3><div class="tbl-wrap"><table class="itbl"><thead><tr><th>Tipo</th><th>Descrição</th><th class="n">Registros</th><th class="n">Obra inteira</th><th class="n">No trecho</th></tr></thead><tbody>
     ${ty.map(t => `<tr><td><b>${esc(t.d)}</b></td><td>${esc(t.desc || '')}</td><td class="n" data-l="Registros">${t.n}</td><td class="n" data-l="Obra">${fmtTot(t, false)}</td><td class="n" data-l="No trecho"><b>${fmtTot(t, true)}</b></td></tr>`).join('') || '<tr><td colspan="5" class="note">Sem registros nas notas de serviço.</td></tr>'}</tbody></table></div>
     ${ct.length ? `<h3>Itens do contrato</h3><div class="tbl-wrap"><table class="itbl"><thead><tr><th>Código</th><th>Serviço</th><th class="n">Qtd. contrato</th><th class="n">Preço</th></tr></thead><tbody>${ct.map(c => `<tr><td class="code">${esc(c.codigo)}</td><td>${esc(c.servico)}</td><td class="n" data-l="Contrato">${fQ(c.qtd)} ${esc(c.un)}</td><td class="n" data-l="Preço">R$ ${NF[2].format(c.preco)}</td></tr>`).join('')}</tbody></table></div>` : ''}
@@ -499,7 +512,7 @@ function renderDrDet() {
   $('#dr-close').onclick = () => { drOpen = null; store.set('drOpen', null); renderDrenagem(); };
 }
 let lbZ = 1;
-function lbOpen(s) { lbShow(`drenagem/DR-4-${s}.webp`, `DR-4-${s} · ${SHEETS[s] || ''}`); }
+function lbOpen(s) { lbShow(`drenagem/${shId(s)}.webp`, `${shId(s)} · ${shT(s)}`); }
 function lbShow(src, title) {
   $('#lb-img').src = src; $('#lb-o').href = src;
   $('#lb-t').textContent = title; lbZ = 1; $('#lb-img').style.width = '100%'; $('#lb').hidden = false; document.body.style.overflow = 'hidden';
@@ -686,7 +699,7 @@ function pwa() {
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
   gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
-  lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
+  lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS, SHEETS5 });
 
 // ---------------------------------------------------------------- versão mestra: estado, aviso de atualização e publicação
 let UKEY = null;
