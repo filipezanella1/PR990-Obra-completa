@@ -983,6 +983,21 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .ap-note { margin: 0; }
 .ap-line .ll { font: 600 10.5px var(--f-body); }
 @media (max-width: 760px) { .ap-tbl table { min-width: 460px; } .ap-line .ll { font-size: 13px; } }
+/* onde estamos: faixa por estaca */
+.ap-pr { grid-template-columns: minmax(130px, 20%) 1fr 70px 76px; row-gap: 2px; }
+.ap-pr .st { position: relative; height: clamp(12px, 1.6cqw, 18px); background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.ap-pr .st i { position: absolute; top: 0; bottom: 0; }
+.ap-pr .st i.lk { background: repeating-linear-gradient(135deg, #e3e6e9 0 3px, #b9c0c6 3px 5px); }
+.ap-pr .fx { grid-column: 2; font-size: clamp(.68rem, 1cqw, .8rem); color: var(--muted); font-family: var(--f-mono); margin-top: -2px; }
+.ap-pr.ax { margin-top: -4px; }
+.ap-pr .sx { position: relative; height: 14px; font: .68rem var(--f-mono); color: var(--muted); }
+.ap-pr .sx i { position: absolute; transform: translateX(-50%); font-style: normal; }
+.ap-pr .sx i:first-child { transform: none; } .ap-pr .sx i.end { transform: translateX(-100%); }
+.ap-pr .sx::before { content: "estaca"; position: absolute; right: calc(100% + 8px); font-family: var(--f-body); }
+@media (max-width: 760px) { .ap-pr .fx { grid-column: 1 / -1; } .ap-pr .st { grid-column: 1 / -1; grid-row: 2; } .ap-pr.ax .sx { grid-column: 1 / -1; } .ap-pr .sx::before { display: none; } }
+@media print { .ap-pr .st i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+@media (max-width: 760px) { .ap-pr { grid-template-columns: minmax(0, 1fr) 64px; } .ap-pr small { display: none; } .ap-pr .fx { overflow-wrap: anywhere; } .ap-pr.ax > span:empty { display: none; } }
+@media (max-width: 760px) { .ap-pr .sx i:nth-last-child(2) { display: none; } }
 
 </style>
 
@@ -2485,7 +2500,9 @@ function initObra(X) {
       for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') { ex += cellLen(k); continue; } if (isLk(k)) continue; const v = +sl[k]; if (v > 0 && v <= nM) pm[v - 1] += cellLen(k); }
       const cum = []; let a = ex; for (const v of pm) { a += v; cum.push(a); }
       return { ...r, ex, pm, cum, plan: pm.reduce((s, v) => s + v, 0), rest: Math.max(0, EXE - a) }; });
-    const all = AV.frentes.map(f => { const st = avStats(f.c); return { n: f.n, cc: f.cc, p: st['2'] / (TOT - st.L), km: st['2'] / 1000 }; });
+    const runs = test => { const o = []; let k0 = null; for (let k = 0; k <= NC; k++) { const on = k < NC && test(k); if (on && k0 === null) k0 = k; if (!on && k0 !== null) { o.push([k0, k === NC ? TOT / 20 : k]); k0 = null; } } return o; };
+    const all = AV.frentes.map(f => { const st = avStats(f.c); return { id: f.id, n: f.n, cc: f.cc, ca: f.ca || f.cc, p: st['2'] / (TOT - st.L), km: st['2'] / 1000,
+      ex: runs(k => f.c[k] === '2'), at: runs(k => f.c[k] === '1'), falta: runs(k => f.c[k] === '0' && !isLk(k)) }; });
     const val = MESES.map((_, i) => { let pi = 0, r = 0; const it = APRC.map(p => { const q = p.q(R, i) || 0; const pr = num(C('I' + p.row)); const v = q * pr; const rr = X.reajR ? X.reajR(p.row) : 0; pi += v; r += v * rr; return { ...p, qv: q, v, rr }; }); return { pi, r, it }; });
     const brit = MESES.map((_, i) => { let t = 0, bica = 0, po = 0; for (const r of R) { if (r.mat !== 'bica' && r.mat !== 'bgs') continue; const s = bSplit(r.mat, r.bm[i].q); t += s.t; bica += s.bica; po += s.po; } return { t, bica, po }; });
     const capB = bCap(PRD.find(p => p.id === 'bica'));
@@ -2538,9 +2555,15 @@ function initObra(X) {
       <div class="ap-big">${[[fPc(pctNow(cb)), 'CBUQ concluído hoje'], [fPc(pctAt(cb, nM - 1)), `CBUQ ao fim de ${mesNomeS(MESES[nM - 1])}`], [NF[2].format(cb.plan / 1000) + ' km', 'de pista no período'], [mi$(vt), 'a executar (PI + R)']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
       <div class="ap-foot">Apresentação à diretoria · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div></div>` });
     // 2 · onde estamos
-    SL.push({ t: 'Onde estamos', h: `<div class="ap-h"><span class="ap-n">01</span><h3>Onde estamos</h3><p>Avanço executado por frente de serviço, conforme o retigráfico de ${AV.data.split('-').reverse().join('/')}, sobre o trecho a executar.</p></div>
-      <div class="ap-prog">${A.all.map(f => `<div class="ap-pr"><span class="n"><i class="dot" style="background:${f.cc}"></i>${esc(f.n)}</span><span class="tr"><i style="width:${(f.p * 100).toFixed(1)}%;background:${f.cc}"></i></span><b>${fPc(f.p)}</b><small>${NF[2].format(f.km)} km</small></div>`).join('')}</div>
-      <div class="ap-row3">${(() => { const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++); return [[`${oc.c}/${AV.oac.length}`, 'bueiros e galerias concluídos', `${oc.a} em execução · ${oc.n} não iniciados`], [NF[2].format(cb.ex / 1000) + ' km', 'com CBUQ', `de ${NF[2].format(A.EXE / 1000)} km a executar`], [NF[2].format(Math.max(0, A.EXE - cb.ex) / 1000) + ' km', 'falta pavimentar', 'até a estaca 624']].map(([v, l, s]) => `<div class="ap-stat"><b>${v}</b><span>${l}</span><small>${s}</small></div>`).join(''); })()}</div>` });
+    SL.push({ t: 'Onde estamos', h: `<div class="ap-h"><span class="ap-n">01</span><h3>Onde estamos</h3><p>Onde cada frente está concluída ao longo do trecho (estacas), conforme o retigráfico de ${AV.data.split('-').reverse().join('/')}. Percentual sobre o trecho a executar.</p></div>
+      <div class="ap-prog">${A.all.map(f => { const E = TOT / 20, pc = v => (v / E * 100).toFixed(3) + '%'; const rg = r => `${estStr(r[0])} a ${estStr(r[1])}`;
+          const ft = f.falta.filter(r => r[1] - r[0] >= 0.5); const fx = ft.slice(0, 5).map(r => `${Math.floor(r[0])}–${Math.ceil(r[1])}`).join(' · ') + (ft.length > 5 ? ` · +${ft.length - 5} trechos` : '');
+          return `<div class="ap-pr"><span class="n"><i class="dot" style="background:${f.cc}"></i>${esc(f.n)}</span>
+          <span class="st" title="${esc(f.n)} – concluído: ${f.ex.map(rg).join(', ') || 'nada'}${f.at.length ? ' · em execução: ' + f.at.map(rg).join(', ') : ''}${f.falta.length ? ' · falta: ' + f.falta.map(rg).join(', ') : ''}">${f.ex.map(r => `<i style="left:${pc(r[0])};width:${pc(r[1] - r[0])};background:${f.cc}"></i>`).join('')}${f.at.map(r => `<i class="at" style="left:${pc(r[0])};width:${pc(r[1] - r[0])};background:${f.ca}"></i>`).join('')}${(AV.travas || []).map(t => `<i class="lk" style="left:${pc(t.e0)};width:${pc(t.e1 - t.e0)}"></i>`).join('')}</span>
+          <b>${fPc(f.p)}</b><small>${NF[2].format(f.km)} km</small>
+          <span class="fx">${f.at.length ? `em execução: est. ${f.at.map(r => `${Math.floor(r[0])}–${Math.ceil(r[1])}`).join(' · ')}${ft.length ? ' · ' : ''}` : ''}${ft.length ? `falta: est. ${fx}` : f.at.length ? '' : 'concluído em todo o trecho a executar'}</span></div>`; }).join('')}
+        <div class="ap-pr ax"><span></span><span class="sx">${[0, 100, 200, 300, 400, 500, 600].map(e => `<i style="left:${(e / (TOT / 20) * 100).toFixed(2)}%">${e}</i>`).join('')}<i class="end" style="left:100%">${NF[0].format(Math.floor(TOT / 20))}</i></span><span></span><span></span></div></div>
+      <div class="ap-row3">${(() => { const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++); return [[`${oc.c}/${AV.oac.length}`, 'bueiros e galerias concluídos', `${oc.a} em execução · ${oc.n} não iniciados`], [NF[2].format(cb.ex / 1000) + ' km', 'com CBUQ', `de ${NF[2].format(A.EXE / 1000)} km a executar`], [NF[2].format(Math.max(0, A.EXE - cb.ex) / 1000) + ' km', 'falta pavimentar (CBUQ)', (() => { const ft = A.all.find(x => x.id === 'p7').falta.filter(r => r[1] - r[0] >= 0.5); return 'est. ' + ft.slice(0, 4).map(r => `${Math.floor(r[0])}–${Math.ceil(r[1])}`).join(' · ') + (ft.length > 4 ? ` · +${ft.length - 4}` : ''); })()]].map(([v, l, s]) => `<div class="ap-stat"><b>${v}</b><span>${l}</span><small>${s}</small></div>`).join(''); })()}</div>` });
     // 3 · retigráfico planejado
     SL.push({ t: 'Retigráfico planejado', h: `<div class="ap-h"><span class="ap-n">02</span><h3>Retigráfico planejado</h3><p>Escolha o mês ou reproduza: as camadas se completam mês a mês.</p></div>
       <div class="ap-mes" role="group" aria-label="Situação ao fim do mês"><button type="button" class="ap-mb${AM < 0 ? ' on' : ''}" data-am="-1">Hoje</button>${MESES.map((ym, i) => `<button type="button" class="ap-mb${AM === i ? ' on' : ''}" data-am="${i}"><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</button>`).join('')}<button type="button" class="ap-play" id="ap-play">${APLAY ? '❚❚ Pausar' : '▶ Reproduzir'}</button></div>

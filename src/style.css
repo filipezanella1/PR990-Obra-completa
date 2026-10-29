@@ -975,3 +975,18 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .ap-note { margin: 0; }
 .ap-line .ll { font: 600 10.5px var(--f-body); }
 @media (max-width: 760px) { .ap-tbl table { min-width: 460px; } .ap-line .ll { font-size: 13px; } }
+/* onde estamos: faixa por estaca */
+.ap-pr { grid-template-columns: minmax(130px, 20%) 1fr 70px 76px; row-gap: 2px; }
+.ap-pr .st { position: relative; height: clamp(12px, 1.6cqw, 18px); background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.ap-pr .st i { position: absolute; top: 0; bottom: 0; }
+.ap-pr .st i.lk { background: repeating-linear-gradient(135deg, #e3e6e9 0 3px, #b9c0c6 3px 5px); }
+.ap-pr .fx { grid-column: 2; font-size: clamp(.68rem, 1cqw, .8rem); color: var(--muted); font-family: var(--f-mono); margin-top: -2px; }
+.ap-pr.ax { margin-top: -4px; }
+.ap-pr .sx { position: relative; height: 14px; font: .68rem var(--f-mono); color: var(--muted); }
+.ap-pr .sx i { position: absolute; transform: translateX(-50%); font-style: normal; }
+.ap-pr .sx i:first-child { transform: none; } .ap-pr .sx i.end { transform: translateX(-100%); }
+.ap-pr .sx::before { content: "estaca"; position: absolute; right: calc(100% + 8px); font-family: var(--f-body); }
+@media (max-width: 760px) { .ap-pr .fx { grid-column: 1 / -1; } .ap-pr .st { grid-column: 1 / -1; grid-row: 2; } .ap-pr.ax .sx { grid-column: 1 / -1; } .ap-pr .sx::before { display: none; } }
+@media print { .ap-pr .st i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+@media (max-width: 760px) { .ap-pr { grid-template-columns: minmax(0, 1fr) 64px; } .ap-pr small { display: none; } .ap-pr .fx { overflow-wrap: anywhere; } .ap-pr.ax > span:empty { display: none; } }
+@media (max-width: 760px) { .ap-pr .sx i:nth-last-child(2) { display: none; } }
