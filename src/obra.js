@@ -658,6 +658,146 @@ export function initObra(X) {
       <tr><td colspan="2">Bica corrida × capacidade do mês</td>${mB.map((v, i) => `<td class="n" data-l="${mesNomeS(MESES[i])}">${v > 0.5 ? `<span class="${v > capB ? 'warn' : ''}">${NF[0].format(v / capB * 100)}%</span>` : '–'}</td>`).join('')}<td colspan="${prods.length + 1}" class="note">capacidade de bica: ${NF[0].format(capB)} t/mês</td></tr></tbody></table>`;
   }
 
+  // ===================================================================== APRESENTAÇÃO (diretoria)
+  // Deck de slides montado a partir da Simulação: situação atual, retigráfico planejado mês a mês (com reprodução),
+  // evolução, recursos, britagem, valores (PI + R) e pontos de atenção. Tudo recalculado da pintura da Simulação.
+  let AS = 0, AM = -1, APLAY = null;   // slide atual, mês selecionado (−1 = hoje), reprodução
+  const MESL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const mesLong = ym => { const [y, m] = ym.split('-'); return `${MESL[+m - 1]} de ${y}`; };
+  const mi$ = v => { const a = Math.abs(v); return a >= 1e6 ? 'R$ ' + NF[2].format(v / 1e6) + ' mi' : a >= 1e3 ? 'R$ ' + NF[0].format(v / 1e3) + ' mil' : 'R$ ' + NF[0].format(v); };
+  const APRC = [   // serviço simulado → itens do contrato (linha do Painel) e como sai a quantidade
+    { row: 97, n: 'Bica corrida (reforço e sub-base)', q: (R, i) => ['p2', 'p3', 'p4'].reduce((a, id) => a + R.find(r => r.id === id).bm[i].q, 0) },
+    { row: 98, n: 'Base – BGS', q: (R, i) => R.find(r => r.id === 'p5').bm[i].q },
+    { row: 99, n: 'Imprimação', q: (R, i) => R.find(r => r.id === 'p6').bm[i].q },
+    { row: 100, n: 'Pintura de ligação', q: (R, i) => R.find(r => r.id === 'p7').bm[i].rr },
+    { row: 102, n: 'CBUQ', q: (R, i) => R.find(r => r.id === 'p7').bm[i].q },
+    { row: 112, n: 'CAP 50/70', q: (R, i) => R.find(r => r.id === 'p7').bm[i].m['CAP 50/70'] },
+    { row: 113, n: 'Emulsão EAI', q: (R, i) => R.find(r => r.id === 'p6').bm[i].m['Emulsão EAI'] },
+    { row: 114, n: 'Emulsão RR-1C', q: (R, i) => R.find(r => r.id === 'p7').bm[i].m['Emulsão RR-1C'] },
+  ];
+  function aprData() {
+    if (!AV) avLoad();
+    const R = simCalc(); const LL = lockLen(), EXE = TOT - LL; const nM = MESES.length;
+    const sv = SIMR.map(r => { const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id); let ex = 0; const pm = new Array(nM).fill(0);
+      for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') { ex += cellLen(k); continue; } if (isLk(k)) continue; const v = +sl[k]; if (v > 0 && v <= nM) pm[v - 1] += cellLen(k); }
+      const cum = []; let a = ex; for (const v of pm) { a += v; cum.push(a); }
+      return { ...r, ex, pm, cum, plan: pm.reduce((s, v) => s + v, 0), rest: Math.max(0, EXE - a) }; });
+    const all = AV.frentes.map(f => { const st = avStats(f.c); return { n: f.n, cc: f.cc, p: st['2'] / (TOT - st.L), km: st['2'] / 1000 }; });
+    const val = MESES.map((_, i) => { let pi = 0, r = 0; const it = APRC.map(p => { const q = p.q(R, i) || 0; const pr = num(C('I' + p.row)); const v = q * pr; const rr = X.reajR ? X.reajR(p.row) : 0; pi += v; r += v * rr; return { ...p, qv: q, v, rr }; }); return { pi, r, it }; });
+    const brit = MESES.map((_, i) => { let t = 0, bica = 0, po = 0; for (const r of R) { if (r.mat !== 'bica' && r.mat !== 'bgs') continue; const s = bSplit(r.mat, r.bm[i].q); t += s.t; bica += s.bica; po += s.po; } return { t, bica, po }; });
+    const capB = bCap(PRD.find(p => p.id === 'bica'));
+    // pontos de atenção
+    const att = [];
+    const naoPl = sv.filter(s => s.rest > 1);
+    if (naoPl.length) att.push({ k: 'warn', t: 'Trechos ainda sem mês', d: naoPl.map(s => `${s.n}: ${NF[2].format(s.rest / 1000)} km`).join(' · ') + '. Fora do plano e das quantidades.' });
+    else att.push({ k: 'ok', t: 'Plano cobre todo o restante', d: `Todas as camadas chegam a 100% do trecho a executar até ${mesNomeS(MESES[nM - 1])}.` });
+    brit.forEach((b, i) => { if (b.bica > capB) att.push({ k: 'warn', t: `Britagem acima da capacidade em ${mesNomeS(MESES[i])}`, d: `${NF[0].format(b.bica)} t de bica corrida para ${NF[0].format(capB)} t/mês (${NF[0].format(b.bica / capB * 100)}%). Antecipar produção ou ampliar turnos.` }); });
+    const seq = []; for (let i = 0; i < nM; i++) { const c = id => sv.find(s => s.id === id).cum[i]; const pairs = [['p3', 'p2'], ['p4', 'p3'], ['p5', 'p4'], ['p6', 'p5'], ['p7', 'p6']]; for (const [a, b] of pairs) if (c(a) - c(b) > 20.5) seq.push(`${sv.find(s => s.id === a).n} à frente de ${sv.find(s => s.id === b).n.toLowerCase()} em ${mesNomeS(MESES[i])}`); }
+    // célula a célula: camada superior planejada antes (ou sem) a inferior
+    let inv = 0, ret = 0; const invK = []; const ord = ['p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+    for (let k = 0; k < NC; k++) { if (isLk(k)) continue; let prev = 0, prevEx = true, bad = false, rbad = false; for (const id of ord) { const f = AV.frentes.find(x => x.id === id); const ex = f && f.c[k] === '2'; const v = +simSel(id)[k]; const m = ex ? 0 : (v > 0 && v <= nM ? v : 99);
+        if (ex && !prevEx) rbad = true; else if (!ex && m < prev) bad = true; prev = Math.max(prev, m); prevEx = ex; } if (bad) { inv++; if (invK.length < 5) invK.push(k); } if (rbad) ret++; }
+    if (inv) att.push({ k: 'warn', t: 'Sequência de camadas', d: `${inv} estaca${inv > 1 ? 's' : ''} com uma camada planejada antes da camada de baixo (ou a de baixo sem mês): ${invK.map(k => 'est. ' + k).join(', ')}${inv > invK.length ? '…' : ''}. Rever a pintura.` });
+    else att.push({ k: 'ok', t: 'Sequência de camadas respeitada', d: 'Em todas as estacas cada camada vem no mesmo mês ou depois da camada de baixo.' });
+    if (ret) att.push({ k: 'info', t: 'Retigráfico a conferir', d: `${ret} estaca${ret > 1 ? 's' : ''} com camada superior concluída e a de baixo não concluída no retigráfico de ${AV.data.split('-').reverse().join('/')}.` });
+    const oacP = AV.oac.filter(o => o.st !== 'c' && o.e < NC && !isLk(Math.floor(o.e)) && sv.some(s => { const v = +simSel(s.id)[Math.floor(o.e)]; return v > 0 && v <= nM; }));
+    if (oacP.length) att.push({ k: 'warn', t: 'Bueiros pendentes em trechos planejados', d: `${oacP.length} OAC não concluído${oacP.length > 1 ? 's' : ''} sob segmentos com pavimentação planejada: ${oacP.slice(0, 6).map(o => `${o.t} (est. ${estStr(o.e)})`).join(', ')}${oacP.length > 6 ? '…' : ''}. Concluir antes da base.` });
+    if (LL) att.push({ k: 'info', t: 'Segmento fora do escopo', d: `${travaTxt()} (${NF[2].format(LL / 1000)} km) não será executado e não entra nos percentuais.` });
+    return { R, sv, all, val, brit, capB, att, EXE, LL, nM };
+  }
+  function aprDiagram(sv, sel, pcts) {
+    const W = 1200, LW = 168, RW = 74, rh = 24, gap = 9, top = 26, nR = sv.length; const H = top + nR * (rh + gap) + 6; const sx = (W - LW - RW) / (TOT / 20);
+    let g = '';
+    for (let km = 0; km <= 12; km++) { const x = LW + km * 50 * sx; g += `<line x1="${x}" x2="${x}" y1="${top - 6}" y2="${H - 6}" class="ax"/><text x="${x + 2}" y="${top - 10}" class="axt">${km ? km : 'km 0'}</text>`; }
+    sv.forEach((s, j) => { const f = AV.frentes.find(x => x.id === s.id); const sl = simSel(s.id); const y = top + j * (rh + gap); g += `<text x="${LW - 10}" y="${y + rh / 2 + 5}" class="rl" text-anchor="end">${esc(s.n)}</text><text x="${W}" y="${y + rh / 2 + 6}" class="rp" text-anchor="end">${fPc(pcts[j])}</text>`;
+      let run = null; const flush = () => { if (run) { g += `<rect x="${(LW + run.k0 * sx).toFixed(2)}" y="${y}" width="${Math.max(0.6, (run.k1 - run.k0) * sx).toFixed(2)}" height="${rh}" class="${run.c}"${run.f ? ` fill="${run.f}"` : ''}${run.o ? ` fill-opacity="${run.o}"` : ''}><title>${esc(s.n)} · est. ${run.k0} a ${run.k1}: ${run.t}</title></rect>`; run = null; } };
+      for (let k = 0; k < NC; k++) { const kl = k + cellLen(k) / 20; let c, fl = '', o = '', t;
+        if (f && f.c[k] === '2') { c = 'ex'; t = 'executado'; } else if (isLk(k)) { c = 'lk'; t = 'não será executado'; } else { const v = +sl[k]; if (v > 0 && v <= MESES.length) { const fut = sel >= -0.5 ? v - 1 > sel : false; c = fut ? 'fu' : 'pl'; fl = MCOL[v - 1]; o = fut ? '.22' : ''; t = (fut ? 'planejado para ' : 'executado em ') + mesNomeS(MESES[v - 1]); if (sel < -0.5) { c = 'fu'; o = '.22'; t = 'planejado para ' + mesNomeS(MESES[v - 1]); } } else { c = 're'; t = 'sem mês definido'; } }
+        const key = c + fl + o; if (run && run.key === key) run.k1 = kl; else { flush(); run = { key, c, f: fl, o, t, k0: k, k1: kl }; } }
+      flush(); });
+    const oe = (AV.oae || []).map(o => `<rect x="${LW + o.e0 * sx}" y="${top - 4}" width="${Math.max(3, (o.e1 - o.e0) * sx)}" height="${H - top - 2}" class="apo"><title>${esc(o.n)}</title></rect>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" class="ap-svg" role="img" aria-label="Retigráfico planejado"><defs><pattern id="aprh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#e3e6e9"/><line x1="0" y1="0" x2="0" y2="5" stroke="#b9c0c6" stroke-width="2"/></pattern></defs>${g}${oe}</svg>`;
+  }
+  function renderApr() {
+    if (!AV) avLoad();
+    const A = aprData(); const nM = A.nM; if (AM >= nM) AM = nM - 1;
+    const per = nM > 1 ? `${mesNomeS(MESES[0])} – ${mesNomeS(MESES[nM - 1])}` : mesNomeS(MESES[0]);
+    const pav = A.sv.filter(s => s.id !== 'p6'); const pctNow = s => s.ex / A.EXE, pctAt = (s, i) => (i < 0 ? s.ex : s.cum[i]) / A.EXE;
+    const cb = A.sv.find(s => s.id === 'p7');
+    const totPlan = A.sv.reduce((a, s) => Math.max(a, s.plan), 0);
+    const vt = A.val.reduce((a, v) => a + v.pi + v.r, 0), vpi = A.val.reduce((a, v) => a + v.pi, 0);
+    const R = A.R; const sum = (id, k) => R.find(r => r.id === id).m[k] || 0;
+    const pet = ['p2', 'p3', 'p4'].reduce((a, id) => a + sum(id, 'Bica corrida'), 0) + sum('p5', 'Brita graduada (BGS)');
+    const SL = [];
+    // 1 · capa
+    SL.push({ t: 'Capa', h: `<div class="ap-cover"><div class="ap-k">PR-990 · Contrato 050/2024 · TCE Engenharia</div><h2>Plano de pavimentação<br><span>${per}</span></h2>
+      <p class="ap-lead">Rodovia PR-364 → Rebouças · ${NF[2].format(A.EXE / 1000)} km a executar${A.LL ? ` · ${NF[2].format(A.LL / 1000)} km fora do escopo` : ''} · situação do retigráfico de ${AV.data.split('-').reverse().join('/')}</p>
+      <div class="ap-big">${[[fPc(pctNow(cb)), 'CBUQ concluído hoje'], [fPc(pctAt(cb, nM - 1)), `CBUQ ao fim de ${mesNomeS(MESES[nM - 1])}`], [NF[2].format(cb.plan / 1000) + ' km', 'de pista no período'], [mi$(vt), 'a executar (PI + R)']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+      <div class="ap-foot">Apresentação à diretoria · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div></div>` });
+    // 2 · onde estamos
+    SL.push({ t: 'Onde estamos', h: `<div class="ap-h"><span class="ap-n">01</span><h3>Onde estamos</h3><p>Avanço executado por frente de serviço, conforme o retigráfico de ${AV.data.split('-').reverse().join('/')}, sobre o trecho a executar.</p></div>
+      <div class="ap-prog">${A.all.map(f => `<div class="ap-pr"><span class="n"><i class="dot" style="background:${f.cc}"></i>${esc(f.n)}</span><span class="tr"><i style="width:${(f.p * 100).toFixed(1)}%;background:${f.cc}"></i></span><b>${fPc(f.p)}</b><small>${NF[2].format(f.km)} km</small></div>`).join('')}</div>
+      <div class="ap-row3">${(() => { const oc = { c: 0, a: 0, n: 0 }; AV.oac.forEach(o => oc[o.st]++); return [[`${oc.c}/${AV.oac.length}`, 'bueiros e galerias concluídos', `${oc.a} em execução · ${oc.n} não iniciados`], [NF[2].format(cb.ex / 1000) + ' km', 'com CBUQ', `de ${NF[2].format(A.EXE / 1000)} km a executar`], [NF[2].format(Math.max(0, A.EXE - cb.ex) / 1000) + ' km', 'falta pavimentar', 'até a estaca 624']].map(([v, l, s]) => `<div class="ap-stat"><b>${v}</b><span>${l}</span><small>${s}</small></div>`).join(''); })()}</div>` });
+    // 3 · retigráfico planejado
+    SL.push({ t: 'Retigráfico planejado', h: `<div class="ap-h"><span class="ap-n">02</span><h3>Retigráfico planejado</h3><p>Escolha o mês ou reproduza: as camadas se completam mês a mês.</p></div>
+      <div class="ap-mes" role="group" aria-label="Situação ao fim do mês"><button type="button" class="ap-mb${AM < 0 ? ' on' : ''}" data-am="-1">Hoje</button>${MESES.map((ym, i) => `<button type="button" class="ap-mb${AM === i ? ' on' : ''}" data-am="${i}"><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</button>`).join('')}<button type="button" class="ap-play" id="ap-play">${APLAY ? '❚❚ Pausar' : '▶ Reproduzir'}</button></div>
+      <div class="ap-diag ap-dg">${aprDiagram(A.sv, AM, A.sv.map(s => pctAt(s, AM)))}</div>
+      <div class="ap-leg"><span><i class="ex"></i>executado</span>${MESES.map((ym, i) => `<span><i style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</span>`).join('')}<span><i class="fu"></i>planejado (meses seguintes)</span><span><i class="re"></i>sem mês</span>${A.LL ? '<span><i class="lk"></i>fora do escopo</span>' : ''}<span><i class="apo"></i>ponte</span></div>
+      <p class="ap-cap">${AM < 0 ? `Hoje: CBUQ em ${fPc(pctNow(cb))} do trecho a executar.` : (() => { const ad = A.sv.filter(s => s.pm[AM] > 1); return `Ao fim de ${mesLong(MESES[AM])}: CBUQ em ${fPc(pctAt(cb, AM))}.` + (ad.length ? `<small>No mês: ${ad.map(s => `${esc(s.n)} +${NF[2].format(s.pm[AM] / 1000)} km`).join(' · ')}</small>` : ''); })()}</p>` });
+    // 4 · evolução
+    const W = 680, H = 280, pl = 40, pr = 190, pt = 14, pb = 30; const y0 = Math.max(0, Math.floor(Math.min(...A.sv.map(s => pctNow(s))) * 10 - 1) / 10); const xs = i => pl + (i + 1) / nM * (W - pl - pr), ys = v => pt + (1 - (v - y0) / (1 - y0)) * (H - pt - pb);
+    const lines = A.sv.map(s => { const pts = [[pl, ys(pctNow(s))], ...s.cum.map((c, i) => [xs(i), ys(c / A.EXE)])]; return { s, pts }; });
+    const lab = lines.map(l => ({ l, y: l.pts[l.pts.length - 1][1] })).sort((a, b) => a.y - b.y); for (let i = 1; i < lab.length; i++) if (lab[i].y - lab[i - 1].y < 13) lab[i].y = lab[i - 1].y + 13;
+    SL.push({ t: 'Evolução', h: `<div class="ap-h"><span class="ap-n">03</span><h3>Evolução do avanço</h3><p>Percentual concluído de cada camada ao fim de cada mês${y0 > 0 ? ` (eixo a partir de ${NF[0].format(y0 * 100)}%)` : ''}.</p></div>
+      <div class="ap-evo"><svg viewBox="0 0 ${W} ${H}" class="ap-line" role="img" aria-label="Evolução do avanço por camada">
+      ${[0, .25, .5, .75, 1].map(f => y0 + f * (1 - y0)).map(v => `<line x1="${pl}" x2="${W - pr}" y1="${ys(v)}" y2="${ys(v)}" class="gr"/><text x="${pl - 6}" y="${ys(v) + 4}" class="yt">${NF[0].format(v * 100)}%</text>`).join('')}
+      <text x="${pl}" y="${H - 8}" class="xt">hoje</text>${MESES.map((ym, i) => `<text x="${xs(i)}" y="${H - 8}" class="xt" text-anchor="middle">${mesNomeS(ym)}</text>`).join('')}
+      ${lines.map(({ s, pts }) => `<polyline points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${SCOL[s.id]}" stroke-width="2.5" stroke-linejoin="round"/>${pts.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${SCOL[s.id]}"><title>${esc(s.n)} · ${i ? mesNomeS(MESES[i - 1]) : 'hoje'}: ${fPc(i ? s.cum[i - 1] / A.EXE : pctNow(s))}</title></circle>`).join('')}`).join('')}
+      ${lab.map(({ l, y }) => `<text x="${W - pr + 8}" y="${y + 4}" class="ll" fill="${SCOL[l.s.id]}">${esc(l.s.n)} ${fPc(l.s.cum[nM - 1] / A.EXE)}</text>`).join('')}</svg>
+      <div class="ap-tbl"><table><thead><tr><th>Mês</th><th class="n">Pista nova (CBUQ)</th><th class="n">Base</th><th class="n">Sub-base</th><th class="n">Reforço</th></tr></thead><tbody>${MESES.map((ym, i) => `<tr><td><i class="msq" style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</td>${['p7', 'p5', 'p4', 'p2'].map(id => { const s = A.sv.find(x => x.id === id); return `<td class="n">${s.pm[i] ? NF[2].format(s.pm[i] / 1000) + ' km' : '–'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div></div>` });
+    // 5 · recursos
+    const mt = (k, i) => R.reduce((a, r) => a + (r.bm[i].m[k] || 0), 0);
+    const recs = [['Bica corrida', 't', 1], ['Brita graduada (BGS)', 't', 1], ['CBUQ', 't', 1], ['CAP 50/70', 't', 2], ['Emulsão EAI', 't', 2], ['Emulsão RR-1C', 't', 2], ['Xisto (L)', 'L', 0]];
+    const mxB = Math.max(A.capB, ...A.brit.map(b => b.bica)) || 1;
+    SL.push({ t: 'Recursos', h: `<div class="ap-h"><span class="ap-n">04</span><h3>Recursos por mês</h3><p>Materiais para executar o plano e a demanda sobre a britagem (bica corrida).</p></div>
+      <div class="ap-res"><div class="ap-tbl"><table><thead><tr><th>Material</th>${MESES.map((ym, i) => `<th class="n"><i class="msq" style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>
+        ${recs.map(([k, u, d]) => { const vs = MESES.map((_, i) => mt(k, i)); const t = vs.reduce((a, v) => a + v, 0); return `<tr><td>${esc(k.replace(' (L)', ''))}</td>${vs.map(v => `<td class="n">${v > 0.0005 ? NF[d].format(v) + ' ' + u : '–'}</td>`).join('')}<td class="n"><b>${NF[d].format(t)} ${u}</b></td></tr>`; }).join('')}</tbody></table></div>
+        <div class="ap-brit"><h4>Britagem · bica corrida</h4>${A.brit.map((b, i) => `<div class="ap-bb"><span>${mesNomeS(MESES[i])}</span><span class="tr"><i style="width:${Math.min(100, b.bica / mxB * 100)}%;background:${b.bica > A.capB ? 'var(--neg)' : MCOL[i]}"></i><em style="left:${A.capB / mxB * 100}%"></em></span><b class="${b.bica > A.capB ? 'warn' : ''}">${NF[0].format(b.bica / A.capB * 100)}%</b></div>`).join('')}
+        <small>Traço = capacidade de ${NF[0].format(A.capB)} t/mês (${NF[0].format(bp('rate.bica'))} t/h). Total a britar no período: ${NF[0].format(A.brit.reduce((a, b) => a + b.t, 0))} t.</small></div></div>` });
+    // 6 · valores
+    const mxV = Math.max(1, ...A.val.map(v => v.pi + v.r));
+    SL.push({ t: 'Valores', h: `<div class="ap-h"><span class="ap-n">05</span><h3>Produção financeira prevista</h3><p>Serviços de pavimentação e ligantes do plano, a preço do contrato (PI) mais reajuste (R) do grupo.</p></div>
+      <div class="ap-val"><div class="ap-cols">${A.val.map((v, i) => `<div class="ap-col" title="${mesNomeS(MESES[i])}: PI ${fR(v.pi)} + R ${fR(v.r)}"><b>${mi$(v.pi + v.r)}</b><span class="abar"><i class="r" style="height:${v.r / mxV * 100}%"></i><i style="height:${v.pi / mxV * 100}%;background:${MCOL[i]}"></i></span><em>${mesNomeS(MESES[i])}</em></div>`).join('')}</div>
+        <div class="ap-vt"><div class="ap-stat"><b>${mi$(vt)}</b><span>PI + R no período</span><small>PI ${fR(vpi)} · R ${fR(vt - vpi)}</small></div>
+        <div class="ap-tbl"><table><thead><tr><th>Serviço</th><th class="n">Quantidade</th><th class="n">PI + R</th></tr></thead><tbody>${APRC.map((p, j) => { const q = A.val.reduce((a, v) => a + v.it[j].qv, 0), t = A.val.reduce((a, v) => a + v.it[j].v * (1 + v.it[j].rr), 0); return `<tr><td>${esc(p.n)}</td><td class="n">${NF[p.row >= 112 ? 1 : 0].format(q)} ${esc(M().disciplinas.flatMap(d => d.linhas).find(l => l.r === p.row)?.u || '')}</td><td class="n">${fR(t)}</td></tr>`; }).join('')}</tbody></table></div></div></div>
+      <p class="note ap-note">Parte hachurada = reajuste (R). Não inclui regularização do subleito, drenagem e demais serviços fora da simulação.</p>` });
+    // 7 · atenção
+    SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">06</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
+      <div class="ap-att">${A.att.map(a => `<div class="ap-a ${a.k}"><span class="ic">${a.k === 'ok' ? '✓' : a.k === 'warn' ? '!' : 'i'}</span><div><b>${esc(a.t)}</b><p>${esc(a.d)}</p></div></div>`).join('')}</div>` });
+    if (AS >= SL.length) AS = SL.length - 1;
+    $('#ap-deck').innerHTML = SL.map((s, i) => `<section class="ap-slide${i === 0 ? ' cover' : ''}${i === AS ? ' on' : ''}" data-s="${i}" aria-label="${esc(s.t)}"${i === AS ? '' : ' aria-hidden="true"'}>${s.h}<span class="ap-pg">${i + 1} / ${SL.length}</span></section>`).join('');
+    $('#ap-dots').innerHTML = SL.map((s, i) => `<button type="button" class="${i === AS ? 'on' : ''}" data-go="${i}" title="${esc(s.t)}" aria-label="${esc(s.t)}"></button>`).join('');
+    $('#ap-tit').textContent = SL[AS].t;
+    $('#ap-prev').disabled = AS === 0; $('#ap-next').disabled = AS === SL.length - 1;
+  }
+  function aprGo(i) { const n = $$('#ap-deck .ap-slide').length; AS = Math.max(0, Math.min(n - 1, i)); renderApr(); }
+  function aprStop() { if (APLAY) { clearInterval(APLAY); APLAY = null; } }
+  function aprInit() {
+    const v = $('#v-apresentacao'); if (!v) return;
+    $('#ap-prev').onclick = () => aprGo(AS - 1); $('#ap-next').onclick = () => aprGo(AS + 1);
+    $('#ap-dots').addEventListener('click', ev => { const b = ev.target.closest('[data-go]'); if (b) aprGo(+b.dataset.go); });
+    $('#ap-deck').addEventListener('click', ev => {
+      const m = ev.target.closest('[data-am]'); if (m) { aprStop(); AM = +m.dataset.am; renderApr(); return; }
+      if (ev.target.closest('#ap-play')) { if (APLAY) { aprStop(); renderApr(); return; } AM = -1; renderApr(); APLAY = setInterval(() => { if (X.current() !== 'apresentacao' || AM >= MESES.length - 1) { aprStop(); renderApr(); return; } AM++; renderApr(); }, 1300); renderApr(); }
+    });
+    $('#ap-full').onclick = () => { const el = $('#v-apresentacao'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => { }); };
+    document.addEventListener('fullscreenchange', () => { $('#ap-full').textContent = document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia'; v.classList.toggle('fs', !!document.fullscreenElement); });
+    document.addEventListener('keydown', ev => { if (X.current() !== 'apresentacao' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+      if (ev.key === 'ArrowRight' || ev.key === 'PageDown' || ev.key === ' ') { ev.preventDefault(); aprGo(AS + 1); } else if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') { ev.preventDefault(); aprGo(AS - 1); } else if (ev.key === 'Home') aprGo(0); else if (ev.key === 'End') aprGo(99); });
+    let tx = null; $('#ap-deck').addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    $('#ap-deck').addEventListener('touchend', e => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 60 && !e.target.closest('.ap-mes, .ap-tbl, .ap-dg')) aprGo(AS + (dx < 0 ? 1 : -1)); }, { passive: true });
+  }
+
   // ===================================================================== CAMPO (GPS)
   function toUTM(lat, lon, zone = 22) {
     const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), rad = Math.PI / 180;
@@ -916,7 +1056,7 @@ export function initObra(X) {
     const opened = [];
     if (v === 'painel') $$('#detail details.disc').forEach(d => { if (!d.open) { d.open = true; opened.push(d); } });
         document.body.dataset.print = v;
-    const [a, b] = trecho(); const old = document.title; document.title = `PR-990 – ${({ painel: 'Painel', insumos: 'Insumos', medicao: 'Medição', avanco: 'Retigráfico', simulacao: 'Simulação de segmentos', britagem: 'Planejamento da britagem' })[v] || v} – ${estStr(a)} a ${estStr(b)}`;
+    const [a, b] = trecho(); const old = document.title; document.title = `PR-990 – ${({ painel: 'Painel', insumos: 'Insumos', medicao: 'Medição', avanco: 'Retigráfico', simulacao: 'Simulação de segmentos', britagem: 'Planejamento da britagem', apresentacao: 'Plano de pavimentação' })[v] || v} – ${estStr(a)} a ${estStr(b)}`;
     $('#print-head').textContent = `${document.title} · emitido em ${new Date().toLocaleDateString('pt-BR')}`;
     const done = () => { opened.forEach(d => d.open = false); delete document.body.dataset.print; document.title = old; window.removeEventListener('afterprint', done);
       if (v === 'avanco') drawGrid(false); if (v === 'simulacao') drawGrid(true); };
@@ -937,8 +1077,8 @@ export function initObra(X) {
     $('#m-file').onchange = e => { const f = e.target.files[0]; if (f) medUpload(f); e.target.value = ''; };
     $('#m-del').onclick = () => { if (MED === D.medicao || !confirm('Remover a ' + MED.nome + ' do aparelho?')) return; store.set(medKey, medList().filter(n => n !== MED.nome)); try { localStorage.removeItem('pr990:med:' + MED.nome); } catch { } medSetActive(D.medicao); renderMed(); };
     ['#m-q', '#m-grp', '#m-tr'].forEach(s => $(s).addEventListener('input', renderMed)); $('#m-csv').onclick = exportMed;
-    avInitEvents(); britInit(); campoInit(); cmpInit(); searchInit();
+    avInitEvents(); britInit(); aprInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, renderMed, renderAv, renderSim, renderBrit, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }

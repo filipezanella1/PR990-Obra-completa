@@ -494,7 +494,7 @@ function lbInit() {
   $('#dr-q').addEventListener('input', renderDrenagem); $('#dr-tr').addEventListener('change', renderDrenagem);
 }
 
-const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
+const VIEWS = ['painel', 'medicao', 'avanco', 'campo', 'simulacao', 'apresentacao', 'britagem', 'insumos', 'drenagem', 'pranchas', 'contrato', 'discrepancias', 'base', 'sobre'];
 let current = 'painel';
 // ---------------------------------------------------------------- abas protegidas por senha (dados cifrados em data/protegido.json)
 const LOCKED = ['medicao', 'contrato', 'discrepancias', 'base'];
@@ -551,7 +551,7 @@ function show(v) {
   current = v;
   VIEWS.forEach(x => { $('#v-' + x).hidden = x !== v; document.querySelectorAll(`a[href="#${x}"].nl`).forEach(a => a.setAttribute('aria-current', x === v ? 'page' : 'false')); });
   const more = $('#nav-more'); if (more) { more.classList.toggle('cur', !['painel', 'medicao', 'avanco', 'campo'].includes(v)); $('#more-sheet').hidden = true; }
-  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
+  if (v === 'medicao') OB.renderMed(); if (v === 'avanco') OB.renderAv(); if (v === 'simulacao') OB.renderSim(); if (v === 'britagem') OB.renderBrit(); if (v === 'apresentacao') OB.renderApr(); if (v === 'campo') OB.renderCampo(); if (v === 'pranchas') OB.renderPr();
   if (v === 'insumos') renderIns(); if (v === 'drenagem') renderDrenagem(); if (v === 'contrato') renderCmp(); if (v === 'discrepancias') renderDisc(); if (v === 'base') renderBase();
   store.set('tab', v);
   if (window.matchMedia('(max-width: 760px)').matches) window.scrollTo({ top: 0 });
@@ -611,7 +611,7 @@ function pwa() {
 // ---------------------------------------------------------------- módulos de obra
 const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store, download, csvCell, S, C,
   END: () => END, M: () => M, BASE: () => BASE, INS: () => INS, wb: () => wb, applyInputs, setSel, show: v => show(v), current: () => current,
-  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
+  gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
 
 // ---------------------------------------------------------------- início
