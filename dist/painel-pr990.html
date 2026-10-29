@@ -784,6 +784,19 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " �
 .sbar { grid-template-columns: 150px minmax(0, 1fr) 140px; }
 .sb-v { white-space: nowrap; }
 
+/* simulação por mês */
+.mchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px 4px 4px; cursor: pointer; font-size: .9rem; font-weight: 600; }
+.mchip.on { border-color: #8a5000; box-shadow: 0 0 0 2px #f2a900; }
+.msw { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; font: 700 .7rem var(--f-mono); font-style: normal; border: 1px solid rgba(0,0,0,.25); }
+.sw.msw { min-width: 18px; height: 16px; border-radius: 3px; font-size: .62rem; }
+th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: middle; }
+.btn.sm { padding: 3px 10px; min-height: 0; font-size: .85rem; }
+.blk.sim .cells i.c.sel { font: 700 8px/18px var(--f-mono); font-style: normal; text-align: center; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+#s-mini { padding: 4px 6px; }
+.stab th.n { white-space: nowrap; }
+.stab td .note { margin: 0; font-size: .74rem; }
+@media print { .msw, .blk.sim .cells i.c.sel, .sb-t i.si { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
 </style>
 </head>
 <body>
@@ -998,6 +1011,7 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " �
     </div>
 
     <div class="panel sim-brush">
+      <div class="sb-row"><span class="label">Mês da pintura</span><div class="sb-chips" id="s-meses"></div><span class="sp"></span><label class="lbl">1º mês <input type="month" id="s-mini"></label></div>
       <div class="sb-row"><span class="label">Pincel – serviços pintados juntos</span><div class="sb-chips" id="s-brush"></div></div>
       <div class="sb-row sb-act">
         <div class="seg" id="s-mode"><button type="button" data-m="add">Marcar</button><button type="button" data-m="del">Apagar</button></div>
@@ -1008,18 +1022,18 @@ nav.tabs a.lk .lg::after, nav.tabs a.lk > span:last-child::after { content: " �
         <button class="btn" type="button" data-print="simulacao">PDF</button>
         <button class="btn primary" type="button" id="s-csv">Exportar (CSV)</button>
       </div>
-      <p class="note">Escolha os serviços no pincel e toque ou arraste sobre as estacas: todos os serviços do pincel são marcados juntos. Com um só serviço no pincel, a pintura vale só para a linha tocada.</p>
+      <p class="note">Escolha o mês e os serviços do pincel e toque ou arraste sobre as estacas: cada célula fica com a cor e o número do mês. Todos os serviços do pincel são marcados juntos; com um só serviço, vale só a linha tocada. Pintar por cima troca o mês da célula.</p>
     </div>
 
     <div class="sim-kpis" id="s-kpis"></div>
 
     <div class="row2 sim-row">
       <div class="panel"><h3>Avanço por serviço</h3><p class="note">Extensão executada, simulada e restante de cada camada (km).</p><div id="s-bars"></div></div>
-      <div class="panel"><h3>Quadro de materiais</h3><div class="tbl-wrap" id="s-tab"></div></div>
+      <div class="panel"><h3>Quadro de materiais por mês</h3><div class="tbl-wrap" id="s-tab"></div></div>
     </div>
 
     <p class="note tip" id="s-tip" role="status"></p>
-    <div class="panel sim-gridp"><div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw atk"></i>em execução (atacado)</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw"></i>a executar</span></div><div class="retig" id="s-grid"></div></div>
+    <div class="panel sim-gridp"><div class="legend av-legend" id="s-legend"></div><div class="retig" id="s-grid"></div></div>
 
     <details class="panel sim-prem"><summary><b>Premissas de cálculo</b> <span class="note" id="s-prem-sum"></span></summary>
       <div class="sim-par">
@@ -1761,17 +1775,36 @@ function initObra(X) {
     return QC;
   }
   const par = k => SP[k] ?? ({ cap: S.cap, eai: S.eai, rr: S.rr })[k];
+  // ---------- meses da simulação: cada célula guarda o mês em que foi simulada ('0' = não simulada, '1'…'6' = mês 1…6)
+  const MCOL = ['#ffe08a', '#ffc933', '#f2a900', '#d98a00', '#b36b00', '#8a5000'];   // um tom (âmbar) do mais claro ao mais escuro, na ordem do tempo
+  const MTXT = ['#3d3000', '#3d3000', '#2b1f00', '#fff', '#fff', '#fff'];
+  const MMAX = 6;
+  const ymNext = ym => { let [y, m] = ym.split('-').map(Number); m++; if (m > 12) { m = 1; y++; } return `${y}-${String(m).padStart(2, '0')}`; };
+  const ymNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  let MESES = store.get('simMeses', null) || [ymNext(ymNow())];
+  let MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
+  const mesNomeS = ym => { const [y, m] = ym.split('-'); return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+m - 1] + '/' + y.slice(2); };
+  const mesNum = ym => String(+ym.split('-')[1]);
+  const mSave = () => { store.set('simMeses', MESES); store.set('simMesAtv', MATV); };
+  function matOf(r, q, rr) {
+    const m = {};
+    if (r.mat === 'bica') m['Bica corrida'] = q * par('dBica');
+    if (r.mat === 'bgs') m['Brita graduada (BGS)'] = q * par('dBgs');
+    if (r.mat === 'eai') m['Emulsão EAI'] = q * par('eai') / 1000;
+    if (r.mat === 'cbuq') { m['CBUQ'] = q; m['CAP 50/70'] = q * par('cap'); m['Emulsão RR-1C'] = rr * par('rr') / 1000; m['Xisto (L)'] = q * par('xisto'); }
+    return m;
+  }
   function simCalc() {
     const Q = cellQ(); const out = [];
     for (const r of SIMR) {
       const sel = simSel(r.id), f = AV.frentes.find(x => x.id === r.id); let cnt = 0, q = 0, ext = 0, ja = 0, rr = 0;
-      for (let k = 0; k < NC; k++) if (sel[k] === '1' && !isLk(k)) { cnt++; ext += cellLen(k); q += Q[r.col][k] * r.f; rr += Q['Pintura RR-1C (m²)'][k]; if (f && f.c[k] === '2') ja++; }
-      const m = {};
-      if (r.mat === 'bica') m['Bica corrida'] = q * par('dBica');
-      if (r.mat === 'bgs') m['Brita graduada (BGS)'] = q * par('dBgs');
-      if (r.mat === 'eai') m['Emulsão EAI'] = q * par('eai') / 1000;
-      if (r.mat === 'cbuq') { m['CBUQ'] = q; m['CAP 50/70'] = q * par('cap'); m['Emulsão RR-1C'] = rr * par('rr') / 1000; m['Xisto (L)'] = q * par('xisto'); }
-      out.push({ ...r, cnt, q, ext, ja, m, rr });
+      const bm = MESES.map(() => ({ cnt: 0, q: 0, ext: 0, rr: 0 }));
+      for (let k = 0; k < NC; k++) { const v = sel[k]; if (v === '0' || isLk(k)) continue; const mi = Math.min(MESES.length, +v) - 1; if (mi < 0) continue;
+        const qq = Q[r.col][k] * r.f, rk = Q['Pintura RR-1C (m²)'][k];
+        cnt++; ext += cellLen(k); q += qq; rr += rk; if (f && f.c[k] === '2') ja++;
+        const o = bm[mi]; o.cnt++; o.ext += cellLen(k); o.q += qq; o.rr += rk; }
+      bm.forEach(o => o.m = matOf(r, o.q, o.rr));
+      out.push({ ...r, cnt, q, ext, ja, m: matOf(r, q, rr), rr, bm });
     }
     return out;
   }
@@ -1783,6 +1816,9 @@ function initObra(X) {
     $('#s-brush').innerHTML = SIMR.map(r => `<button type="button" class="bchip${BR.has(r.id) ? ' on' : ''}" data-b="${r.id}" aria-pressed="${BR.has(r.id)}"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</button>`).join('') +
       `<button type="button" class="lnk" data-b="all">todos</button><button type="button" class="lnk" data-b="none">nenhum</button>`;
     $$('#s-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === SMODE)); $('#s-skip').checked = SKIP;
+    $('#s-meses').innerHTML = MESES.map((ym, i) => `<button type="button" class="mchip${i === MATV ? ' on' : ''}" data-mi="${i}" aria-pressed="${i === MATV}"><i class="msw" style="background:${MCOL[i]};color:${MTXT[i]}">${mesNum(ym)}</i>${mesNomeS(ym)}</button>`).join('') +
+      (MESES.length < MMAX ? `<button type="button" class="btn sm" id="s-madd">+ ${mesNomeS(ymNext(MESES[MESES.length - 1]))}</button>` : '') + (MESES.length > 1 ? `<button type="button" class="lnk" id="s-mdel">remover ${mesNomeS(MESES[MESES.length - 1])}</button>` : '');
+    $('#s-legend').innerHTML = `<span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw atk"></i>em execução (atacado)</span>${MESES.map((ym, i) => `<span class="lg1"><i class="sw msw" style="background:${MCOL[i]};color:${MTXT[i]}">${mesNum(ym)}</i>simulado em ${mesNomeS(ym)}</span>`).join('')}<span class="lg1"><i class="sw"></i>a executar</span>${lockLen() ? '<span class="lg1"><i class="sw lkb"></i>não será executado</span>' : ''}`;
     drawGrid(true);
     const R = simCalc();
     const pet = R.filter(r => r.mat === 'bica' || r.mat === 'bgs').reduce((s, r) => s + Object.values(r.m)[0], 0);
@@ -1790,7 +1826,8 @@ function initObra(X) {
     const c = g('p7'), im = g('p6');
     const T = (v, d = 1) => Math.abs(v) < 5e-7 ? '0' : NF[d].format(v);
     const extMax = Math.max(...R.map(r => r.ext));
-    $('#s-hero').innerHTML = `<div><span>Extensão simulada</span><b>${NF[2].format(extMax / 1000)} km</b></div><div><span>Material pétreo</span><b>${NF[0].format(pet)} t</b></div><div><span>CBUQ</span><b>${NF[0].format(c.m['CBUQ'])} t</b></div>`;
+    $('#s-mini').value = MESES[0];
+    $('#s-hero').innerHTML = `<div><span>Período</span><b>${MESES.length > 1 ? mesNomeS(MESES[0]) + ' – ' + mesNomeS(MESES[MESES.length - 1]) : mesNomeS(MESES[0])}</b></div><div><span>Extensão simulada</span><b>${NF[2].format(extMax / 1000)} km</b></div><div><span>Material pétreo</span><b>${NF[0].format(pet)} t</b></div><div><span>CBUQ</span><b>${NF[0].format(c.m['CBUQ'])} t</b></div>`;
     const card = (ic, l, v, u, sub) => `<div class="skpi"><div class="sk-h">${ic}<span>${l}</span></div><div class="sk-v"><b>${v}</b><i>${u}</i></div><div class="sk-s">${sub}</div></div>`;
     const ico = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="${d}"/></svg>`;
     $('#s-kpis').innerHTML = [
@@ -1804,17 +1841,20 @@ function initObra(X) {
     // barras: executado / simulado / restante por serviço (km)
     const TOTKM = TOT / 1000, LL = lockLen(), EXE = TOT - LL;
     $('#s-bars').innerHTML = `<div class="sbars">${R.map(r => { const f = AV.frentes.find(x => x.id === r.id); let ex = 0, lk = 0; const sl = simSel(r.id); let si = 0;
-        for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') ex += cellLen(k); else if (isLk(k)) lk += cellLen(k); else if (sl[k] === '1') si += cellLen(k); }
+        const sm = MESES.map(() => 0);
+        for (let k = 0; k < NC; k++) { if (f && f.c[k] === '2') ex += cellLen(k); else if (isLk(k)) lk += cellLen(k); else if (sl[k] !== '0' && +sl[k] <= MESES.length) { si += cellLen(k); sm[+sl[k] - 1] += cellLen(k); } }
         const rest = Math.max(0, TOT - ex - si - lk);
         return `<div class="sbar"><span class="sb-n">${esc(r.n)}</span><div class="sb-t" title="${esc(r.n)}: executado ${NF[2].format(ex / 1000)} km · simulado ${NF[2].format(si / 1000)} km · restante ${NF[2].format(rest / 1000)} km${lk ? ` · não será executado ${NF[2].format(lk / 1000)} km` : ''}">
-          <i class="ex" style="width:${ex / TOT * 100}%"></i><i class="si" style="width:${si / TOT * 100}%"></i><i class="lkb" style="width:${lk / TOT * 100}%"></i></div>
+          <i class="ex" style="width:${ex / TOT * 100}%"></i>${sm.map((v, i) => v ? `<i class="si" style="width:${v / TOT * 100}%;background:${MCOL[i]}" title="${mesNomeS(MESES[i])}: ${NF[2].format(v / 1000)} km"></i>` : '').join('')}<i class="lkb" style="width:${lk / TOT * 100}%"></i></div>
           <span class="sb-v"><b>${NF[1].format((ex + si) / (TOT - lk) * 100)}%</b> ${si ? `<em>+${NF[2].format(si / 1000)} km</em>` : ''}</span></div>`; }).join('')}
       <div class="sbar ax"><span></span><div class="sb-ax">${[0, 25, 50, 75, 100].map(v => `<i style="left:${v}%">${NF[1].format(TOTKM * v / 100)}</i>`).join('')}</div><span></span></div></div>
-      <div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw rest"></i>restante</span>${LL ? `<span class="lg1"><i class="sw lkb"></i>não será executado (${esc(travaTxt())})</span>` : ''}<span class="note">% = executado + simulado sobre o trecho a executar (${NF[2].format(EXE / 1000)} km)</span></div>`;
-    $('#s-tab').innerHTML = `<table class="itbl stab"><thead><tr><th>Serviço</th><th class="n">Extensão</th><th class="n">Quantidade</th><th>Material</th><th class="n">Total</th></tr></thead><tbody>${R.map(r => { const ms = Object.entries(r.m);
-        return ms.map(([k, v], i) => `<tr class="${i ? 'cont' : ''}">${i ? '<td></td><td></td><td></td>' : `<td rowspan="1"><i class="dot" style="background:${SCOL[r.id]}"></i> <b>${esc(r.n)}</b>${r.ja ? ` <span class="pill na" title="Estacas simuladas que já constam como executadas">${r.ja} já executada${r.ja > 1 ? 's' : ''}</span>` : ''}</td><td class="n" data-l="Extensão">${r.cnt ? NF[0].format(r.ext) + ' m' : '–'}</td><td class="n" data-l="Quantidade">${r.cnt ? NF[1].format(r.q) + ' ' + r.un : '–'}</td>`}
-          <td data-l="Material">${esc(k.replace(' (L)', ''))}</td><td class="n" data-l="Total"><b>${r.cnt ? (k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' || k === 'Bica corrida' || k.startsWith('Brita') ? 1 : 2].format(v) + ' t') : '–'}</b></td></tr>`).join(''); }).join('')}
-      <tr class="tot"><td colspan="4">Material pétreo (reforço + sub-base + base)</td><td class="n">${T(pet)} t</td></tr></tbody></table>`;
+      <div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span>${MESES.map((ym, i) => `<span class="lg1"><i class="sw" style="background:${MCOL[i]}"></i>${mesNomeS(ym)}</span>`).join('')}<span class="lg1"><i class="sw rest"></i>restante</span>${LL ? `<span class="lg1"><i class="sw lkb"></i>não será executado (${esc(travaTxt())})</span>` : ''}<span class="note">% = executado + simulado sobre o trecho a executar (${NF[2].format(EXE / 1000)} km)</span></div>`;
+    const FV = (k, v) => Math.abs(v) < 5e-7 ? '–' : k.includes('(L)') ? NF[0].format(v) + ' L' : NF[k === 'CBUQ' || k === 'Bica corrida' || k.startsWith('Brita') ? 1 : 2].format(v) + ' t';
+    const petM = MESES.map((_, i) => R.filter(r => r.mat === 'bica' || r.mat === 'bgs').reduce((s, r) => s + (Object.values(r.bm[i].m)[0] || 0), 0));
+    $('#s-tab').innerHTML = `<table class="itbl stab"><thead><tr><th>Serviço</th><th>Material</th>${MESES.map((ym, i) => `<th class="n"><i class="msw" style="background:${MCOL[i]};color:${MTXT[i]}">${mesNum(ym)}</i> ${mesNomeS(ym)}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>${R.map(r => { const ms = Object.keys(r.m);
+        return ms.map((k, i) => `<tr class="${i ? 'cont' : ''}"><td>${i ? '' : `<i class="dot" style="background:${SCOL[r.id]}"></i> <b>${esc(r.n)}</b><div class="note">${r.cnt ? NF[2].format(r.ext / 1000) + ' km · ' + NF[1].format(r.q) + ' ' + r.un : 'nada simulado'}${r.ja ? ` · ${r.ja} estaca${r.ja > 1 ? 's' : ''} já executada${r.ja > 1 ? 's' : ''}` : ''}</div>`}</td>
+          <td data-l="Material">${esc(k.replace(' (L)', ''))}</td>${MESES.map((ym, mi) => `<td class="n" data-l="${mesNomeS(ym)}">${FV(k, r.bm[mi].m[k] || 0)}</td>`).join('')}<td class="n" data-l="Total"><b>${FV(k, r.m[k])}</b></td></tr>`).join(''); }).join('')}
+      <tr class="tot"><td colspan="2">Material pétreo (reforço + sub-base + base)</td>${petM.map((v, i) => `<td class="n" data-l="${mesNomeS(MESES[i])}">${FV('t', v)}</td>`).join('')}<td class="n">${T(pet)} t</td></tr></tbody></table>`;
     $('#s-prem-sum').textContent = `bica ${NF[3].format(par('dBica'))} t/m³ · BGS ${NF[3].format(par('dBgs'))} t/m³ · CAP ${NF[1].format(par('cap') * 100)}% · EAI ${NF[2].format(par('eai'))} kg/m² · RR-1C ${NF[2].format(par('rr'))} kg/m² · xisto ${NF[1].format(par('xisto'))} L/t`;
     for (const [id, k] of [['s-dbica', 'dBica'], ['s-dbgs', 'dBgs'], ['s-cap', 'cap'], ['s-eai', 'eai'], ['s-rr', 'rr'], ['s-xisto', 'xisto']]) { const el = $('#' + id); if (document.activeElement !== el) el.value = NF[k === 'cap' ? 2 : 3].format(k === 'cap' ? par(k) * 100 : par(k)).replace(/\./g, ''); }
   }
@@ -1871,7 +1911,8 @@ function initObra(X) {
         for (const r of SIMR) {
           const f = AV.frentes.find(x => x.id === r.id); const sl = simSel(r.id);
           h += `<div class="fgrp"><div class="lrow rs${BR.has(r.id) ? ' inb' : ''}" data-sim="${r.id}"><span class="ln"><span class="fn"><i class="dot" style="background:${SCOL[r.id]}"></i>${esc(r.n)}</span><button type="button" class="lnk sfill" data-fill="${r.id}" data-s0="${s0}" data-s1="${s1}" title="Preencher nesta faixa as estacas que ainda não foram executadas (toque de novo para desfazer)">preencher</button></span><div class="cells">`;
-          for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; h += `<i class="c${st === '2' ? (sl[k] === '1' ? ' sel' : ' done') : isLk(k) ? ' lk' : sl[k] === '1' ? ' sel' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
+          for (let k = s0; k < s1; k++) { const st = f ? f.c[k] : '0'; const mv = +sl[k]; const ms = mv > 0 && mv <= MESES.length && !isLk(k);
+            h += ms ? `<i class="c sel" data-k="${k}" style="background:${MCOL[mv - 1]};color:${MTXT[mv - 1]}">${mesNum(MESES[mv - 1])}</i>` : `<i class="c${st === '2' ? ' done' : isLk(k) ? ' lk' : st === '1' ? ' atk' : ''}" data-k="${k}"></i>`; }
           h += '</div></div></div>';
         }
       } else {
@@ -1898,14 +1939,15 @@ function initObra(X) {
     }
     if (row.dataset.sim) {   // simulação: pincel com um ou mais serviços, célula a célula
       const id = row.dataset.sim;
-      if (first) { const ids = BR.size > 1 && BR.has(id) ? [...BR] : [id]; avDown = { sim: id, ids, to: SMODE === 'del' ? '0' : '1' }; }
+      if (first) { const ids = BR.size > 1 && BR.has(id) ? [...BR] : [id]; avDown = { sim: id, ids, to: SMODE === 'del' ? '0' : String(MATV + 1) }; }
       if (!avDown || (avDown.ids.length === 1 && avDown.sim !== id)) return;
       for (const t of avDown.ids) {
         const f = AV.frentes.find(x => x.id === t), sl = simSel(t);
-        if (avDown.to === '1' && (isLk(k) || (SKIP && f && f.c[k] === '2'))) continue;
+        if (avDown.to !== '0' && (isLk(k) || (SKIP && f && f.c[k] === '2'))) continue;
         if (sl[k] === avDown.to) continue;
         SIM[t] = sl.slice(0, k) + avDown.to + sl.slice(k + 1); avDirty = true;
-        const el = document.querySelector(`#s-grid .lrow[data-sim="${t}"] i.c[data-k="${k}"]`); if (el) el.classList.toggle('sel', avDown.to === '1');
+        const el = document.querySelector(`#s-grid .lrow[data-sim="${t}"] i.c[data-k="${k}"]`);
+        if (el) { const on = avDown.to !== '0'; el.classList.toggle('sel', on); el.style.background = on ? MCOL[MATV] : ''; el.style.color = on ? MTXT[MATV] : ''; el.textContent = on ? mesNum(MESES[MATV]) : ''; }
       }
       return;
     }
@@ -1927,8 +1969,8 @@ function initObra(X) {
     g.addEventListener('click', ev => {
       const fb = ev.target.closest('[data-fill]');
       if (fb) { const id0 = fb.dataset.fill, a = +fb.dataset.s0, b = +fb.dataset.s1; const ids = BR.size > 1 && BR.has(id0) ? [...BR] : [id0];
-        const f0 = AV.frentes.find(x => x.id === id0); const all = simSel(id0).slice(a, b).split('').every((v, i) => v === '1' || isLk(a + i) || (f0 && f0.c[a + i] === '2'));
-        for (const id of ids) { const f = AV.frentes.find(x => x.id === id); const sl = simSel(id).split(''); for (let k = a; k < b; k++) if ((!f || f.c[k] !== '2') && !isLk(k)) sl[k] = all ? '0' : '1'; SIM[id] = sl.join(''); }
+        const f0 = AV.frentes.find(x => x.id === id0); const cur = String(MATV + 1); const all = simSel(id0).slice(a, b).split('').every((v, i) => v === cur || isLk(a + i) || (f0 && f0.c[a + i] === '2'));
+        for (const id of ids) { const f = AV.frentes.find(x => x.id === id); const sl = simSel(id).split(''); for (let k = a; k < b; k++) if ((!f || f.c[k] !== '2') && !isLk(k)) { if (all) { if (sl[k] === cur) sl[k] = '0'; } else if (sl[k] === '0' || sl[k] === cur) sl[k] = cur; } SIM[id] = sl.join(''); }
         simSave(); renderSim(); return; }
       const ob = ev.target.closest('[data-oac]');
       if (ob) { const o = AV.oac[+ob.dataset.oac];
@@ -1950,12 +1992,21 @@ function initObra(X) {
       if (v === 'all') BR = new Set(SIMR.map(r => r.id)); else if (v === 'none') BR = new Set(); else BR.has(v) ? BR.delete(v) : BR.add(v);
       store.set('simBrush', [...BR]); renderSim(); });
     $$('#s-mode button').forEach(b => b.onclick = () => { SMODE = b.dataset.m; renderSim(); });
+    $('#s-meses').addEventListener('click', ev => {
+      const c = ev.target.closest('[data-mi]'); if (c) { MATV = +c.dataset.mi; SMODE = 'add'; mSave(); renderSim(); return; }
+      if (ev.target.closest('#s-madd')) { if (MESES.length >= MMAX) return; MESES.push(ymNext(MESES[MESES.length - 1])); MATV = MESES.length - 1; SMODE = 'add'; mSave(); renderSim(); return; }
+      if (ev.target.closest('#s-mdel')) { const n = MESES.length, ch = String(n); const usado = Object.values(SIM).some(t => t.includes(ch));
+        if (usado && !confirm(`Remover ${mesNomeS(MESES[n - 1])} e apagar o que foi simulado nele?`)) return;
+        for (const id of Object.keys(SIM)) SIM[id] = SIM[id].split(ch).join('0'); MESES.pop(); MATV = Math.min(MATV, MESES.length - 1); mSave(); simSave(); renderSim(); }
+    });
+    $('#s-mini').onchange = () => { const v = $('#s-mini').value; if (!/^\d{4}-\d{2}$/.test(v)) return; const out = [v]; while (out.length < MESES.length) out.push(ymNext(out[out.length - 1])); MESES = out; mSave(); renderSim(); };
     $('#s-skip').onchange = () => { SKIP = $('#s-skip').checked; store.set('simSkip', SKIP); };
     $('#s-rest').onclick = () => { const ids = BR.size ? [...BR] : SIMR.map(r => r.id);
-      for (const id of ids) { const f = AV.frentes.find(x => x.id === id); let t = ''; for (let k = 0; k < NC; k++) t += isLk(k) ? '0' : f && f.c[k] === '2' ? simSel(id)[k] : '1'; SIM[id] = t; }
-      simSave(); renderSim(); $('#s-tip').textContent = `Marcado todo o restante de: ${ids.map(i => SIMR.find(r => r.id === i).n).join(', ')}.`; };
-    $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Serviço', 'Estacas selecionadas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
-      for (const r of R) for (const [k, v] of Object.entries(r.m)) L.push([r.n, r.cnt ? (() => { const a = []; const sl = simSel(r.id); for (let i = 0; i < NC; i++) if (sl[i] === '1') a.push(i); return a.join(' '); })() : '', r.ext, r.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']);
+      for (const id of ids) { const f = AV.frentes.find(x => x.id === id); let t = ''; const sl = simSel(id); for (let k = 0; k < NC; k++) t += isLk(k) ? '0' : f && f.c[k] === '2' ? sl[k] : sl[k] !== '0' && +sl[k] <= MESES.length ? sl[k] : String(MATV + 1); SIM[id] = t; }
+      simSave(); renderSim(); $('#s-tip').textContent = `Marcado em ${mesNomeS(MESES[MATV])} todo o restante (ainda não simulado) de: ${ids.map(i => SIMR.find(r => r.id === i).n).join(', ')}.`; };
+    $('#s-csv').onclick = () => { const R = simCalc(); const L = [['Mês', 'Serviço', 'Estacas', 'Extensão (m)', 'Quantidade', 'Un', 'Material', 'Quantidade do material', 'Un']];
+      for (const [mi, ym] of MESES.entries()) for (const r of R) { const o = r.bm[mi]; if (!o.cnt) continue; const sl = simSel(r.id); const est = []; for (let i = 0; i < NC; i++) if (sl[i] === String(mi + 1) && !isLk(i)) est.push(i);
+        for (const [k, v] of Object.entries(o.m)) L.push([mesNomeS(ym), r.n, est.join(' '), o.ext, o.q, r.un, k.replace(' (L)', ''), v, k.includes('(L)') ? 'L' : 't']); }
       L.push([], ['Premissas', `bica ${par('dBica')} t/m³`, `BGS ${par('dBgs')} t/m³`, `CAP ${par('cap') * 100}%`, `EAI ${par('eai')} kg/m²`, `RR-1C ${par('rr')} kg/m²`, `xisto ${par('xisto')} L/t`]);
       download(`simulacao_materiais_PR-990_${today()}.csv`, L.map(r => r.map(csvCell).join(';')).join('\n')); };
     $('#a-trv').onclick = need(() => { const a = parseEstIn($('#a-tei').value), b = parseEstIn($('#a-tef').value);

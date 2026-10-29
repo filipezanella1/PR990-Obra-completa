@@ -231,6 +231,7 @@
     </div>
 
     <div class="panel sim-brush">
+      <div class="sb-row"><span class="label">Mês da pintura</span><div class="sb-chips" id="s-meses"></div><span class="sp"></span><label class="lbl">1º mês <input type="month" id="s-mini"></label></div>
       <div class="sb-row"><span class="label">Pincel – serviços pintados juntos</span><div class="sb-chips" id="s-brush"></div></div>
       <div class="sb-row sb-act">
         <div class="seg" id="s-mode"><button type="button" data-m="add">Marcar</button><button type="button" data-m="del">Apagar</button></div>
@@ -241,18 +242,18 @@
         <button class="btn" type="button" data-print="simulacao">PDF</button>
         <button class="btn primary" type="button" id="s-csv">Exportar (CSV)</button>
       </div>
-      <p class="note">Escolha os serviços no pincel e toque ou arraste sobre as estacas: todos os serviços do pincel são marcados juntos. Com um só serviço no pincel, a pintura vale só para a linha tocada.</p>
+      <p class="note">Escolha o mês e os serviços do pincel e toque ou arraste sobre as estacas: cada célula fica com a cor e o número do mês. Todos os serviços do pincel são marcados juntos; com um só serviço, vale só a linha tocada. Pintar por cima troca o mês da célula.</p>
     </div>
 
     <div class="sim-kpis" id="s-kpis"></div>
 
     <div class="row2 sim-row">
       <div class="panel"><h3>Avanço por serviço</h3><p class="note">Extensão executada, simulada e restante de cada camada (km).</p><div id="s-bars"></div></div>
-      <div class="panel"><h3>Quadro de materiais</h3><div class="tbl-wrap" id="s-tab"></div></div>
+      <div class="panel"><h3>Quadro de materiais por mês</h3><div class="tbl-wrap" id="s-tab"></div></div>
     </div>
 
     <p class="note tip" id="s-tip" role="status"></p>
-    <div class="panel sim-gridp"><div class="legend av-legend"><span class="lg1"><i class="sw grn"></i>executado</span><span class="lg1"><i class="sw atk"></i>em execução (atacado)</span><span class="lg1"><i class="sw sel"></i>simulado</span><span class="lg1"><i class="sw"></i>a executar</span></div><div class="retig" id="s-grid"></div></div>
+    <div class="panel sim-gridp"><div class="legend av-legend" id="s-legend"></div><div class="retig" id="s-grid"></div></div>
 
     <details class="panel sim-prem"><summary><b>Premissas de cálculo</b> <span class="note" id="s-prem-sum"></span></summary>
       <div class="sim-par">
