@@ -864,12 +864,14 @@ export function initObra(X) {
         ${GR.map((g, gi) => `<tr><td>${esc(g.n)}</td><td class="n">${NF[4].format(g.R)}</td>${MESES.map(ym => `<td class="n"><input class="ap-fi" data-g="${gi}" data-ym="${ym}" inputmode="decimal" value="${fin(+((OFIN[gi] || {})[ym]) || 0)}" placeholder="0,00" aria-label="${esc(g.n)} ${mesNomeS(ym)}"></td>`).join('')}</tr>`).join('')}
         <tr class="tot"><td colspan="2">Total demais serviços (PI)</td>${oth.map(o => `<td class="n">${fR(o.pi)}</td>`).join('')}</tr></tbody></table></div>
         ${cffGet() ? '<button type="button" class="btn sm" id="ap-fin-cff">Trazer do cronograma físico-financeiro</button> ' : ''}<button type="button" class="lnk" id="ap-fin-clr">Limpar lançamentos</button></div>` : ''}` });
-    const CF = cffGet(); let nx = 6;
+    const CF = cffGet(); let nx = 5;
     if (CF) SL.push({ t: 'Cronograma físico-financeiro', h: cffSlide(A, CF, GR, String(nx++).padStart(2, '0')) });
     // 7 · atenção
     if (X.unlocked() && MED) SL.push({ t: 'Curva S', h: `<div class="ap-h"><span class="ap-n">${String(nx++).padStart(2, '0')}</span><h3>Curva S financeira</h3><p>Medido acumulado até a ${MED.n}ª medição e previsão até o fim do plano, a preço inicial do contrato.</p></div><div class="ap-cv">${curvaHTML(false)}</div>` });
     SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">${String(nx).padStart(2, '0')}</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
       <div class="ap-att">${A.att.map(a => `<div class="ap-a ${a.k}"><span class="ic">${a.k === 'ok' ? '✓' : a.k === 'warn' ? '!' : 'i'}</span><div><b>${esc(a.t)}</b><p>${esc(a.d)}</p></div></div>`).join('')}</div>` });
+    // slides Valores e Pontos de atenção retirados da apresentação (pedido da diretoria): o cronograma físico-financeiro substitui os valores
+    for (let k = SL.length - 1; k >= 0; k--) if (SL[k].t === 'Valores' || SL[k].t === 'Pontos de atenção') SL.splice(k, 1);
     if (AS >= SL.length) AS = SL.length - 1;
     $('#ap-deck').innerHTML = SL.map((s, i) => `<section class="ap-slide${i === 0 ? ' cover' : ''}${i === AS ? ' on' : ''}" data-s="${i}" aria-label="${esc(s.t)}"${i === AS ? '' : ' aria-hidden="true"'}>${s.h}<span class="ap-pg">${i + 1} / ${SL.length}</span></section>`).join('');
     $('#ap-dots').innerHTML = SL.map((s, i) => `<button type="button" class="${i === AS ? 'on' : ''}" data-go="${i}" title="${esc(s.t)}" aria-label="${esc(s.t)}"></button>`).join('');
