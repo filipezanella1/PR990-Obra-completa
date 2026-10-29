@@ -691,10 +691,10 @@ export function initObra(X) {
   const CFPAV = [1, 2];   // grupos do contrato calculados pela simulação: PAVIMENTAÇÃO e LIGANTES BETUMINOSOS
   let CFM = store.get('cffModo', 'aj');
   const cffGet = () => { const c = [D.cff, store.get('cffLocal', null)].filter(Boolean); return c.sort((a, b) => String(b.em || '').localeCompare(String(a.em || '')))[0] || null; };
-  // saldo a executar de cada grupo pelo estudo de aditivo e supressão: saldo do CFF (contrato − medido) + acréscimos − supressões
-  // (os acréscimos entram porque o saldo do CFF já desconta o que foi medido acima do contrato). Meses: distribuição do CFF na mesma proporção.
+  // saldo a executar de cada grupo: saldo do CFF (contrato − medido) menos as supressões do estudo de aditivo e supressão
+  // (serviços que não serão executados). Meses: distribuição do CFF na mesma proporção.
   function cffAdj(CF) {
-    const AD = D.aditivo; return CF.grupos.map((g, gi) => { const ad = AD && AD.grupos[gi] || { acr: 0, sup: 0 }; const exe = Math.max(0, g.saldo + ad.acr + ad.sup);
+    const AD = D.aditivo; return CF.grupos.map((g, gi) => { const ad = AD && AD.grupos[gi] || { acr: 0, sup: 0 }; const exe = Math.max(0, g.saldo + ad.sup);
       const base = g.v.reduce((x, y) => x + y, 0); const v = base > 0.005 ? g.v.map(x => x * exe / base) : g.v.map((x, j) => j === g.v.length - 1 ? exe : 0); return { acr: ad.acr, sup: ad.sup, exe, v }; });
   }
   function cffData(A, CF, GR) {
@@ -703,7 +703,7 @@ export function initObra(X) {
     const rows = CF.grupos.map((g, gi) => { const o = Object.fromEntries(cols.map(ym => [ym, (g.v[CF.meses.indexOf(ym)] || 0)]));
       const pav = CFPAV.includes(gi), aj = AJ[gi]; const a = Object.fromEntries(cols.map(ym => [ym, pav && MESES.includes(ym) ? sim[gi][ym] || 0 : (aj.v[CF.meses.indexOf(ym)] || 0)]));
       const v = CFM === 'aj' ? a : o; const tot = cols.reduce((s, ym) => s + v[ym], 0);
-      return { i: g.i, n: (GR[gi] && GR[gi].n) || g.n, saldo: g.saldo, pav: pav && CFM === 'aj', adj: CFM === 'aj' && (pav || Math.abs(aj.exe - g.saldo) > 1), acr: aj.acr, sup: aj.sup, exe: aj.exe, v, tot, R: (GR[gi] || {}).R || 0 }; });
+      return { i: g.i, n: (GR[gi] && GR[gi].n) || g.n, saldo: g.saldo, pav: pav && CFM === 'aj', adj: CFM === 'aj' && (pav || Math.abs(aj.exe - g.saldo) > 1), acr: 0, sup: aj.sup, exe: aj.exe, v, tot, R: (GR[gi] || {}).R || 0 }; });
     const mt = cols.map(ym => rows.reduce((s, r) => s + r.v[ym], 0)), mr = cols.map(ym => rows.reduce((s, r) => s + r.v[ym] * r.R, 0));
     return { cols, rows, mt, mr, tot: mt.reduce((a, b) => a + b, 0), saldo: rows.reduce((s, r) => s + r.saldo, 0), exe: rows.reduce((s, r) => s + r.exe, 0), sup: rows.reduce((s, r) => s + r.sup, 0), acr: rows.reduce((s, r) => s + r.acr, 0) };
   }
@@ -711,17 +711,17 @@ export function initObra(X) {
     const Q = cffData(A, CF, GR); let ac = 0; const R0 = x => fR(x) === '–' ? 'R$ 0,00' : fR(x); const pc = v => Q.tot ? NF[2].format(v / Q.tot * 100) + '%' : '–'; const cffN = s => s.replace(/ E OBRAS DE ARTE CORRENTES/, ' & OAC').replace(/OBRAS DE ARTE ESPECIAIS – /, 'OAE - ').replace('SERVIÇOS COMPLEMENTARES', 'OBRAS COMPLEMENTARES');
     const pav = Q.rows.filter((r, gi) => CFPAV.includes(gi)); const pavT = pav.reduce((s, r) => s + r.tot, 0), pavS = pav.reduce((s, r) => s + r.saldo, 0);
     const mx = Math.max(1, ...Q.mt.map((v, j) => v + Q.mr[j]));
-    return `<div class="ap-h"><span class="ap-n">${num0}</span><h3>Cronograma físico-financeiro</h3><p>${esc(CF.arquivo || CF.fonte)} · saldo contratual a preço inicial (PI) por grupo. ${CFM === 'aj' ? `<b>Ajustado:</b> sem os serviços suprimidos no estudo de aditivo e supressão (saldo + acréscimos − supressões, distribuído nos meses como no CFF) e com pavimentação e ligantes nos meses da simulação (${MESES.map(mesNomeS).join(', ')}) pelos volumes da Simulação.` : '<b>Original</b> da contratada.'}</p></div>
+    return `<div class="ap-h"><span class="ap-n">${num0}</span><h3>Cronograma físico-financeiro</h3><p>${esc(CF.arquivo || CF.fonte)} · saldo contratual a preço inicial (PI) por grupo. ${CFM === 'aj' ? `<b>Ajustado:</b> sem os serviços suprimidos no estudo de aditivo e supressão (saldo − supressões, distribuído nos meses como no CFF) e com pavimentação e ligantes nos meses da simulação (${MESES.map(mesNomeS).join(', ')}) pelos volumes da Simulação.` : '<b>Original</b> da contratada.'}</p></div>
       <div class="cf-top"><span class="seg cf-seg"><button type="button" class="${CFM === 'aj' ? 'on' : ''}" data-cfm="aj">Ajustado pela simulação</button><button type="button" class="${CFM === 'orig' ? 'on' : ''}" data-cfm="orig">Original</button></span>
-        <div class="cf-k"><div><b>${mi$(Q.saldo)}</b><span>saldo contratual (CFF)</span></div>${CFM === 'aj' && D.aditivo ? `<div class="w"><b>${mi$(Q.sup)}</b><span>supressões (estudo)</span></div><div><b>${mi$(Q.acr)}</b><span>acréscimos (estudo)</span></div>` : ''}<div><b>${mi$(Q.tot)}</b><span>programado (PI)</span></div><div><b>${mi$(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b><span>programado (PI + R)</span></div></div></div>
+        <div class="cf-k"><div><b>${mi$(Q.saldo)}</b><span>saldo contratual (CFF)</span></div>${CFM === 'aj' && D.aditivo ? `<div class="w"><b>${mi$(Q.sup)}</b><span>supressões (estudo)</span></div><div><b>${mi$(Q.exe)}</b><span>saldo a executar</span></div>` : ''}<div><b>${mi$(Q.tot)}</b><span>programado (PI)</span></div><div><b>${mi$(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b><span>programado (PI + R)</span></div></div></div>
       <div class="cff-wrap"><table class="cff">
         <thead><tr class="cff-h"><th colspan="${CFM === 'aj' ? 6 : 4}" class="cff-tt">CRONOGRAMA FÍSICO X FINANCEIRO${CFM === 'aj' ? '<small>ajustado · supressões do estudo e pavimentação da simulação</small>' : ''}</th><th colspan="${Q.cols.length}" class="cff-ob"><dl><dt>OBRA:</dt><dd>PR-364 - Cidade de Rebouças</dd><dt>CONTRATO:</dt><dd>CO 050/2024 DER/DT</dd><dt>EMPRESA:</dt><dd>TCE ENGENHARIA LTDA.</dd></dl></th></tr>
-        <tr class="cff-c"><th>ITEM</th><th>DISCRIMINAÇÃO</th><th>SALDO CONTRATUAL</th>${CFM === 'aj' ? '<th>SUPRESSÕES / ACRÉSCIMOS</th><th>SALDO A EXECUTAR</th>' : ''}<th></th>${Q.cols.map(ym => `<th class="${MESES.includes(ym) ? 'sim' : ''}">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}</tr></thead>
-        ${Q.rows.map(r => `<tbody class="cff-g${r.pav ? ' adj' : r.adj ? ' adj2' : ''}"><tr><td rowspan="2" class="it">${r.i}</td><td rowspan="2" class="ds">${esc(cffN(r.n))}${r.pav ? `<small>volumes da simulação${Math.abs(r.tot - r.exe) > 1 ? ` · ${fR(r.tot - r.exe)} p/ saldo a executar` : ''}</small>` : ''}</td><td rowspan="2" class="sd">${R0(r.saldo)}</td>${CFM === 'aj' ? `<td rowspan="2" class="sa">${r.sup ? `<span class="s">${fR(r.sup)}</span>` : ''}${r.acr ? `<span class="a">+${fR(r.acr)}</span>` : ''}${!r.sup && !r.acr ? '–' : ''}</td><td rowspan="2" class="sd ex">${R0(r.exe)}</td>` : ''}<td class="u">R$</td>${Q.cols.map(ym => `<td class="v">${R0(r.v[ym])}</td>`).join('')}</tr>
+        <tr class="cff-c"><th>ITEM</th><th>DISCRIMINAÇÃO</th><th>SALDO CONTRATUAL</th>${CFM === 'aj' ? '<th>SUPRESSÕES</th><th>SALDO A EXECUTAR</th>' : ''}<th></th>${Q.cols.map(ym => `<th class="${MESES.includes(ym) ? 'sim' : ''}">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}</tr></thead>
+        ${Q.rows.map(r => `<tbody class="cff-g${r.pav ? ' adj' : r.adj ? ' adj2' : ''}"><tr><td rowspan="2" class="it">${r.i}</td><td rowspan="2" class="ds">${esc(cffN(r.n))}${r.pav ? `<small>volumes da simulação${Math.abs(r.tot - r.exe) > 1 ? ` · ${fR(r.tot - r.exe)} p/ saldo a executar` : ''}</small>` : ''}</td><td rowspan="2" class="sd">${R0(r.saldo)}</td>${CFM === 'aj' ? `<td rowspan="2" class="sa">${r.sup ? `<span class="s">${fR(r.sup)}</span>` : '–'}</td><td rowspan="2" class="sd ex">${R0(r.exe)}</td>` : ''}<td class="u">R$</td>${Q.cols.map(ym => `<td class="v">${R0(r.v[ym])}</td>`).join('')}</tr>
           <tr class="pc"><td class="u">%</td>${Q.cols.map(ym => { const x = r.tot ? r.v[ym] / r.tot : 0; return `<td class="${x > 0.00005 ? 'on' : ''}">${NF[2].format(x * 100)}%</td>`; }).join('')}</tr></tbody>`).join('')}
         <tfoot>${[['VALOR TOTAL DO MÊS PREVISTO', 'R$', Q.mt.map(v => fR(v))], ['PERCENTUAL DO MÊS PREVISTO', '%', Q.mt.map(v => pc(v))], ['VALOR TOTAL ACUMULADO PREVISTO', 'R$', Q.mt.map(v => { ac += v; return fR(ac); })], ['PERCENTUAL ACUMULADO PREVISTO', '%', (() => { let c = 0; return Q.mt.map(v => { c += v; return pc(c); }); })()], ['REAJUSTE ESTIMADO (R)', 'R$', Q.mr.map(v => fR(v)), 'r'], ['VALOR TOTAL DO MÊS PREVISTO (PI + R)', 'R$', Q.mt.map((v, j) => fR(v + Q.mr[j])), 'r']]
           .map(([l, u, vs, c]) => `<tr class="${c || ''}"><td colspan="${CFM === 'aj' ? 5 : 3}" class="fl">${l}</td><td class="u">${u}</td>${vs.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tfoot></table></div>
-      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Valores a preço inicial (PI); reajuste pelo coeficiente R de cada grupo (25ª medição). Meses com quadrado colorido = meses da simulação.${CFM === 'aj' && D.aditivo ? ' Saldo a executar = saldo do CFF + acréscimos − supressões do estudo de aditivo (o saldo do CFF já desconta o que foi medido acima do contrato, por isso os acréscimos entram).' : ''}</span>
+      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Valores a preço inicial (PI); reajuste pelo coeficiente R de cada grupo (25ª medição). Meses com quadrado colorido = meses da simulação.${CFM === 'aj' && D.aditivo ? ' Saldo a executar = saldo do CFF − supressões do estudo de aditivo e supressão (serviços que não serão executados).' : ''}</span>
         <span><button type="button" class="btn sm" id="cf-ofin">Levar demais grupos para a produção financeira</button> <label class="btn sm file">Importar CFF (PDF)<input type="file" id="cf-pdf" accept="application/pdf,.pdf" hidden></label></span></div><p class="note" id="cf-msg" role="status"></p>`;
   }
   // demais grupos do CFF → lançamento manual da produção financeira (mês sem simulação vai para o primeiro mês seguinte da simulação: faturamento)
@@ -867,7 +867,7 @@ export function initObra(X) {
     const CF = cffGet(); let nx = 5;
     if (CF) SL.push({ t: 'Cronograma físico-financeiro', h: cffSlide(A, CF, GR, String(nx++).padStart(2, '0')) });
     // 7 · atenção
-    if (X.unlocked() && MED) SL.push({ t: 'Curva S', h: `<div class="ap-h"><span class="ap-n">${String(nx++).padStart(2, '0')}</span><h3>Curva S financeira</h3><p>Medido acumulado até a ${MED.n}ª medição e previsão até o fim do plano, a preço inicial do contrato.</p></div><div class="ap-cv">${curvaHTML(false)}</div>` });
+    const CdS = curvaData(); if (CdS) SL.push({ t: 'Curva S', h: `<div class="ap-h"><span class="ap-n">${String(nx++).padStart(2, '0')}</span><h3>Curva S financeira</h3><p>Medido acumulado até a ${CdS.N}ª medição e previsão pelo cronograma físico-financeiro, a preço inicial do contrato.</p></div><div class="ap-cv">${curvaHTML(false)}</div>` });
     SL.push({ t: 'Pontos de atenção', h: `<div class="ap-h"><span class="ap-n">${String(nx).padStart(2, '0')}</span><h3>Pontos de atenção</h3><p>Verificações automáticas do plano.</p></div>
       <div class="ap-att">${A.att.map(a => `<div class="ap-a ${a.k}"><span class="ic">${a.k === 'ok' ? '✓' : a.k === 'warn' ? '!' : 'i'}</span><div><b>${esc(a.t)}</b><p>${esc(a.d)}</p></div></div>`).join('')}</div>` });
     // slides Valores e Pontos de atenção retirados da apresentação (pedido da diretoria): o cronograma físico-financeiro substitui os valores
@@ -957,19 +957,29 @@ export function initObra(X) {
     const t = (m.arquivo || m.nome || '').toLowerCase(); const mm = /(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\W{0,4}(\d{4})/.exec(t);
     return mm ? `${mm[2]}-${String(MESX[mm[1]]).padStart(2, '0')}` : null;
   }
-  function curvaData() {
-    if (!MED) return null; const m = MED, N = m.n || 1;
+  // base realizada da curva (medições): com a senha vem da medição; sem a senha, do retrato público (data/curva.json ou versão mestra)
+  function curvaBase() {
+    if (!MED) { const sp = store.get('curvaPub', null); const a = D.curva, b = sp; return (b && (!a || (b.N || 0) >= (a.N || 0))) ? b : a || null; }
+    const m = MED, N = m.n || 1;
     const tot = m.itens.reduce((s, i) => s + i.q * i.p, 0), acum = m.itens.reduce((s, i) => s + i.acum * i.p, 0), liq = m.itens.reduce((s, i) => s + i.liq * i.p, 0), ant = acum - liq;
     const mem = {}; for (const it of m.itens) for (const r of it.r) if (r[4] >= 1 && r[4] < N) mem[r[4]] = (mem[r[4]] || 0) + Math.max(0, r[3] * it.p);
     const H = cvH(); const known = Object.entries(H).filter(([n]) => +n < N).reduce((s, [, v]) => s + v, 0); const rem = Math.max(0, ant - known);
     const apx = []; for (let n = 1; n < N; n++) if (H[n] === undefined) apx.push(n); const memA = apx.reduce((s, n) => s + (mem[n] || 0), 0);
     const mN = medMes(m) || ymNow(); const ym0 = ymAdd(mN, -(N - 1));
-    const hist = []; for (let n = 1; n <= N; n++) { const inf = H[n] !== undefined; const v = n === N ? (inf ? H[n] : liq) : inf ? H[n] : (memA ? (mem[n] || 0) / memA * rem : rem / Math.max(1, apx.length)); hist.push({ n, ym: ymAdd(ym0, n - 1), v, src: inf ? 'informado' : n === N ? 'medição' : 'aproximado' }); }
-    const G = cvG(); const gap = []; const p0 = MESES[0]; for (let y = ymNext(mN); ymCmp(y, p0) < 0 && gap.length < 24; y = ymNext(y)) gap.push({ ym: y, v: +G[y] || 0 });
-    const A = aprData(); const GR = X.reajG ? X.reajG() : [];
-    const plan = MESES.map((ym, i) => { let o = 0; GR.forEach((g, gi) => { o += +((OFIN[gi] || {})[ym]) || 0; }); return { ym, i, pav: A.val[i].pi, out: o, v: A.val[i].pi + o }; });
+    const hist = []; for (let n = 1; n <= N; n++) { const inf = H[n] !== undefined; const v = n === N ? (inf ? H[n] : liq) : inf ? H[n] : (memA ? (mem[n] || 0) / memA * rem : rem / Math.max(1, apx.length)); hist.push({ n, ym: ymAdd(ym0, n - 1), v: Math.round(v * 100) / 100, src: inf ? 'informado' : n === N ? 'medição' : 'aproximado' }); }
+    const snap = { N, mN, tot: Math.round(tot * 100) / 100, liq: Math.round(liq * 100) / 100, reaj: m.oficial && m.oficial.reajAcum || 0, hist, apx: apx.length, gapG: cvG() };
+    try { const cur = store.get('curvaPub', null); if (!cur || JSON.stringify(cur) !== JSON.stringify(snap)) store.set('curvaPub', snap); } catch { }
+    return snap;
+  }
+  function curvaData() {
+    const B = curvaBase(); if (!B) return null; const { N, mN, tot, liq, reaj, hist, apx } = B; const G = MED ? cvG() : (B.gapG || {});
+    const A = aprData(); const GR = X.reajG ? X.reajG() : []; const CF = cffGet();
+    let plan, fonte;
+    if (CF) { const Q = cffData(A, CF, GR); plan = Q.cols.map((ym, j) => ({ ym, i: MESES.indexOf(ym), v: Q.mt[j] })).filter(p => ymCmp(p.ym, mN) > 0); fonte = 'cff'; }
+    else { plan = MESES.map((ym, i) => { let o = 0; GR.forEach((g, gi) => { o += +((OFIN[gi] || {})[ym]) || 0; }); return { ym, i, v: A.val[i].pi + o }; }); fonte = 'sim'; }
+    const gap = []; const p0 = plan.length ? plan[0].ym : ymNext(mN); for (let y = ymNext(mN); ymCmp(y, p0) < 0 && gap.length < 24; y = ymNext(y)) gap.push({ ym: y, v: +G[y] || 0 });
     const real = hist.reduce((s, h) => s + h.v, 0);
-    return { m, N, tot, acum: real, liq, reaj: m.oficial && m.oficial.reajAcum, hist, gap, plan, mN, apx: apx.length };
+    return { m: MED, N, tot, acum: real, liq, reaj, hist, gap, plan, mN, apx, fonte };
   }
   function curvaSVG(Cd, big) {
     const pts = [...Cd.hist.map(h => ({ ym: h.ym, v: h.v, k: 'r' })), ...Cd.gap.map(g => ({ ym: g.ym, v: g.v, k: 'g' })), ...Cd.plan.map(p => ({ ym: p.ym, v: p.v, k: 'p', i: p.i }))];
@@ -982,7 +992,7 @@ export function initObra(X) {
     let g = '';
     for (let k = 0; k <= 4; k++) { const v = ymax / 1.06 * k / 4; g += `<line x1="${pl}" x2="${W - pr}" y1="${ys(v)}" y2="${ys(v)}" class="gr"/><text x="${pl - 6}" y="${ys(v) + 4}" class="yt">${NF[0].format(v / 1e6)}</text>`; }
     g += `<text x="${pl - 6}" y="${pt - 6}" class="yt">R$ mi</text>`;
-    pts.forEach((p, i) => { const h = yb(p.v); g += `<rect x="${xs(i) - bw * .32}" y="${H - pb - h}" width="${bw * .64}" height="${h}" class="b ${p.k}"${p.k === 'p' ? ` fill="${MCOL[p.i]}"` : ''}><title>${mesNomeS(p.ym)}: ${fR(p.v)}</title></rect>`;
+    pts.forEach((p, i) => { const h = yb(p.v); g += `<rect x="${xs(i) - bw * .32}" y="${H - pb - h}" width="${bw * .64}" height="${h}" class="b ${p.k}"${p.k === 'p' ? ` fill="${p.i >= 0 ? MCOL[p.i] : '#8a949c'}"` : ''}><title>${mesNomeS(p.ym)}: ${fR(p.v)}</title></rect>`;
       if (i % tick === 0 || p.k === 'p') g += `<text x="${xs(i)}" y="${H - 12}" class="xt" text-anchor="middle">${mesNomeS(p.ym)}</text>`; });
     g += `<line x1="${pl}" x2="${W - pr}" y1="${ys(Cd.tot)}" y2="${ys(Cd.tot)}" class="ct"/><text x="${W - pr + 6}" y="${ys(Cd.tot) + 4}" class="cl">Contrato ${mi$(Cd.tot)}</text>`;
     const pr_ = pts.slice(0, lastR + 1).map((p, i) => `${xs(i).toFixed(1)},${ys(p.c).toFixed(1)}`).join(' ');
@@ -998,10 +1008,10 @@ export function initObra(X) {
     const Cd = curvaData(); if (!Cd) return '<p class="note">Sem medição carregada.</p>';
     const fim = Cd.acum + Cd.gap.reduce((s, g) => s + g.v, 0) + Cd.plan.reduce((s, p) => s + p.v, 0);
     const k = (l, v, s) => `<div class="cv-k"><span>${l}</span><b>${v}</b><small>${s}</small></div>`;
-    let h = `<div class="cv-kpis">${k('Medido acumulado (PI)', mi$(Cd.acum), `${fPc(Cd.acum / Cd.tot)} do contrato · até a ${Cd.N}ª medição (${mesNomeS(Cd.mN)})`)}${Cd.reaj ? k('Reajuste acumulado', mi$(Cd.reaj), `PI + R: ${mi$(Cd.acum + Cd.reaj)}`) : ''}${k(`Previsto até ${mesNomeS(MESES[MESES.length - 1])}`, mi$(fim), `${fPc(fim / Cd.tot)} do contrato`)}${k('Saldo após o plano', mi$(Cd.tot - fim), `de ${mi$(Cd.tot)} do contrato (PI)`)}</div>
+    let h = `<div class="cv-kpis">${k('Medido acumulado (PI)', mi$(Cd.acum), `${fPc(Cd.acum / Cd.tot)} do contrato · até a ${Cd.N}ª medição (${mesNomeS(Cd.mN)})`)}${Cd.reaj ? k('Reajuste acumulado', mi$(Cd.reaj), `PI + R: ${mi$(Cd.acum + Cd.reaj)}`) : ''}${k(`Previsto até ${mesNomeS(Cd.plan.length ? Cd.plan[Cd.plan.length - 1].ym : MESES[MESES.length - 1])}`, mi$(fim), `${fPc(fim / Cd.tot)} do contrato`)}${k('Saldo após o plano', mi$(Cd.tot - fim), `de ${mi$(Cd.tot)} do contrato (PI)`)}</div>
       <div class="cv-sc">${curvaSVG(Cd, !edit)}</div>
-      <div class="ap-leg cv-leg"><span><i class="lr"></i>medido acumulado</span><span><i class="lp"></i>previsto acumulado</span><span><i class="br"></i>medido no mês</span>${Cd.gap.length ? '<span><i class="bg"></i>meses ainda sem medição (informados)</span>' : ''}<span><i style="background:${MCOL[0]}"></i>plano da Simulação + demais serviços</span><span><i class="ct"></i>valor do contrato</span></div>
-      <p class="note">${Cd.apx ? `Valores das medições anteriores à ${Cd.N}ª: ${Cd.apx} aproximados pela distribuição das memórias de cálculo, ajustados ao acumulado oficial. ` : ''}Projeção a preço inicial (PI): pavimentação pela Simulação e demais serviços lançados na Apresentação${Cd.gap.length ? '; meses sem medição conforme informado abaixo' : ''}.</p>`;
+      <div class="ap-leg cv-leg"><span><i class="lr"></i>medido acumulado</span><span><i class="lp"></i>previsto acumulado</span><span><i class="br"></i>medido no mês</span>${Cd.gap.length ? '<span><i class="bg"></i>meses ainda sem medição (informados)</span>' : ''}<span><i style="background:${MCOL[0]}"></i>${Cd.fonte === 'cff' ? `cronograma físico-financeiro (${CFM === 'aj' ? 'ajustado' : 'original'})` : 'plano da Simulação + demais serviços'}</span><span><i class="ct"></i>valor do contrato</span></div>
+      <p class="note">${Cd.apx ? `Valores das medições anteriores à ${Cd.N}ª: ${Cd.apx} aproximados pela distribuição das memórias de cálculo, ajustados ao acumulado oficial. ` : ''}Projeção a preço inicial (PI): ${Cd.fonte === 'cff' ? `valores do cronograma físico-financeiro (${CFM === 'aj' ? 'ajustado: pavimentação pela Simulação e sem as supressões do estudo' : 'original da contratada'}; troque no slide do cronograma)` : 'pavimentação pela Simulação e demais serviços lançados na Apresentação'}${Cd.gap.length ? '; meses sem medição conforme informado abaixo' : ''}.</p>`;
     if (edit) h += `<details class="cv-ed"><summary>Editar valores por medição e meses sem medição</summary><div class="cv-grid">
         ${Cd.hist.map(x => `<label class="lbl"><span>${x.n}ª · ${mesNomeS(x.ym)} <small class="${x.src === 'informado' ? 'inf' : ''}">${x.src}</small></span><input class="cv-in" data-n="${x.n}" inputmode="decimal" value="${NF[2].format(x.v)}"></label>`).join('')}
         ${Cd.gap.map(x => `<label class="lbl"><span>${mesNomeS(x.ym)} <small>previsto</small></span><input class="cv-gap" data-ym="${x.ym}" inputmode="decimal" value="${x.v ? NF[2].format(x.v) : ''}" placeholder="0,00"></label>`).join('')}
