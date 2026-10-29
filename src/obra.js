@@ -1158,7 +1158,7 @@ export function initObra(X) {
     const host = $('#mm-body'); if (!host) return;
     if (!D.mem) { host.innerHTML = '<p class="note">Carregando a memória justificativa…</p>'; try { await memLoad(); } catch (e) { host.innerHTML = `<p class="note warn">Não foi possível carregar a memória justificativa (${esc(e.message)}). Abra uma vez com internet.</p>`; return; } }
     const m = D.mem;
-    $('#mm-docs').innerHTML = `<button type="button" class="chip${!MDOC ? ' on' : ''}" data-md="">Todos os tomos</button>` + m.docs.map(d => `<button type="button" class="chip${MDOC === d.id ? ' on' : ''}" data-md="${d.id}">${esc(d.n)} <small>${d.pages.length} p.</small></button>`).join('');
+    $('#mm-docs').innerHTML = `<button type="button" class="chip${!MDOC ? ' on' : ''}" data-md="">Todos</button>` + m.docs.map(d => `<button type="button" class="chip${MDOC === d.id ? ' on' : ''}" data-md="${d.id}">${esc(d.n)} <small>${d.pages.length} p.</small></button>`).join('');
     if (MPG) { const d = m.docs.find(x => x.id === MPG.d); const i = MPG.p - 1; const s = secOf(d, MPG.p); const terms = nrm(MQ).split(/\s+/).filter(Boolean);
       host.innerHTML = `<div class="mm-rd"><div class="mm-bar"><button type="button" class="btn sm" data-mback>← ${MQ ? 'Resultados' : 'Sumário'}</button><b>${esc(d.n)}</b><span class="note">${s ? esc(s.s + ' ' + s.t) + ' · ' : ''}página ${MPG.p} de ${d.pages.length}</span><span class="sp"></span>
         <button type="button" class="btn sm" data-mpg="${MPG.p - 1}"${MPG.p <= 1 ? ' disabled' : ''}>‹</button><button type="button" class="btn sm" data-mpg="${MPG.p + 1}"${MPG.p >= d.pages.length ? ' disabled' : ''}>›</button>
@@ -1186,7 +1186,7 @@ export function initObra(X) {
   // ===================================================================== CONTROLE TECNOLÓGICO
   let CTG = '', CTE = store.get('ctEns', {}), TRC = store.get('tracos', null), TRP = store.get('tracoPar', { ra: 1.50, rb: 1.45 });
   const trc = () => TRC || JSON.parse(JSON.stringify(D.controle.tracos));
-  const srcLink = s => s ? `<button type="button" class="lnk ct-src" data-src="${s[0]}|${s[1]}">${s[0] === 't1' ? 'Tomo I' : s[0] === 't2' ? 'Tomo II' : 'Tomo III'}, p. ${s[1]}</button>` : '<span class="note">contrato</span>';
+  const srcLink = s => s ? `<button type="button" class="lnk ct-src" data-src="${s[0]}|${s[1]}">${({ t1: 'Tomo I', t2: 'Tomo II', t3: 'Tomo III', t4: 'Anexo 3A' })[s[0]]}, p. ${s[1]}</button>` : '<span class="note">contrato</span>';
   function ctCheck(it, val) {
     if (val === '' || val === undefined || val === null) return '';
     const x = parseFloat(String(val).replace(',', '.')); if (!Number.isFinite(x) || it.t === 'info') return '';
