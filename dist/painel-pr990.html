@@ -1162,6 +1162,33 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
 .cf-t tfoot td { border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .cf-t .cf-d { color: var(--contr); }
 .cf-t td:nth-child(2) { white-space: nowrap; }
+/* CFF no formato da contratada */
+.cff-wrap { overflow-x: auto; border: 1px solid #2b3238; border-radius: 6px; background: #fff; color: #1d2226; }
+.cff { width: 100%; border-collapse: collapse; font: 500 clamp(.68rem, 1.05cqw, .86rem)/1.25 var(--f-body, system-ui); font-variant-numeric: tabular-nums; min-width: 760px; }
+.cff th, .cff td { border: 1px solid #c7ccd1; padding: 4px 8px; text-align: center; white-space: nowrap; }
+.cff .cff-h th { border-color: #2b3238; background: #fff; padding: 8px 10px; }
+.cff .cff-tt { font: 700 .95em var(--f-display); letter-spacing: .04em; vertical-align: middle; }
+.cff .cff-tt small { display: block; font: 600 .78em var(--f-body, system-ui); color: #b06d00; letter-spacing: 0; text-transform: none; margin-top: 2px; }
+.cff .cff-ob dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 14px; margin: 0; text-align: left; font-size: .9em; }
+.cff .cff-ob dt { font-weight: 700; } .cff .cff-ob dd { margin: 0; }
+.cff .cff-c th { background: #eef1f3; font: 700 .82em var(--f-display); letter-spacing: .05em; border-top: 2px solid #2b3238; border-bottom: 2px solid #2b3238; }
+.cff .cff-c th.sim { background: #fdf3dc; }
+.cff tbody td.it { width: 3em; color: #5f6870; }
+.cff tbody td.ds { text-align: center; font-weight: 600; letter-spacing: .02em; }
+.cff tbody td.ds small { display: block; font-weight: 600; font-size: .78em; color: #b06d00; letter-spacing: 0; }
+.cff tbody td.sd { font-weight: 600; }
+.cff td.u { width: 2.4em; color: #5f6870; font-size: .85em; border-left-color: #2b3238; }
+.cff tbody tr:first-child td { border-top: 2px solid #9aa4ad; }
+.cff tbody tr:first-child td.v { padding-bottom: 1px; border-bottom: 0; }
+.cff tbody tr.pc td { padding-top: 1px; font-size: .9em; border-top: 0; }
+.cff tbody tr.pc td.u { border-top: 1px solid #c7ccd1; }
+.cff tbody tr.pc td.on { background: #0b6fbf; color: #fff; font-weight: 600; }
+.cff tbody.adj td.ds, .cff tbody.adj td.sd, .cff tbody.adj td.it { background: #fdf3dc; }
+.cff tfoot td { background: #e4e8eb; font-weight: 700; border-color: #b9c0c6; }
+.cff tfoot tr:first-child td { border-top: 2px solid #2b3238; }
+.cff tfoot td.fl { text-align: center; letter-spacing: .03em; font-size: .92em; }
+.cff tfoot tr.r td { background: #f4f6f7; font-weight: 600; color: #3a434b; }
+.cff tfoot tr.r:last-child td { background: #dfe4e8; color: #1d2226; font-weight: 700; border-bottom: 2px solid #2b3238; }
 
 </style>
 </head>
@@ -2856,21 +2883,20 @@ function initObra(X) {
     return { cols, rows, mt, mr, tot: mt.reduce((a, b) => a + b, 0), saldo: rows.reduce((s, r) => s + r.saldo, 0) };
   }
   function cffSlide(A, CF, GR, num0) {
-    const Q = cffData(A, CF, GR); let ac = 0; const pc = v => Q.tot ? NF[2].format(v / Q.tot * 100) + '%' : '–'; const cap = s => s.charAt(0) + s.slice(1).toLowerCase().replace(/\b(oac|oae)\b/g, x => x.toUpperCase());
+    const Q = cffData(A, CF, GR); let ac = 0; const pc = v => Q.tot ? NF[2].format(v / Q.tot * 100) + '%' : '–'; const cffN = s => s.replace(/ E OBRAS DE ARTE CORRENTES/, ' & OAC').replace(/OBRAS DE ARTE ESPECIAIS – /, 'OAE - ').replace('SERVIÇOS COMPLEMENTARES', 'OBRAS COMPLEMENTARES');
     const pav = Q.rows.filter((r, gi) => CFPAV.includes(gi)); const pavT = pav.reduce((s, r) => s + r.tot, 0), pavS = pav.reduce((s, r) => s + r.saldo, 0);
     const mx = Math.max(1, ...Q.mt.map((v, j) => v + Q.mr[j]));
     return `<div class="ap-h"><span class="ap-n">${num0}</span><h3>Cronograma físico-financeiro</h3><p>${esc(CF.arquivo || CF.fonte)} · saldo contratual a preço inicial (PI) por grupo. ${CFM === 'aj' ? `<b>Ajustado:</b> pavimentação e ligantes betuminosos nos meses da simulação (${MESES.map(mesNomeS).join(', ')}) conforme o plano da Simulação; demais grupos como no cronograma da contratada.` : '<b>Original</b> da contratada.'}</p></div>
       <div class="cf-top"><span class="seg cf-seg"><button type="button" class="${CFM === 'aj' ? 'on' : ''}" data-cfm="aj">Ajustado pela simulação</button><button type="button" class="${CFM === 'orig' ? 'on' : ''}" data-cfm="orig">Original</button></span>
         <div class="cf-k"><div><b>${mi$(Q.saldo)}</b><span>saldo contratual (PI)</span></div><div><b>${mi$(Q.tot)}</b><span>programado (PI)</span></div><div><b>${mi$(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b><span>programado (PI + R)</span></div>${CFM === 'aj' ? `<div class="${Math.abs(pavT - pavS) > 1 ? 'w' : ''}"><b>${mi$(pavT - pavS)}</b><span>pavimentação + ligantes: simulação − saldo</span></div>` : ''}</div></div>
-      <div class="cf-bars">${Q.cols.map((ym, j) => `<div class="cf-b"><span class="abar"><i class="r" style="height:${Q.mr[j] / mx * 100}%"></i><i class="ot" style="height:${(Q.mt[j] - Q.rows.filter(r => r.adj).reduce((s, r) => s + r.v[ym], 0)) / mx * 100}%"></i><i style="height:${Q.rows.filter(r => r.adj).reduce((s, r) => s + r.v[ym], 0) / mx * 100}%;background:${MESES.includes(ym) ? MCOL[MESES.indexOf(ym)] : 'var(--muted)'}"></i></span><b>${mi$(Q.mt[j])}</b><em>${mesNomeS(ym)}</em></div>`).join('')}</div>
-      <div class="ap-tbl cf-t"><table><thead><tr><th>Item</th><th>Grupo</th><th class="n">Saldo contratual</th>${Q.cols.map(ym => `<th class="n">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}<th class="n">Programado</th><th class="n">Dif. p/ saldo</th></tr></thead><tbody>
-      ${Q.rows.map(r => `<tr class="${r.adj ? 'cf-adj' : ''}"><td>${r.i}</td><td>${esc(cap(r.n))}${r.adj ? ' <small>simulação</small>' : ''}</td><td class="n">${fR(r.saldo)}</td>${Q.cols.map(ym => `<td class="n">${r.v[ym] ? fR(r.v[ym]) : '–'}${r.v[ym] && r.tot ? `<small>${NF[1].format(r.v[ym] / r.tot * 100)}%</small>` : ''}</td>`).join('')}<td class="n"><b>${fR(r.tot)}</b></td><td class="n${Math.abs(r.tot - r.saldo) > 1 ? ' cf-d' : ''}">${Math.abs(r.tot - r.saldo) > 1 ? fR(r.tot - r.saldo) : '–'}</td></tr>`).join('')}
-      </tbody><tfoot><tr><td></td><td>Total do mês (PI)</td><td class="n">${fR(Q.saldo)}</td>${Q.mt.map(v => `<td class="n"><b>${fR(v)}</b></td>`).join('')}<td class="n"><b>${fR(Q.tot)}</b></td><td class="n">${Math.abs(Q.tot - Q.saldo) > 1 ? fR(Q.tot - Q.saldo) : '–'}</td></tr>
-      <tr><td></td><td>% do mês</td><td></td>${Q.mt.map(v => `<td class="n">${pc(v)}</td>`).join('')}<td class="n">100%</td><td></td></tr>
-      <tr><td></td><td>Acumulado (PI)</td><td></td>${Q.mt.map(v => { ac += v; return `<td class="n">${fR(ac)}<small>${pc(ac)}</small></td>`; }).join('')}<td></td><td></td></tr>
-      <tr><td></td><td>Reajuste estimado (R)</td><td></td>${Q.mr.map(v => `<td class="n">${fR(v)}</td>`).join('')}<td class="n">${fR(Q.mr.reduce((a, b) => a + b, 0))}</td><td></td></tr>
-      <tr><td></td><td><b>Total do mês (PI + R)</b></td><td></td>${Q.mt.map((v, j) => `<td class="n"><b>${fR(v + Q.mr[j])}</b></td>`).join('')}<td class="n"><b>${fR(Q.tot + Q.mr.reduce((a, b) => a + b, 0))}</b></td><td></td></tr></tfoot></table></div>
-      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Reajuste pelo coeficiente R de cada grupo (25ª medição). Cinza = demais grupos; cor do mês = pavimentação e ligantes.</span>
+      <div class="cff-wrap"><table class="cff">
+        <thead><tr class="cff-h"><th colspan="4" class="cff-tt">CRONOGRAMA FÍSICO X FINANCEIRO${CFM === 'aj' ? '<small>ajustado pela simulação · pavimentação e ligantes</small>' : ''}</th><th colspan="${Q.cols.length}" class="cff-ob"><dl><dt>OBRA:</dt><dd>PR-364 - Cidade de Rebouças</dd><dt>CONTRATO:</dt><dd>CO 050/2024 DER/DT</dd><dt>EMPRESA:</dt><dd>TCE ENGENHARIA LTDA.</dd></dl></th></tr>
+        <tr class="cff-c"><th>ITEM</th><th>DISCRIMINAÇÃO</th><th>SALDO CONTRATUAL</th><th></th>${Q.cols.map(ym => `<th class="${MESES.includes(ym) ? 'sim' : ''}">${MESES.includes(ym) ? `<i class="msq" style="background:${MCOL[MESES.indexOf(ym)]}"></i>` : ''}${mesNomeS(ym)}</th>`).join('')}</tr></thead>
+        ${Q.rows.map(r => `<tbody class="cff-g${r.adj ? ' adj' : ''}"><tr><td rowspan="2" class="it">${r.i}</td><td rowspan="2" class="ds">${esc(cffN(r.n))}${r.adj ? `<small>simulação${Math.abs(r.tot - r.saldo) > 1 ? ` · ${fR(r.tot - r.saldo)} p/ saldo` : ''}</small>` : ''}</td><td rowspan="2" class="sd">${fR(r.saldo) === '–' ? 'R$ 0,00' : fR(r.saldo)}</td><td class="u">R$</td>${Q.cols.map(ym => `<td class="v">${fR(r.v[ym]) === '–' ? 'R$ 0,00' : fR(r.v[ym])}</td>`).join('')}</tr>
+          <tr class="pc"><td class="u">%</td>${Q.cols.map(ym => { const x = r.tot ? r.v[ym] / r.tot : 0; return `<td class="${x > 0.00005 ? 'on' : ''}">${NF[2].format(x * 100)}%</td>`; }).join('')}</tr></tbody>`).join('')}
+        <tfoot>${[['VALOR TOTAL DO MÊS PREVISTO', 'R$', Q.mt.map(v => fR(v))], ['PERCENTUAL DO MÊS PREVISTO', '%', Q.mt.map(v => pc(v))], ['VALOR TOTAL ACUMULADO PREVISTO', 'R$', Q.mt.map(v => { ac += v; return fR(ac); })], ['PERCENTUAL ACUMULADO PREVISTO', '%', (() => { let c = 0; return Q.mt.map(v => { c += v; return pc(c); }); })()], ['REAJUSTE ESTIMADO (R)', 'R$', Q.mr.map(v => fR(v)), 'r'], ['VALOR TOTAL DO MÊS PREVISTO (PI + R)', 'R$', Q.mt.map((v, j) => fR(v + Q.mr[j])), 'r']]
+          .map(([l, u, vs, c]) => `<tr class="${c || ''}"><td colspan="3" class="fl">${l}</td><td class="u">${u}</td>${vs.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tfoot></table></div>
+      <div class="ap-fin-act"><span class="note ap-note">${CF.nota ? esc(CF.nota) + '. ' : ''}Valores a preço inicial (PI); reajuste pelo coeficiente R de cada grupo (25ª medição). Meses com quadrado colorido = meses da simulação.</span>
         <span><button type="button" class="btn sm" id="cf-ofin">Levar demais grupos para a produção financeira</button> <label class="btn sm file">Importar CFF (PDF)<input type="file" id="cf-pdf" accept="application/pdf,.pdf" hidden></label></span></div><p class="note" id="cf-msg" role="status"></p>`;
   }
   // demais grupos do CFF → lançamento manual da produção financeira (mês sem simulação vai para o primeiro mês seguinte da simulação: faturamento)
