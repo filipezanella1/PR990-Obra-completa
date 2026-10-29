@@ -1132,3 +1132,4 @@ a.nl.oc, .ms-in a[href="#planejamento"], #tab-list li[data-v="planejamento"] { d
 .mm-mk { position: absolute; background: rgba(240,180,41,.38); mix-blend-mode: multiply; border-radius: 2px; pointer-events: none; }
 .mm-off { padding: 8px 12px 0; margin: 0; }
 .mm-pg { white-space: pre; overflow-x: auto; }
+button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line); color: var(--fg); border-radius: 999px; padding: 4px 10px; margin: 2px 4px 2px 0; } button.avchip.g-pr:hover { border-color: var(--accent); }

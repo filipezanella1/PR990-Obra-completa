@@ -1167,7 +1167,7 @@ export function initObra(X) {
   }
   async function pdfPage(d, pg, terms) {
     const tok = ++PTOK; const box = $('#mm-cv'); if (!box) return;
-    pdfCached(d.file).then(h => { const o = $('#mm-off'); if (o && tok === PTOK) o.innerHTML = h ? `${esc(d.n)} guardado neste aparelho: abre sem internet. <button type="button" class="lnk" data-mdrop="${d.id}">Apagar do aparelho</button>` : `Para ver as páginas originais sem internet: <button type="button" class="lnk" data-msave="${d.id}">guardar ${esc(d.n)} neste aparelho</button> (${({ t1: 34, t2: 11, t3: 40, t4: 46 })[d.id] || ''} MB).`; });
+    pdfCached(d.file).then(h => { const o = $('#mm-off'); if (o && tok === PTOK) o.innerHTML = h ? `${esc(d.n)} guardado neste aparelho: abre sem internet. <button type="button" class="lnk" data-mdrop="${d.id}">Apagar do aparelho</button>` : `Para ver as páginas originais sem internet: <button type="button" class="lnk" data-msave="${d.id}">guardar ${esc(d.n)} neste aparelho</button> (${({ t0: 9, t1: 34, t2: 11, t3: 40, t4: 46 })[d.id] || ''} MB).`; });
     try {
       const doc = await pdfDoc(d); const page = await doc.getPage(pg); if (tok !== PTOK) return;
       const w = Math.max(280, box.clientWidth) * MZ; const v1 = page.getViewport({ scale: 1 }); const sc = w / v1.width; const vp = page.getViewport({ scale: sc });
@@ -1226,7 +1226,7 @@ export function initObra(X) {
   // ===================================================================== CONTROLE TECNOLÓGICO
   let CTG = '', CTE = store.get('ctEns', {}), TRC = store.get('tracos', null), TRP = store.get('tracoPar', { ra: 1.50, rb: 1.45 });
   const trc = () => TRC || JSON.parse(JSON.stringify(D.controle.tracos));
-  const srcLink = s => s ? `<button type="button" class="lnk ct-src" data-src="${s[0]}|${s[1]}">${({ t1: 'Tomo I', t2: 'Tomo II', t3: 'Tomo III', t4: 'Anexo 3A' })[s[0]]}, p. ${s[1]}</button>` : '<span class="note">contrato</span>';
+  const srcLink = s => s ? `<button type="button" class="lnk ct-src" data-src="${s[0]}|${s[1]}">${({ t0: 'Volume 1', t1: 'Tomo I', t2: 'Tomo II', t3: 'Tomo III', t4: 'Anexo 3A' })[s[0]]}, p. ${s[1]}</button>` : '<span class="note">contrato</span>';
   function ctCheck(it, val) {
     if (val === '' || val === undefined || val === null) return '';
     const x = parseFloat(String(val).replace(',', '.')); if (!Number.isFinite(x) || it.t === 'info') return '';
@@ -1332,7 +1332,9 @@ export function initObra(X) {
       <div class="avst"><span class="label">Avanço nesta estaca</span>${av.map(a => `<span class="avchip"><i class="sw" style="background:${a.col}"></i>${esc(a.n)}:&nbsp;<b>${esc(stName(a.k))}</b></span>`).join('')}${oacNear(est, raio).map(o => `<span class="avchip">${oacIcon(o.st)}&nbsp;${esc(o.t)} (est. ${estStr(o.e)}):&nbsp;<b>OAC ${oacName(o.st)}</b></span>`).join('')}</div>
       ${!MED ? '' : (() => { const L = MED.itens.map(it => { const q = it.r.filter(r => r[4] === MED.n && (r[1] !== null && r[1] > r[0] ? est >= r[0] - 1e-9 && est <= r[1] + 1e-9 : Math.abs(r[0] - est) <= 0.5)).reduce((s, r) => s + r[3], 0); return { it, q }; }).filter(o => Math.abs(o.q) > 1e-9);
         return L.length ? `<div class="avst"><span class="label">Medido aqui na ${MED.n}ª medição</span>${L.map(o => `<span class="avchip"><b>${esc(o.it.c)}</b>&nbsp;${esc(o.it.s.slice(0, 48))} · ${fQ(o.q)} ${esc(o.it.u)}</span>`).join('')}</div>` : ''; })()}
+      ${(() => { const L = (D.pranchas || []).filter(p => p.e && est >= p.e[0] - 1e-9 && est <= p.e[1] + 1e-9).sort((x, y) => DISC.findIndex(d => d.id === x.d) - DISC.findIndex(d => d.id === y.d)); return L.length ? `<div class="avst"><span class="label">Pranchas deste local</span>${L.map(p => `<button type="button" class="avchip g-pr" data-gpr="${esc(p.id)}"><b>${esc(p.id)}</b>&nbsp;${esc(DISC.find(d => d.id === p.d).n)}</button>`).join('')}</div>` : ''; })()}
       <div class="here-act"><button class="btn" type="button" id="g-tr">Usar como trecho no painel (± 1 estaca)</button><button class="btn" type="button" id="g-av">Ver no retigráfico</button></div></div>`;
+    $$('#g-here [data-gpr]').forEach(b => b.onclick = () => prOpenSheet(b.dataset.gpr));
     $('#g-tr').onclick = () => { X.setSel(Math.max(0, est - 1), Math.min(END(), est + 1), true); X.show('painel'); location.hash = '#painel'; };
     $('#g-av').onclick = () => { location.hash = '#avanco'; setTimeout(() => { const c = document.querySelector(`#a-grid i.c[data-k="${k}"]`); if (c) { c.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2500); } }, 120); };
     const list = nearby(est);
@@ -1369,7 +1371,7 @@ export function initObra(X) {
 
   // ===================================================================== PRANCHAS (outras disciplinas)
   const DISC = [
-    { id: 'pav', n: 'Pavimentação' }, { id: 'sin', n: 'Sinalização' }, { id: 'oae', n: 'OAE – ponte' }, { id: 'oc', n: 'Obras complementares' }, { id: 'cont', n: 'Contenções' }, { id: 'ilu', n: 'Iluminação' }];
+    { id: 'pav', n: 'Pavimentação' }, { id: 'sin', n: 'Sinalização' }, { id: 'oae', n: 'OAE – ponte' }, { id: 'oc', n: 'Obras complementares' }, { id: 'cont', n: 'Contenções' }, { id: 'ilu', n: 'Iluminação' }, { id: 'top', n: 'Topografia' }, { id: 'ger', n: 'Geral' }];
   const sh = (...ids) => ids;
   const VOL = (col, un, n) => ({ sheet: 'Volumes por intervalo', ei: 'Estaca inicial', ef: 'Estaca final', parse: true, items: [{ n, col, un }] });
   const CARDS = [
@@ -1391,6 +1393,9 @@ export function initObra(X) {
     { d: 'oc', id: 'oc-plantas', n: 'Plantas de obras complementares', plantas: 'OC-1' },
     { d: 'cont', id: 'co-muros', n: 'Muros de contenção (Terramesh)', sh: sh('CO-2-0001', 'CO-2-0002', 'CO-2-0005', 'CO-2-0009', 'CO-2-0003', 'CO-2-0004', 'CO-2-0006', 'CO-2-0007', 'CO-2-0008'), q: [{ sheet: 'Contenções', ei: 'Est. inicial (dec.)', ef: 'Est. final (dec.)', key: 'Material', col: 'Quantidade', un: '' }] },
     { d: 'ilu', id: 'il-postes', n: 'Iluminação – postes e luminárias', sh: sh('IL-1-0001', 'IL-1-0002'), q: [{ sheet: 'Iluminação', ei: 'Estaca aprox. (dec.)', key: 'Luminária', col: null, un: 'un' }] },
+    { d: 'top', id: 'tc-pp', n: 'Levantamento topográfico – planta e perfil do terreno', plantas: 'TC-1' },
+    { d: 'top', id: 'tc-ger', n: 'Convenções e interseção com a PR-364', sh: sh('TC-1-0001', 'TC-1-0002') },
+    { d: 'ger', id: 'ge-loc', n: 'Mapa de localização', sh: sh('GE-1-0001') },
   ];
   let prD = store.get('prD', 'pav'), prOpen = store.get('prOpen', null);
   const PRC = () => new Map((D.pranchas || []).map(p => [p.id, p]));
