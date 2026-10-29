@@ -13,7 +13,25 @@ const fRs = v => { v = num(v); if (Math.abs(v) < 0.005) return '–'; return (v 
 const fP = v => (v === null || v === undefined || !Number.isFinite(v)) ? '' : (v > 0 ? '+' : '') + NF[1].format(v * 100) + '%';
 const estStr = dec => { const e = Math.floor(dec + 1e-9); return e + '+' + NF[2].format((dec - e) * 20); };
 const parseEst = s => { const m = /^(\d+)\+([\d.,]+)$/.exec(String(s).trim()); return m ? +m[1] + parseFloat(m[2].replace(',', '.')) / 20 : null; };
-const store = { get(k, d) { try { const v = localStorage.getItem('pr990:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem('pr990:' + k, JSON.stringify(v)); } catch { } } };
+// ---------------------------------------------------------------- versão mestra × versão individual
+// A versão mestra (data/mestre.json) é publicada pelo dono (com a senha e um token do GitHub). Cada aparelho lê a mestra
+// e guarda por cima as próprias alterações, por área; quando a mestra muda numa área alterada, o app pergunta o que fazer.
+const MAREAS = { simulacao: { n: 'Simulação', k: ['simSel', 'simMeses', 'simPar'] }, britagem: { n: 'Britagem', k: ['britPar', 'britSt'] }, reajuste: { n: 'Reajuste (Painel)', k: ['reajR'] }, apresentacao: { n: 'Apresentação – demais serviços', k: ['aprFin'] } };
+const K2A = {}; for (const [a, o] of Object.entries(MAREAS)) for (const k of o.k) K2A[k] = a;
+let MST = null;
+const rawGet = k => { try { return localStorage.getItem('pr990:' + k); } catch { return null; } };
+const rawSet = (k, v) => { try { v === null ? localStorage.removeItem('pr990:' + k) : localStorage.setItem('pr990:' + k, v); } catch { } };
+const mVal = k => { const a = K2A[k]; const v = MST && MST.areas && MST.areas[a] ? MST.areas[a][k] : undefined; return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); };
+const hashStr = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+const mHash = a => hashStr(JSON.stringify(MAREAS[a].k.map(k => (MST && MST.areas && MST.areas[a] || {})[k] ?? null)));
+const areaLocal = a => MAREAS[a].k.some(k => rawGet(k) !== null);
+const store = {
+  get(k, d) { try { const v = rawGet(k); if (v !== null) return JSON.parse(v); if (K2A[k] && !areaLocal(K2A[k])) { const m = mVal(k); if (m !== undefined) return m; } return d; } catch { return d; } },
+  set(k, v) { const a = K2A[k]; if (a && !areaLocal(a)) { for (const kk of MAREAS[a].k) if (kk !== k) { const m = mVal(kk); if (m !== undefined) rawSet(kk, JSON.stringify(m)); } rawSet('mb:' + a, mHash(a)); }
+    rawSet(k, JSON.stringify(v));
+    if (a && MAREAS[a].k.every(kk => JSON.stringify(mVal(kk) ?? null) === (rawGet(kk) ?? 'null'))) areaReset(a);   // igual à mestra: volta a acompanhar a mestra
+    if (a) setTimeout(verUI, 0); },
+};
 function fmtNF(v, f) {
   if (isErr(v)) return v.code;
   if (typeof v === 'string') return v;
@@ -36,7 +54,8 @@ async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
   const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem', 'reajuste'].map(f => get(f + '.json')));
-  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste };
+  const mestre = await fetch('data/mestre.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, mestre };
 }
 
 // ---------------------------------------------------------------- cálculo
@@ -502,13 +521,13 @@ let UNL = false, PROT = null, lockTarget = null;
 const b64u = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 async function deriveKey(pass) {
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u(PROT.salt), iterations: PROT.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u(PROT.salt), iterations: PROT.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt', 'encrypt']);
 }
 async function openWith(key) {
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(PROT.iv) }, key, b64u(PROT.ct));
   const d = JSON.parse(new TextDecoder().decode(plain));
   M.contrato = d.contrato; M.discrepancias = d.discrepancias;
-  UNL = true; OB.unlock(d.medicao, d.medref); lockUI();
+  UNL = true; UKEY = key; OB.unlock(d.medicao, d.medref); lockUI(); verUI();
 }
 async function unlock(pass, remember) {
   if (!window.crypto || !crypto.subtle) throw new Error('este navegador não permite abrir os dados protegidos aqui (abra pelo endereço https do app)');
@@ -518,7 +537,7 @@ async function unlock(pass, remember) {
 }
 async function autoUnlock() {
   try { const v = localStorage.getItem('pr990:chave'); if (!v) return; const [k, salt] = v.split('|'); if (salt !== PROT.salt) { localStorage.removeItem('pr990:chave'); return; }
-    const key = await crypto.subtle.importKey('raw', b64u(k), 'AES-GCM', false, ['decrypt']); await openWith(key); } catch { }
+    const key = await crypto.subtle.importKey('raw', b64u(k), 'AES-GCM', false, ['decrypt', 'encrypt']); await openWith(key); } catch { }
 }
 function lockOut() {
   try { localStorage.removeItem('pr990:chave'); } catch { }
@@ -614,6 +633,67 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   gotoRow: r => { location.hash = '#painel'; gotoRow(r); }, unlocked: () => UNL, reajR: r => REAJ && REAJ.row[r] !== undefined ? rjR(REAJ.row[r]) : 0, reajG: () => REAJ ? REAJ.grupos.map((g, i) => ({ n: g.n, R: rjR(i) })) : [], ask: (t, w) => askPass(t, w), renderCmp: () => renderCmp(), renderDrenagem: () => renderDrenagem(), renderIns: () => renderIns(),
   lbOpen: s => lbOpen(s), lbShow: (s, t) => lbShow(s, t), DRF, SHEETS });
 
+// ---------------------------------------------------------------- versão mestra: estado, aviso de atualização e publicação
+let UKEY = null;
+const REPO_API = 'https://api.github.com/repos/filipezanella1/PR990-Obra-completa/contents/data/mestre.json';
+function mstLoad(fetched) {
+  let loc = null; try { loc = JSON.parse(rawGet('mestreLocal') || 'null'); } catch { }
+  MST = [fetched, loc].filter(Boolean).sort((a, b) => (b.ver || 0) - (a.ver || 0))[0] || { ver: 0, areas: {} };
+  OB.data.mestre = MST;
+}
+const fDT = iso => { try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+function mstChanged() { return Object.keys(MAREAS).filter(a => areaLocal(a) && rawGet('mb:' + a) !== mHash(a) && MST.ver > 0); }
+function verUI() {
+  const pers = Object.keys(MAREAS).filter(areaLocal); const b = $('#ver-btn'); if (!b) return;
+  const [l, sh] = UNL ? ['Mestra (editar)', 'Mestra'] : pers.length ? ['Minha versão', 'Minha'] : ['Versão mestra', 'Mestra']; b.innerHTML = `<span class="vl">${l}</span><span class="vs">${sh}</span>`; b.classList.toggle('pers', !UNL && pers.length > 0);
+  const ch = mstChanged(); const bar = $('#mst-bar');
+  if (ch.length && !UNL) { bar.hidden = false; $('#mst-txt').textContent = `A versão mestra foi atualizada${MST.em ? ' em ' + fDT(MST.em) : ''} em: ${ch.map(a => MAREAS[a].n).join(', ')}. Você tem alterações suas nessas áreas.`; } else bar.hidden = true;
+}
+function areaReset(a) { for (const k of MAREAS[a].k) rawSet(k, null); rawSet('mb:' + a, null); }
+async function tokSave(t) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, UKEY, new TextEncoder().encode(t)));
+  rawSet('ghtok', btoa(String.fromCharCode(...iv)) + '|' + btoa(String.fromCharCode(...ct))); }
+async function tokGet() { const v = rawGet('ghtok'); if (!v || !UKEY) return null; const [iv, ct] = v.split('|'); try { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(iv) }, UKEY, b64u(ct))); } catch { return null; } }
+async function mstPublish() {
+  const tok = await tokGet(); if (!tok) throw new Error('cadastre o token do GitHub primeiro');
+  const areas = {}; for (const [a, o] of Object.entries(MAREAS)) { areas[a] = {}; for (const k of o.k) { const v = store.get(k, undefined); if (v !== undefined) areas[a][k] = v; } }
+  const body = { ver: (MST.ver || 0) + 1, em: new Date().toISOString(), areas, retigrafico: OB.avMaster() };
+  const h = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+  let sha; const g = await fetch(REPO_API + '?ref=main', { headers: h, cache: 'no-store' });
+  if (g.ok) sha = (await g.json()).sha; else if (g.status === 401 || g.status === 403) throw new Error('token sem permissão (precisa de Contents: read and write neste repositório)'); else if (g.status !== 404) throw new Error('GitHub respondeu ' + g.status);
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
+  const r = await fetch(REPO_API, { method: 'PUT', headers: h, body: JSON.stringify({ message: `Versão mestra v${body.ver}`, content, sha, branch: 'main' }) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error('GitHub respondeu ' + r.status + (j.message ? ': ' + j.message : '')); }
+  MST = body; OB.data.mestre = MST; rawSet('mestreLocal', JSON.stringify(body));
+  for (const a of Object.keys(MAREAS)) areaReset(a);
+  return body;
+}
+function verDlg() {
+  const d = $('#ver-dlg'); const pers = Object.keys(MAREAS).filter(areaLocal);
+  $('#ver-body').innerHTML = `<p><b>${MST.ver ? `Versão mestra v${MST.ver}` : 'Versão mestra inicial'}</b>${MST.em ? ` · publicada em ${fDT(MST.em)}` : ''}</p>
+    ${UNL ? '<p class="note">Você entrou com a senha: o que você altera neste aparelho é o rascunho da versão mestra. Publique para que todos recebam.</p>' : '<p class="note">Você pode alterar à vontade: suas alterações ficam só neste aparelho e por cima da versão mestra. O que você não alterar continua acompanhando a mestra.</p>'}
+    <table class="itbl"><tbody>${Object.entries(MAREAS).map(([a, o]) => `<tr><td>${esc(o.n)}</td><td>${areaLocal(a) ? `<span class="pill c">${UNL ? 'alterada (rascunho)' : 'sua versão'}</span>` : '<span class="pill p">mestra</span>'}</td><td>${areaLocal(a) ? `<button type="button" class="lnk" data-reset="${a}">voltar à mestra</button>` : ''}</td></tr>`).join('')}
+    ${UNL ? `<tr><td>Retigráfico</td><td><span class="pill ${OB.avIsLocal() ? 'c' : 'p'}">${OB.avIsLocal() ? 'alterado (rascunho)' : 'mestra'}</span></td><td></td></tr>` : ''}</tbody></table>
+    ${UNL ? `<div class="ver-pub"><h3>Publicar versão mestra</h3>
+      <p class="note">Grava retigráfico, simulação, britagem, reajuste e lançamentos da apresentação deste aparelho como a nova versão mestra. Todos recebem em 1 a 2 minutos.</p>
+      <label class="lbl">Token do GitHub <input id="ver-tok" type="password" autocomplete="off" placeholder="${rawGet('ghtok') ? 'cadastrado – cole outro para trocar' : 'github_pat_…'}"></label>
+      <p class="note">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para o repositório PR990-Obra-completa, com permissão <b>Contents: Read and write</b>. Fica guardado neste aparelho, criptografado com a sua senha.</p>
+      <button class="btn primary" type="button" id="ver-pub">Publicar como versão mestra</button> <span class="note" id="ver-msg" role="status"></span></div>` : ''}`;
+  d.hidden = false;
+}
+function verInit() {
+  $('#ver-btn').onclick = verDlg; $('#ver-x').onclick = () => { $('#ver-dlg').hidden = true; };
+  $('#ver-dlg').addEventListener('click', async ev => {
+    const r = ev.target.closest('[data-reset]'); if (r) { if (!confirm(`Descartar suas alterações em ${MAREAS[r.dataset.reset].n} e voltar à versão mestra?`)) return; areaReset(r.dataset.reset); location.reload(); return; }
+    if (ev.target.id === 'ver-pub') { const msg = $('#ver-msg'); const b = ev.target; b.disabled = true;
+      try { const t = $('#ver-tok').value.trim(); if (t) { await tokSave(t); $('#ver-tok').value = ''; }
+        if (!confirm('Publicar o estado deste aparelho como a nova versão mestra para todos?')) { b.disabled = false; return; }
+        msg.textContent = 'Publicando…'; const v = await mstPublish(); msg.textContent = `Publicada a v${v.ver}. Os outros aparelhos recebem em 1 a 2 minutos.`; verUI(); }
+      catch (e) { msg.textContent = 'Não publicou: ' + e.message; } finally { b.disabled = false; } }
+  });
+  $('#mst-go').onclick = () => { for (const a of mstChanged()) areaReset(a); location.reload(); };
+  $('#mst-keep').onclick = () => { for (const a of mstChanged()) rawSet('mb:' + a, mHash(a)); verUI(); };
+}
+
 // ---------------------------------------------------------------- início
 (async function main() {
   theme(); pwa();
@@ -621,6 +701,7 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
   Object.assign(OB.data, { avanco: data.avanco, eixo: data.eixo, pranchas: data.pranchas, britagem: data.britagem });
+  mstLoad(data.mestre); RJO = store.get('reajR', {}); OB.reloadState();
   REAJ = data.reajuste; reajInit(); PROT = data.protegido; M.contrato = []; M.discrepancias = { d1: [], d2: [], d3: [] };
   END = num(BASE.sheets['Estacas'][M.meta.LE - 1][1]);
   Object.assign(S, store.get('trecho', {}), store.get('prem', {}));
@@ -633,8 +714,8 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
   $('#b-prev').addEventListener('click', () => { bpage = Math.max(0, bpage - 1); renderBase(); }); $('#b-next').addEventListener('click', () => { bpage++; renderBase(); });
   $('#b-json').addEventListener('click', () => download('base_PR-990.json', JSON.stringify({ contrato: M.contrato, abas: BASE.sheets }), 'application/json'));
   ['#i-q', '#i-grp', '#i-q2'].forEach(s => $(s).addEventListener('input', renderIns)); $('#i-csv').addEventListener('click', exportIns);
-  lbInit(); OB.init(); navInit(); lockInit();
-  await autoUnlock();
+  lbInit(); OB.init(); navInit(); lockInit(); verInit();
+  await autoUnlock(); verUI();
   recalc();
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
   show(location.hash.slice(1) || store.get('tab', 'painel'));

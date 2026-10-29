@@ -24,6 +24,13 @@ O app é estático (HTML + JavaScript, sem servidor e sem dependências). A base
 
 **Busca global** (botão Buscar ou tecla `/`): código, serviço, insumo, prancha ou estaca, em todas as abas.
 
+## Versão mestra × versão individual
+
+- **Versão mestra** (`data/mestre.json`): retigráfico, simulação, britagem, coeficientes de reajuste e lançamentos financeiros da apresentação, publicados pelo dono. Todos os aparelhos leem a mestra.
+- **Versão individual**: qualquer pessoa pode alterar simulação, britagem, reajuste e lançamentos; fica só no aparelho dela, por área. O que ela não alterou continua acompanhando a mestra. Quando a mestra muda numa área que ela alterou, aparece o aviso “Usar a versão mestra / Manter a minha”. O botão de versão no topo mostra o estado de cada área e deixa voltar à mestra.
+- **Publicar** (só com a senha): botão de versão → “Publicar como versão mestra”. Grava `data/mestre.json` no repositório pela API do GitHub com um token fine-grained (só este repositório, *Contents: Read and write*), guardado no aparelho criptografado com a senha. O GitHub Pages republica e os aparelhos recebem em 1 a 2 minutos.
+- O retigráfico só é editável com a senha; quem não tem a senha vê sempre o da mestra.
+
 ## Área restrita
 
 **Medição**, **Contrato × projeto**, **Discrepâncias**, **Base de dados** e a **edição do Retigráfico** pedem senha (botão *Entrar* no topo). Os dados dessas abas (medição, memórias por estaca, planilha contratual com quantidades e valores, discrepâncias) não ficam no site em texto: vão cifrados em `data/protegido.json` (AES-256-GCM, chave derivada da senha por PBKDF2-SHA256 com 1.000.000 de iterações) e só são abertos no navegador com a senha. “Manter liberado neste aparelho” guarda a chave no próprio aparelho; *Sair* apaga.

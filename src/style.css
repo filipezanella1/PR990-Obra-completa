@@ -998,3 +998,12 @@ th .msw { min-width: 18px; height: 18px; font-size: .62rem; vertical-align: midd
 .ap-fin input.ap-fi { width: 9.5em; text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; }
 .ap-fin tr.tot td { font-weight: 700; border-top: 2px solid var(--fg); }
 @media print { #ap-fin-ed, .ap-fin { display: none !important; } }
+
+/* versão mestra × individual */
+.ver-btn.pers { border-color: var(--accent); color: var(--accent); }
+.mst-bar { flex-wrap: wrap; } .mst-act { display: flex; gap: 8px; }
+.ver-in { max-width: 620px; width: calc(100% - 32px); display: grid; gap: 12px; max-height: 88vh; overflow: auto; }
+.ver-in h2 { margin: 0; } .ver-in p { margin: 0; } .ver-in .itbl td { padding: 6px 8px; }
+.ver-pub { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; } .ver-pub h3 { margin: 0; }
+.ver-pub .lbl { display: grid; gap: 4px; } .ver-pub input { width: 100%; }
+.ver-btn .vs { display: none; } @media (max-width: 760px) { .ver-btn .vl { display: none; } .ver-btn .vs { display: inline; } }

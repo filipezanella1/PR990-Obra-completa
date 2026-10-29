@@ -165,10 +165,12 @@ export function initObra(X) {
   let AV = null, paintOn = false;
   const AVKEY = 'avanco2';
   function avDefault() {
+    const m = D.mestre && D.mestre.retigrafico; if (m && m.frentes && (m.data || '') >= D.avanco.data) { const c = JSON.parse(JSON.stringify(m)); c.v = 2; return c; }
     const b = D.avanco;
     return { v: 2, fonte: b.fonte, data: b.data, frentes: b.frentes.map(f => ({ ...f })), oac: b.oac.map(o => ({ ...o })), oae: b.oae, travas: (b.travas || []).map(t => ({ ...t })), atualizado: b.data };
   }
-  function avLoad() { AV = store.get(AVKEY, null); if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data) AV = avDefault(); if (!AV.travas) AV.travas = (D.avanco.travas || []).map(t => ({ ...t }));
+  function avLoad() { AV = X.unlocked() ? store.get(AVKEY, null) : null; const mts = (D.mestre && D.mestre.retigrafico && D.mestre.retigrafico.ts) || 0;
+    if (!AV || AV.v !== 2 || !AV.frentes || (AV.data || '') < D.avanco.data || (AV.ts || 0) < mts) AV = avDefault(); if (!AV.travas) AV.travas = (D.avanco.travas || []).map(t => ({ ...t }));
     if ((AV.fixRev || 0) < (D.avanco.fixRev || 0)) { for (const fx of D.avanco.oacFix || []) { const o = AV.oac.find(x => Math.abs(x.e - fx.e) < 0.01); if (o) o.st = fx.st; } AV.fixRev = D.avanco.fixRev; store.set(AVKEY, AV); }
     LK = null; }
   // ---------- travas: segmentos que não serão executados (não entram em "falta", nem na simulação)
@@ -177,7 +179,7 @@ export function initObra(X) {
   const isLk = k => lockSet()[k] === 1;
   function lockLen() { let s = 0; for (let k = 0; k < NC; k++) if (isLk(k)) s += cellLen(k); return s; }
   const travaTxt = () => (AV.travas || []).map(t => `${estStr(t.e0)} a ${estStr(t.e1)}`).join(', ');
-  function avSave() { AV.atualizado = today(); store.set(AVKEY, AV); }
+  function avSave() { AV.atualizado = today(); AV.ts = Date.now(); store.set(AVKEY, AV); }
   const stName = k => ST[k] || ST['0'];
   const cellLen = k => k >= 642 ? 15.817 : 20;
   function avStats(c) { const s = { '0': 0, '1': 0, '2': 0, L: 0 }; for (let k = 0; k < NC; k++) { if (isLk(k) && c[k] === '0') { s.L += cellLen(k); continue; } s[c[k]] = (s[c[k]] || 0) + cellLen(k); } return s; }
@@ -1089,13 +1091,22 @@ export function initObra(X) {
     window.addEventListener('afterprint', done); setTimeout(() => window.print(), 50);
   }
 
+  // ===================================================================== versão mestra
+  function reloadState() {   // relê o que vem da versão mestra (ou das alterações deste aparelho) depois que a mestra carrega
+    for (const k of Object.keys(SP)) delete SP[k]; Object.assign(SP, { dBica: 2.022, dBgs: 2.421, eai: null, rr: null, cap: null, xisto: 8 }, store.get('simPar', {}));
+    SIM = store.get('simSel', {}); MESES = store.get('simMeses', null) || [ymNext(ymNow())]; MATV = Math.min(store.get('simMesAtv', 0), MESES.length - 1);
+    BPO = store.get('britPar', {}); BST = store.get('britSt', {}); OFIN = store.get('aprFin', {}); AV = null; LK = null;
+  }
+  function avMaster() { if (!AV) avLoad(); const c = JSON.parse(JSON.stringify(AV)); c.ts = Date.now(); return c; }
+  function avIsLocal() { const l = store.get(AVKEY, null); const m = D.mestre && D.mestre.retigrafico; return !!(l && (!m || (l.ts || 0) > (m.ts || 0))); }
+
   // ===================================================================== início
   async function load(get) {
     const [medicao, medref, avanco, eixo, pranchas] = await Promise.all(['medicao.json', 'medref.json', 'avanco.json', 'eixo.json', 'pranchas.json'].map(f => get(f)));
     Object.assign(D, { medicao, medref, avanco, eixo, pranchas });
   }
   function unlock(medicao, medref) {
-    Object.assign(D, { medicao, medref }); medInit(); MCELL = null;
+    Object.assign(D, { medicao, medref }); medInit(); MCELL = null; AV = null; LK = null;
     if (X.current() === 'avanco') renderAv(); if (X.current() === 'campo') renderCampo();
   }
   function init() {
@@ -1106,5 +1117,5 @@ export function initObra(X) {
     avInitEvents(); britInit(); aprInit(); campoInit(); cmpInit(); searchInit();
     $$('[data-print]').forEach(b => b.onclick = () => askPdf(b.dataset.print));
   }
-  return { load, init, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
+  return { load, init, reloadState, avMaster, avIsLocal, renderMed, renderAv, renderSim, renderBrit, renderApr, renderCampo, renderPr, unlock, renderCmpT, printView, data: D, toUTM, project };
 }

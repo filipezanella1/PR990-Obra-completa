@@ -41,6 +41,7 @@
       <a class="more" id="nav-more" href="#mais"><svg class="ni" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg><span class="sm">Mais</span></a>
     </nav>
     <div class="top-actions">
+      <button class="lock-btn ver-btn" id="ver-btn" type="button" title="Versão mestra e suas alterações">Versão mestra</button>
       <button class="lock-btn" id="lock-btn" type="button">Entrar</button>
       <button class="srch-btn" id="srch-btn" type="button" aria-label="Buscar em todo o app" title="Buscar (tecla /)"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15zM16 16l5 5"/></svg><span>Buscar</span></button>
       <button class="install-btn" id="install" type="button" hidden>Instalar app</button>
@@ -54,6 +55,8 @@
   <p><b>Instalar no iPhone/iPad:</b> toque em <span class="ios-share" aria-label="Compartilhar">⬆︎</span> <b>Compartilhar</b> no Safari e depois em <b>Adicionar à Tela de Início</b>.</p>
   <button class="btn" id="ios-tip-x" type="button">Entendi</button>
 </div>
+<div class="update-bar mst-bar" id="mst-bar" hidden><span id="mst-txt"></span><span class="mst-act"><button class="btn primary" id="mst-go" type="button">Usar a versão mestra</button><button class="btn" id="mst-keep" type="button">Manter a minha</button></span></div>
+<div class="lock" id="ver-dlg" hidden role="dialog" aria-modal="true" aria-labelledby="ver-tit"><div class="lock-in ver-in"><div class="ph"><h2 id="ver-tit">Versão do app</h2><button class="btn" type="button" id="ver-x">Fechar</button></div><div id="ver-body"></div></div></div>
 <div class="update-bar" id="update-bar" hidden><span>Nova versão disponível.</span><button class="btn primary" id="update-go" type="button">Atualizar</button></div>
 <main class="wrap">
   <div class="print-head" id="print-head"></div>

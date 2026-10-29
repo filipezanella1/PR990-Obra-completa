@@ -34,6 +34,12 @@ self.addEventListener('fetch', ev => {
     return;
   }
   if (url.origin !== location.origin) return;
+  // versão mestra: sempre da rede (é o que o dono publica), com a última cópia para usar sem internet
+  if (url.pathname.endsWith('/data/mestre.json')) {
+    ev.respondWith(fetch(req, { cache: 'no-store' }).then(res => { if (res.ok) caches.open(VERSION).then(c => c.put('./data/mestre.json', res.clone())); return res.clone(); })
+      .catch(() => caches.match('./data/mestre.json', { ignoreSearch: true }).then(r => r || new Response('null', { headers: { 'Content-Type': 'application/json' } }))));
+    return;
+  }
   // página: sai do cache desta versão (HTML, estilos e scripts sempre da mesma publicação);
   // a versão nova é baixada pelo service worker novo e entra quando o usuário toca em "Atualizar"
   if (req.mode === 'navigate') {
