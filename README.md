@@ -39,6 +39,10 @@ Aba Medição (e slide na Apresentação, com a senha): medido acumulado a preç
 
 Simula o contrato inteiro, mês a mês, de 01/08/2024 a 01/08/2026 (datas editáveis), sem considerar o que já foi produzido nem a Simulação/retigráfico — ou, como opção, só o saldo da medição a partir da data de status: quantidade de cada item ÷ produção da equipe na CPU do contrato (nas CPUs sem produção definida, operários por equipe ÷ horas de mão de obra por unidade) = horas de equipe. Os itens formam pacotes (terraplenagem, OAC, drenos, regularização, reforço/sub-base, BGS, imprimação, CBUQ, drenagem superficial, sinalização…) ligados pela sequência executiva (camadas em sequência com liberação, cura da imprimação antes do CBUQ, sinalização definitiva após o CBUQ, acabamentos depois do revestimento), num calendário com domingos, feriados nacionais, sábado parcial e dias perdidos por chuva (e por frio no asfalto) mês a mês. Mostra cronograma (Gantt), cronograma físico-financeiro mês a mês por pacote com caminho crítico, término previsto × prazo contratual (datas de início e fim editáveis), o reforço de equipes necessário para cumprir o prazo e a produção financeira por mês (PI + R). Equipes, operários, esperas e clima são editáveis; CSV com o detalhamento por item.
 
+## Uso sem internet
+
+Depois de aberto uma vez com internet, o app inteiro (telas, tabelas, painel, simulação, retigráfico, britagem, apresentação, área restrita com a senha) fica salvo no aparelho pelo service worker e abre sem internet; aparece o aviso “Sem internet – usando a cópia salva”. As miniaturas das pranchas (≈3 MB) já são salvas; as pranchas completas (≈26 MB) são baixadas pelo botão em Sobre → Uso sem internet e ficam guardadas entre versões (`pr990-midia`). A lista de imagens (`data/midia.json`) é gerada pelo `tools/bundle.py`.
+
 ## Ordem das abas
 
 Botão ☰ no fim da barra de abas (no celular: “Mais” → “Organizar abas…”): arraste pela alça ou use as setas. A ordem fica salva no aparelho; no celular as 4 primeiras vão para a barra inferior e o resto para “Mais”.
