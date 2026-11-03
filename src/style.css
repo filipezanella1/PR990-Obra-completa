@@ -1204,3 +1204,14 @@ button.avchip.g-pr { font: inherit; cursor: pointer; background: var(--surface-2
 .cp-lk { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--accent); }
 .cp-lk:hover { color: var(--accent-ink); }
 @media (max-width: 900px) { .cp-wrap { grid-template-columns: 1fr; } .cp-list { position: static; max-height: none; } .cp-wrap.sel .cp-list { display: none; } .cp-back { display: inline-flex; } }
+/* CFF editável */
+.cff input.cfi { width: 100%; min-width: 7.5em; box-sizing: border-box; font: inherit; font-variant-numeric: tabular-nums; text-align: right; color: #1d2226; background: #fffbea; border: 1px dashed #b9a46a; border-radius: 3px; padding: 2px 4px; }
+.cff input.cfi.t { text-align: center; min-width: 10em; font-weight: 600; }
+.cff .cff-ob input.cfi.t { text-align: left; font-weight: 500; min-width: 16em; }
+.cff input.cfi:focus { outline: 2px solid #0b6fbf; outline-offset: 0; background: #fff; border-style: solid; }
+.cff input.cfi.bad { border-color: #b3261e; background: #fdecea; }
+.cff td.v.ov { background: #fff4c7; }
+.cff .cf-x { border: 0; background: none; color: #b3261e; font-weight: 700; cursor: pointer; padding: 0 2px; }
+.cff th.cf-addc { background: #fff; border-top: 2px solid #2b3238; border-bottom: 2px solid #2b3238; }
+.cf-ed { margin: 10px 0 0; display: grid; gap: 6px; } .cf-ed textarea { width: 100%; font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--bg); color: var(--fg); }
+.cf-eb { display: flex; flex-wrap: wrap; gap: 8px; }
