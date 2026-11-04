@@ -1267,8 +1267,8 @@ export function initObra(X) {
   const pdfCached = async f => { try { return 'caches' in window ? await (await caches.open('pr990-midia')).match(f, { ignoreSearch: true }) : null; } catch { return null; } };
   function pdfDoc(d) {
     if (PDOC[d.id]) return PDOC[d.id];
-    return PDOC[d.id] = pjLoad().then(async L => { const hit = await pdfCached(d.file); const opt = { standardFontDataUrl: PJ + 'standard_fonts/', isEvalSupported: false };
-      return L.getDocument(hit ? { ...opt, data: new Uint8Array(await hit.arrayBuffer()) } : { ...opt, url: d.file, rangeChunkSize: 262144, disableAutoFetch: true, disableStream: true }).promise; })
+    return PDOC[d.id] = pjLoad().then(async L => { const hit = window.__SECURE__ ? null : await pdfCached(d.file); const opt = { standardFontDataUrl: PJ + 'standard_fonts/', isEvalSupported: false };
+      return L.getDocument(hit ? { ...opt, data: new Uint8Array(await hit.arrayBuffer()) } : { ...opt, url: d.file, rangeChunkSize: 262144, disableAutoFetch: true, disableStream: true, ...(window.__SECURE__ ? { disableRange: true } : {}) }).promise; })
       .catch(e => { delete PDOC[d.id]; throw e; });
   }
   async function pdfPage(d, pg, terms) {
@@ -1289,7 +1289,7 @@ export function initObra(X) {
     } catch (e) { if (tok !== PTOK) return; box.style.height = ''; box.innerHTML = `<p class="note warn">Não foi possível abrir a página original (${esc(e.message || 'sem conexão')}). Mostrando o texto extraído.</p><pre class="mm-pg">${hl(d.pages[pg - 1] || '', terms)}</pre>`; }
   }
   async function pdfSave(id, btn) { const d = D.mem.docs.find(x => x.id === id); try { btn.textContent = 'baixando…'; btn.disabled = true; const r = await fetch(d.file, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
-      await (await caches.open('pr990-midia')).put(d.file, r); delete PDOC[id]; renderMem(); } catch (e) { btn.textContent = 'falhou – tente de novo com internet'; btn.disabled = false; } }
+      if (window.__SECURE__) await r.arrayBuffer(); else await (await caches.open('pr990-midia')).put(d.file, r); delete PDOC[id]; renderMem(); } catch (e) { btn.textContent = 'falhou – tente de novo com internet'; btn.disabled = false; } }
   async function pdfDrop(id) { const d = D.mem.docs.find(x => x.id === id); try { await (await caches.open('pr990-midia')).delete(d.file, { ignoreSearch: true }); } catch { } delete PDOC[id]; renderMem(); }
   async function renderMem() {
     const host = $('#mm-body'); if (!host) return;

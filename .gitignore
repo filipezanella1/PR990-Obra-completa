@@ -3,3 +3,6 @@ __pycache__/
 .DS_Store
 _site/
 privado/
+privado/
+build-secure/
+.netlify/

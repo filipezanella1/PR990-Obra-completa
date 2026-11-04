@@ -3496,8 +3496,8 @@ function initObra(X) {
   const pdfCached = async f => { try { return 'caches' in window ? await (await caches.open('pr990-midia')).match(f, { ignoreSearch: true }) : null; } catch { return null; } };
   function pdfDoc(d) {
     if (PDOC[d.id]) return PDOC[d.id];
-    return PDOC[d.id] = pjLoad().then(async L => { const hit = await pdfCached(d.file); const opt = { standardFontDataUrl: PJ + 'standard_fonts/', isEvalSupported: false };
-      return L.getDocument(hit ? { ...opt, data: new Uint8Array(await hit.arrayBuffer()) } : { ...opt, url: d.file, rangeChunkSize: 262144, disableAutoFetch: true, disableStream: true }).promise; })
+    return PDOC[d.id] = pjLoad().then(async L => { const hit = window.__SECURE__ ? null : await pdfCached(d.file); const opt = { standardFontDataUrl: PJ + 'standard_fonts/', isEvalSupported: false };
+      return L.getDocument(hit ? { ...opt, data: new Uint8Array(await hit.arrayBuffer()) } : { ...opt, url: d.file, rangeChunkSize: 262144, disableAutoFetch: true, disableStream: true, ...(window.__SECURE__ ? { disableRange: true } : {}) }).promise; })
       .catch(e => { delete PDOC[d.id]; throw e; });
   }
   async function pdfPage(d, pg, terms) {
@@ -3518,7 +3518,7 @@ function initObra(X) {
     } catch (e) { if (tok !== PTOK) return; box.style.height = ''; box.innerHTML = `<p class="note warn">Não foi possível abrir a página original (${esc(e.message || 'sem conexão')}). Mostrando o texto extraído.</p><pre class="mm-pg">${hl(d.pages[pg - 1] || '', terms)}</pre>`; }
   }
   async function pdfSave(id, btn) { const d = D.mem.docs.find(x => x.id === id); try { btn.textContent = 'baixando…'; btn.disabled = true; const r = await fetch(d.file, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
-      await (await caches.open('pr990-midia')).put(d.file, r); delete PDOC[id]; renderMem(); } catch (e) { btn.textContent = 'falhou – tente de novo com internet'; btn.disabled = false; } }
+      if (window.__SECURE__) await r.arrayBuffer(); else await (await caches.open('pr990-midia')).put(d.file, r); delete PDOC[id]; renderMem(); } catch (e) { btn.textContent = 'falhou – tente de novo com internet'; btn.disabled = false; } }
   async function pdfDrop(id) { const d = D.mem.docs.find(x => x.id === id); try { await (await caches.open('pr990-midia')).delete(d.file, { ignoreSearch: true }); } catch { } delete PDOC[id]; renderMem(); }
   async function renderMem() {
     const host = $('#mm-body'); if (!host) return;
@@ -4017,11 +4017,30 @@ const csvCell = v => { if (typeof v === 'number') return NF[4].format(v).replace
 let M, BASE, wb, END;
 const S = { ei: 0, mi: 0, ef: 642, mf: 15.817, cap: 0.048, eai: 1.2, rr: 0.5 };
 
+// ---- modo protegido (site privado): a chave dos dados fica no IndexedDB; a versão mestra vai cifrada para o GitHub
+const secDb = (mode, fn) => new Promise((ok, no) => { const r = indexedDB.open('pr990sec', 1); r.onupgradeneeded = () => r.result.createObjectStore('k');
+  r.onerror = () => no(r.error); r.onsuccess = () => { const tx = r.result.transaction('k', mode); const q = fn(tx.objectStore('k')); tx.oncomplete = () => ok(q && q.result); tx.onerror = () => no(tx.error); }; });
+const secKey = () => secDb('readonly', s => s.get('dk')).catch(() => null);
+async function secLogout() { try { await secDb('readwrite', s => { s.delete('dk'); return s.delete('keep'); }); } catch { } try { for (const k of await caches.keys()) await caches.delete(k); } catch { }
+  try { navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage('logout'); } catch { } try { sessionStorage.removeItem('pr990sec'); } catch { } location.replace('./'); }
+async function secGate() {   // sem "manter liberado": a chave vale só enquanto a aba estiver aberta
+  const k = await secKey(); if (!k) { location.replace('./' + location.hash); return false; }
+  let keep = true; try { keep = await secDb('readonly', s => s.get('keep')); } catch { }
+  let ses = null; try { ses = sessionStorage.getItem('pr990sec'); } catch { }
+  if (keep === false && !ses) { await secLogout(); return false; }
+  return true;
+}
+async function secMestre() {
+  const k = await secKey(); if (!k) return null;
+  try { const r = await fetch('https://raw.githubusercontent.com/filipezanella1/PR990-Obra-completa/main/secure/mestre.bin?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw 0;
+    const u = new Uint8Array(await r.arrayBuffer()); return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, k, u.subarray(12)))); }
+  catch { return fetch('data/mestre.json').then(r => r.ok ? r.json() : null).catch(() => null); }
+}
 async function loadData() {
   if (window.__PR990__) return window.__PR990__;
   const get = f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
   const [model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, controle, cff, aditivo, curva] = await Promise.all(['model', 'base', 'painel', 'insumos', 'protegido', 'avanco', 'eixo', 'pranchas', 'britagem', 'reajuste', 'controle', 'cff', 'aditivo', 'curva'].map(f => get(f + '.json')));
-  const mestre = await fetch('data/mestre.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const mestre = window.__SECURE__ ? await secMestre() : await fetch('data/mestre.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
   return { model, base, painel, insumos, protegido, avanco, eixo, pranchas, britagem, reajuste, controle, cff, aditivo, curva, mestre };
 }
 
@@ -4616,7 +4635,7 @@ function offInit() {
   if (!$('#off-dl')) return;
   $('#off-dl').onclick = async () => { const msg = $('#off-msg'), b = $('#off-dl'); b.disabled = true;
     try { const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); const L = [...m.thumbs, ...m.full]; let i = 0, err = 0;
-      for (const u of L) { i++; if (!(await c.match(u))) { try { const r = await fetch(u, { cache: 'reload' }); if (r.ok) await c.put(u, r); else err++; } catch { err++; } } if (i % 5 === 0) msg.textContent = `Baixando ${i} de ${L.length}…`; }
+      for (const u of L) { i++; if (!(await c.match(u))) { try { const r = await fetch(u, { cache: 'reload' }); if (r.ok) { if (!window.__SECURE__) await c.put(u, r); else await r.arrayBuffer(); } else err++; } catch { err++; } } if (i % 5 === 0) msg.textContent = `Baixando ${i} de ${L.length}…`; }
       msg.textContent = err ? `${err} arquivo(s) não baixaram – tente de novo com internet.` : 'Pronto: pranchas e detalhes disponíveis sem internet.'; } catch (e) { msg.textContent = 'Precisa de internet para baixar: ' + e.message; }
     b.disabled = false; offStatus(); };
   $('#off-rm').onclick = async () => { if (!confirm('Apagar as pranchas baixadas deste aparelho? (as miniaturas continuam)')) return; const m = await fetch('data/midia.json').then(r => r.json()); const c = await caches.open('pr990-midia'); for (const u of m.full) await c.delete(u); offStatus(); };
@@ -4671,7 +4690,7 @@ const OB = initObra({ $, esc, NF, num, fQ, fR, fRs, fP, estStr, parseEst, store,
 // ---------------------------------------------------------------- versão mestra: estado, aviso de atualização e publicação
 let UKEY = null;
 const b64e = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode(...u8.subarray(i, i + 32768)); return btoa(s); };
-const REPO_API = 'https://api.github.com/repos/filipezanella1/PR990-Obra-completa/contents/data/mestre.json';
+const REPO_API = window.__SECURE__ ? 'https://api.github.com/repos/filipezanella1/PR990-Obra-completa/contents/secure/mestre.bin' : 'https://api.github.com/repos/filipezanella1/PR990-Obra-completa/contents/data/mestre.json';
 function mstLoad(fetched) {
   let loc = null; try { loc = JSON.parse(rawGet('mestreLocal') || 'null'); } catch { }
   MST = [fetched, loc].filter(Boolean).sort((a, b) => (b.ver || 0) - (a.ver || 0))[0] || { ver: 0, areas: {} };
@@ -4697,7 +4716,9 @@ async function mstPublish() {
   const h = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
   let sha; const g = await fetch(REPO_API + '?ref=main', { headers: h, cache: 'no-store' });
   if (g.ok) sha = (await g.json()).sha; else if (g.status === 401 || g.status === 403) throw new Error('token sem permissão (precisa de Contents: read and write neste repositório)'); else if (g.status !== 404) throw new Error('GitHub respondeu ' + g.status);
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
+  let content = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
+  if (window.__SECURE__) { const k = await secKey(); if (!k) throw new Error('sessão protegida expirada'); const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, new TextEncoder().encode(JSON.stringify(body)))); const all = new Uint8Array(12 + ct.length); all.set(iv); all.set(ct, 12); content = b64e(all); }
   const r = await fetch(REPO_API, { method: 'PUT', headers: h, body: JSON.stringify({ message: `Versão mestra v${body.ver}`, content, sha, branch: 'main' }) });
   if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error('GitHub respondeu ' + r.status + (j.message ? ': ' + j.message : '')); }
   MST = body; OB.data.mestre = MST; rawSet('mestreLocal', JSON.stringify(body));
@@ -4735,7 +4756,9 @@ function verInit() {
 
 // ---------------------------------------------------------------- início
 (async function main() {
+  if (window.__SECURE__ && !(await secGate())) return;
   theme(); pwa();
+  if (window.__SECURE__) { const p = $('#off-p'); if (p) { const d = document.createElement('div'); d.className = 'off-act'; d.innerHTML = '<button class="btn" type="button" id="sec-out">Sair e bloquear este aparelho</button><span class="note">Apaga a chave e os arquivos guardados neste aparelho; para voltar, use o código de acesso.</span>'; p.appendChild(d); $('#sec-out').onclick = () => { if (confirm('Sair e bloquear este aparelho?')) secLogout(); }; } }
   let data;
   try { data = await loadData(); } catch (e) { $('#boot').innerHTML = `Não foi possível carregar a base de dados (${esc(e.message)}). Abra o app por um servidor (GitHub Pages ou <code>python3 -m http.server</code>), não pelo arquivo local.`; return; }
   M = data.model; BASE = data.base; INS = data.insumos; wb = new Workbook(BASE, data.painel.cells);
